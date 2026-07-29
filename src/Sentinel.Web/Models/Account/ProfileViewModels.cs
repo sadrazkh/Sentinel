@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Sentinel.Application.Accounts;
+using Sentinel.Application.Notifications;
 using Sentinel.Application.Security;
 using Sentinel.Domain.Identity;
 
@@ -31,6 +32,17 @@ public sealed class ProfileViewModel
     public string? Email { get; set; }
 
     public IReadOnlyList<string> TimeZoneOptions { get; set; } = [];
+
+    /// <summary>Rendered read-only; changed through the dedicated Telegram endpoints.</summary>
+    public TelegramLinkState? Telegram { get; set; }
+
+    /// <summary>
+    /// The freshly issued deep link, if the member just asked to connect. Carried in TempData
+    /// and shown once — it embeds a single-use token.
+    /// </summary>
+    public string? TelegramDeepLink { get; set; }
+
+    public DateTimeOffset? TelegramDeepLinkExpiresAt { get; set; }
 
     public static ProfileViewModel From(ProfileEditModel model) => new()
     {

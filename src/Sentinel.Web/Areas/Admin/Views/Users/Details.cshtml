@@ -359,6 +359,45 @@
         }
     </section>
 
+    @* ----------------------------------------------------------------------- message ---- *@
+    @if (Model.CanWrite)
+    {
+        <section class="card">
+            <div class="card__header">
+                <div>
+                    <h2 class="card__title">@L["admin.messages.sendTo", user.DisplayName]</h2>
+                    <p class="card__hint">@L["admin.messages.sendTo.hint"]</p>
+                </div>
+            </div>
+
+            <form method="post" asp-area="Admin" asp-controller="Messages" asp-action="SendToUser"
+                  class="stack">
+                <input type="hidden" name="UserId" value="@user.Id" />
+
+                <div class="field">
+                    <label class="field__label" for="message-title">@L["admin.messages.subject"]</label>
+                    <input id="message-title" name="Title" class="input" required maxlength="200" />
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="message-body">@L["admin.messages.body"]</label>
+                    <textarea id="message-body" name="Body" class="input" rows="4" required
+                              maxlength="2000"
+                              style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+                </div>
+
+                <label class="checkbox">
+                    <input type="checkbox" name="DeliverToTelegram" value="true" checked />
+                    <span>@L["admin.messages.deliverToTelegram"]</span>
+                </label>
+
+                <div>
+                    <button type="submit" class="btn btn--primary btn--sm">@L["admin.messages.send"]</button>
+                </div>
+            </form>
+        </section>
+    }
+
     @* ------------------------------------------------------------------- entitlements ---- *@
     <section class="card card--flush">
         <div style="padding:var(--space-6) var(--space-6) var(--space-4)">

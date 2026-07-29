@@ -8,6 +8,7 @@ using Sentinel.Application.Catalog;
 using Sentinel.Application.Entitlements;
 using Sentinel.Application.Media;
 using Sentinel.Application.Memberships;
+using Sentinel.Application.Notifications;
 using Sentinel.Application.Security;
 using Sentinel.Application.Settings;
 using Sentinel.Application.Users;
@@ -18,6 +19,7 @@ using Sentinel.Infrastructure.Catalog;
 using Sentinel.Infrastructure.Entitlements;
 using Sentinel.Infrastructure.Media;
 using Sentinel.Infrastructure.Memberships;
+using Sentinel.Infrastructure.Notifications;
 using Sentinel.Infrastructure.Settings;
 using Sentinel.Infrastructure.Users;
 using Sentinel.Infrastructure.Persistence;
@@ -96,6 +98,38 @@ public static class DependencyInjection
         services.AddScoped<IAuditLogQuery, AuditLogQuery>();
         services.AddScoped<ISystemOverviewQuery, SystemOverviewQuery>();
         services.AddScoped<IRoleSummaryQuery, RoleSummaryQuery>();
+
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<ITelegramLinkService, TelegramLinkService>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the Telegram bot client and its two background services.
+    /// <para>
+    /// The client is registered as <c>null</c> when no token is configured, rather than the
+    /// feature being absent from the container: that way the channel and the link service
+    /// resolve normally and report "not configured" instead of the application failing to start
+    /// because an optional integration was left unset.
+    /// </para>
+    /// </summary>
+    public static IServiceCollection AddSentinelTelegram(
+        this IServiceCollection services,
+        TelegramOptions telegramOptions)
+    {
+        services.AddSingleton<ITelegramClientProvider, TelegramClientProvider>();
+        services.AddSingleton<INotificationChannel, TelegramNotificationChannel>();
+
+        if (telegramOptions.IsConfigured)
+        {
+            services.AddHostedService<NotificationDeliveryService>();
+
+            if (telegramOptions.UsePolling)
+            {
+                services.AddHostedService<TelegramBotPollingService>();
+            }
+        }
 
         return services;
     }

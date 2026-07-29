@@ -21,6 +21,12 @@
     <PackageVersion Include="Microsoft.Extensions.Identity.Stores" Version="$(AspNetCoreVersion)" />
   </ItemGroup>
 
+  <ItemGroup Label="Integrations">
+    <PackageVersion Include="Telegram.Bot" Version="22.10.2.1" />
+    <!-- BackgroundService, for the notification outbox and the bot receiver. -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="$(AspNetCoreVersion)" />
+  </ItemGroup>
+
   <ItemGroup Label="Cross-cutting">
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />

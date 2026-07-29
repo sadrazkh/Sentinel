@@ -8,6 +8,7 @@ using Sentinel.Domain.Common;
 using Sentinel.Domain.Entitlements;
 using Sentinel.Domain.Identity;
 using Sentinel.Domain.Memberships;
+using Sentinel.Domain.Notifications;
 using Sentinel.Domain.Security;
 using Sentinel.Infrastructure.Persistence.Converters;
 
@@ -36,6 +37,10 @@ public class SentinelDbContext
 
     public DbSet<UserSession> UserSessions => Set<UserSession>();
 
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<TelegramLinkToken> TelegramLinkTokens => Set<TelegramLinkToken>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -50,6 +55,11 @@ public class SentinelDbContext
                 .HasIndex(u => u.NormalizedPhoneNumber)
                 .IsUnique()
                 .HasFilter("[NormalizedPhoneNumber] IS NOT NULL");
+
+            builder.Entity<ApplicationUser>()
+                .HasIndex(u => u.TelegramUserId)
+                .IsUnique()
+                .HasFilter("[TelegramUserId] IS NOT NULL");
         }
     }
 

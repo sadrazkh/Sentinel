@@ -1,0 +1,10 @@
+@model int
+
+<a class="btn btn--ghost btn--sm" asp-area="" asp-controller="Notifications" asp-action="Index">
+    @L["nav.notifications"]
+    @if (Model > 0)
+    {
+        <span class="badge badge--accent badge--plain numeric"
+              aria-label="@L["notifications.unreadCount", Model]">@Model</span>
+    }
+</a>

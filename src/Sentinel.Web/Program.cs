@@ -14,6 +14,7 @@ using Sentinel.Application.Options;
 using Sentinel.Domain.Identity;
 using Sentinel.Infrastructure;
 using Sentinel.Infrastructure.Media;
+using Sentinel.Infrastructure.Notifications;
 using Sentinel.Infrastructure.Persistence;
 using Sentinel.Infrastructure.Seeding;
 using Sentinel.Web.Infrastructure;
@@ -67,6 +68,16 @@ builder.Services.AddOptions<MediaStorageOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services.AddOptions<TelegramOptions>()
+    .Bind(builder.Configuration.GetSection(TelegramOptions.SectionName))
+    .ValidateDataAnnotations()
+    .Validate(
+        options => !options.Enabled
+                   || string.IsNullOrWhiteSpace(options.PublicBaseUrl)
+                   || Uri.TryCreate(options.PublicBaseUrl, UriKind.Absolute, out _),
+        "Telegram:PublicBaseUrl must be an absolute URL when Telegram is enabled.")
+    .ValidateOnStart();
+
 // The provider must be known before the DbContext is registered, so this one section is also
 // read eagerly. ConnectionStrings:Sentinel wins, so hosts that only inject connection strings
 // (containers, PaaS) work without a second setting.
@@ -111,6 +122,15 @@ builder.Services.AddScoped<IPortalSignInService, PortalSignInService>();
 
 builder.Services.AddSentinelPersistence(databaseOptions);
 builder.Services.AddSentinelInfrastructure();
+
+// The bot is optional. With no token configured the integration stays dormant: no polling, no
+// delivery loop, and the portal simply does not offer to link an account. Notifications are
+// still written and still readable in the portal, so nothing is lost by leaving it unset.
+var telegramOptions = builder.Configuration
+    .GetSection(TelegramOptions.SectionName)
+    .Get<TelegramOptions>() ?? new TelegramOptions();
+
+builder.Services.AddSentinelTelegram(telegramOptions);
 
 // Cookies are encrypted with data-protection keys. In a container the default key ring lives
 // in the writable layer and disappears on redeploy, signing everybody out; persisting it to a

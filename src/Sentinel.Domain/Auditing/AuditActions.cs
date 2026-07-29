@@ -33,5 +33,11 @@ public static class AuditActions
     public const string ApplicationLaunched = "application.launched";
     public const string ApplicationLaunchDenied = "application.launch.denied";
 
+    public const string TelegramLinked = "telegram.linked";
+    public const string TelegramUnlinked = "telegram.unlinked";
+
+    public const string NotificationSent = "notification.sent";
+    public const string NotificationBroadcast = "notification.broadcast";
+
     public const string SettingsUpdated = "settings.updated";
 }

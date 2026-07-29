@@ -3,6 +3,7 @@ using Sentinel.Domain.Auditing;
 using Sentinel.Domain.Common;
 using Sentinel.Domain.Entitlements;
 using Sentinel.Domain.Memberships;
+using Sentinel.Domain.Notifications;
 using Sentinel.Domain.Security;
 
 namespace Sentinel.Domain.Identity;
@@ -18,6 +19,7 @@ public class ApplicationUser : IdentityUser<Guid>, ITimestamped
     public const int CultureMaxLength = 16;
     public const int TimeZoneMaxLength = 64;
     public const int NormalizedPhoneMaxLength = 16;
+    public const int TelegramUsernameMaxLength = 64;
 
     public string DisplayName { get; set; } = string.Empty;
 
@@ -28,6 +30,24 @@ public class ApplicationUser : IdentityUser<Guid>, ITimestamped
     /// claim the same number in different spellings.
     /// </summary>
     public string? NormalizedPhoneNumber { get; set; }
+
+    /// <summary>
+    /// The linked Telegram account, or <c>null</c>. Unique when present: one Telegram account
+    /// maps to one portal account, so a message can never be delivered to the wrong person and
+    /// a shared Telegram cannot be used to reach two members' notifications.
+    /// </summary>
+    public long? TelegramUserId { get; set; }
+
+    /// <summary>Display convenience only. Telegram usernames change; the id is the identity.</summary>
+    public string? TelegramUsername { get; set; }
+
+    public DateTimeOffset? TelegramLinkedAt { get; set; }
+
+    /// <summary>
+    /// Lets a member keep the link but silence the channel. Notifications are still written to
+    /// the portal — turning delivery off must not lose the message.
+    /// </summary>
+    public bool TelegramNotificationsEnabled { get; set; } = true;
 
     public UserAccountStatus Status { get; set; } = UserAccountStatus.Active;
 
@@ -61,4 +81,6 @@ public class ApplicationUser : IdentityUser<Guid>, ITimestamped
     public ICollection<LoginAttempt> LoginAttempts { get; set; } = new List<LoginAttempt>();
 
     public ICollection<AuditLog> ActedAuditLogs { get; set; } = new List<AuditLog>();
+
+    public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 }

@@ -1,0 +1,81 @@
+@model BroadcastMessageViewModel
+@{
+    ViewData["Title"] = L["admin.messages.broadcast"].Value;
+
+    var errors = ViewData.ModelState
+        .SelectMany(entry => entry.Value!.Errors)
+        .Select(error => error.ErrorMessage)
+        .Where(message => !string.IsNullOrWhiteSpace(message))
+        .Distinct()
+        .ToList();
+
+    string Localize(string message) =>
+        message.Contains('.') && !message.Contains(' ') ? L[message].Value : message;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.messages.broadcast"]</h1>
+        <p class="page-head__subtitle">@L["admin.messages.broadcast.subtitle"]</p>
+    </div>
+    <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="Users" asp-action="Index">
+        @L["admin.back"]
+    </a>
+</div>
+
+@if (errors.Count > 0)
+{
+    <div class="alert alert--danger" role="alert" style="margin-block-end:var(--space-6)">
+        <div>
+            @foreach (var error in errors)
+            {
+                <div>@Localize(error)</div>
+            }
+        </div>
+    </div>
+}
+
+<form method="post" class="card" style="max-inline-size:64ch">
+    <div class="stack">
+        <div class="alert alert--warning" role="note">
+            <span>@L["admin.messages.broadcast.warning"]</span>
+        </div>
+
+        <div class="field">
+            <label class="field__label" asp-for="Title">@L["admin.messages.subject"]</label>
+            <input class="input" asp-for="Title" required maxlength="200" />
+        </div>
+
+        <div class="field">
+            <label class="field__label" asp-for="Body">@L["admin.messages.body"]</label>
+            <textarea class="input" asp-for="Body" rows="6" required maxlength="2000"
+                      style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+        </div>
+
+        <div class="field">
+            <label class="field__label" asp-for="LinkPath">@L["admin.messages.link"]</label>
+            <input class="input" asp-for="LinkPath" dir="ltr" maxlength="512" placeholder="/Apps" />
+            <p class="text-xs text-muted">@L["admin.messages.link.hint"]</p>
+        </div>
+
+        <label class="checkbox">
+            <input type="checkbox" asp-for="DeliverToTelegram" />
+            <span>@L["admin.messages.deliverToTelegram"]</span>
+        </label>
+        <p class="text-xs text-muted">@L["admin.messages.deliverToTelegram.hint"]</p>
+
+        <div class="divider"></div>
+
+        <div class="field">
+            <label class="field__label" asp-for="Confirmation">
+                @L["admin.messages.confirmation", BroadcastMessageViewModel.RequiredConfirmation]
+            </label>
+            <input class="input" asp-for="Confirmation" dir="ltr" autocomplete="off"
+                   placeholder="@BroadcastMessageViewModel.RequiredConfirmation" />
+        </div>
+
+        <div>
+            <button type="submit" class="btn btn--danger">@L["admin.messages.broadcast.send"]</button>
+        </div>
+    </div>
+</form>

@@ -41,6 +41,13 @@ public sealed class ApplicationUserConfiguration : IEntityTypeConfiguration<Appl
         // SentinelDbContext adds for that provider only.
         builder.HasIndex(u => u.NormalizedPhoneNumber).IsUnique();
 
+        builder.Property(u => u.TelegramUsername)
+            .HasMaxLength(ApplicationUser.TelegramUsernameMaxLength);
+
+        // One Telegram account per portal account, for the same reason as the phone number:
+        // otherwise one Telegram chat could receive two members' notifications.
+        builder.HasIndex(u => u.TelegramUserId).IsUnique();
+
         builder.HasOne(u => u.Membership)
             .WithOne(m => m.User!)
             .HasForeignKey<Domain.Memberships.Membership>(m => m.UserId)

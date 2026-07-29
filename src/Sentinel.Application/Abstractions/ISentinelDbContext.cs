@@ -4,6 +4,7 @@ using Sentinel.Domain.Catalog;
 using Sentinel.Domain.Entitlements;
 using Sentinel.Domain.Identity;
 using Sentinel.Domain.Memberships;
+using Sentinel.Domain.Notifications;
 using Sentinel.Domain.Security;
 
 namespace Sentinel.Application.Abstractions;
@@ -32,6 +33,10 @@ public interface ISentinelDbContext
     DbSet<LoginAttempt> LoginAttempts { get; }
 
     DbSet<UserSession> UserSessions { get; }
+
+    DbSet<Notification> Notifications { get; }
+
+    DbSet<TelegramLinkToken> TelegramLinkTokens { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

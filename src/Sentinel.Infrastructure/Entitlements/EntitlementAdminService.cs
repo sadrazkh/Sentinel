@@ -3,7 +3,9 @@ using Sentinel.Application.Abstractions;
 using Sentinel.Application.Auditing;
 using Sentinel.Application.Common;
 using Sentinel.Application.Entitlements;
+using Sentinel.Application.Notifications;
 using Sentinel.Domain.Auditing;
+using Sentinel.Domain.Notifications;
 using Sentinel.Domain.Common;
 using Sentinel.Domain.Entitlements;
 
@@ -13,17 +15,20 @@ public sealed class EntitlementAdminService : IEntitlementAdminService
 {
     private readonly ISentinelDbContext _db;
     private readonly IAuditService _audit;
+    private readonly INotificationService _notifications;
     private readonly IClientContext _clientContext;
     private readonly TimeProvider _timeProvider;
 
     public EntitlementAdminService(
         ISentinelDbContext db,
         IAuditService audit,
+        INotificationService notifications,
         IClientContext clientContext,
         TimeProvider timeProvider)
     {
         _db = db;
         _audit = audit;
+        _notifications = notifications;
         _clientContext = clientContext;
         _timeProvider = timeProvider;
     }
@@ -96,6 +101,22 @@ public sealed class EntitlementAdminService : IEntitlementAdminService
                     .Set("expiresAt", request.ExpiresAt)
                     .Set("reinstated", wasRevoked),
             },
+            cancellationToken);
+
+        // Staged on the same unit of work as the grant, so the member is never told about
+        // access that then failed to save — nor left unaware of access that did.
+        var applicationName = await _db.PortalApplications
+            .Where(a => a.Id == applicationId)
+            .Select(a => a.NameEn)
+            .FirstOrDefaultAsync(cancellationToken) ?? "an application";
+
+        await _notifications.CreateAsync(
+            userId,
+            new NewNotification(
+                NotificationKind.Entitlement,
+                "Access granted",
+                $"You now have access to {applicationName}.",
+                LinkPath: "/Apps"),
             cancellationToken);
 
         try

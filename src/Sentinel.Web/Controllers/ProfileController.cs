@@ -6,6 +6,7 @@ using Microsoft.Extensions.Localization;
 using Sentinel.Application.Accounts;
 using Sentinel.Application.Authorization;
 using Sentinel.Application.Common;
+using Sentinel.Application.Notifications;
 using Sentinel.Web.Localization;
 using Sentinel.Web.Models.Account;
 using Sentinel.Web.Services;
@@ -33,15 +34,18 @@ public sealed class ProfileController : Controller
 
     private readonly IProfileService _profile;
     private readonly IPortalSignInService _signInService;
+    private readonly ITelegramLinkService _telegram;
     private readonly IStringLocalizer<SharedResource> _localizer;
 
     public ProfileController(
         IProfileService profile,
         IPortalSignInService signInService,
+        ITelegramLinkService telegram,
         IStringLocalizer<SharedResource> localizer)
     {
         _profile = profile;
         _signInService = signInService;
+        _telegram = telegram;
         _localizer = localizer;
     }
 
@@ -64,6 +68,17 @@ public sealed class ProfileController : Controller
 
         var model = ProfileViewModel.From(profile);
         model.TimeZoneOptions = BuildTimeZoneOptions(profile.TimeZoneId);
+        model.Telegram = await _telegram.GetStateAsync(userId, cancellationToken);
+
+        // Shown once, straight after the connect request. The link carries a single-use token,
+        // so it is never persisted into the page's own URL.
+        model.TelegramDeepLink = TempData["TelegramDeepLink"] as string;
+
+        if (TempData["TelegramDeepLinkExpiresAt"] is string expiresAt
+            && DateTimeOffset.TryParse(expiresAt, out var parsed))
+        {
+            model.TelegramDeepLinkExpiresAt = parsed;
+        }
 
         return View(model);
     }
@@ -127,13 +142,15 @@ public sealed class ProfileController : Controller
         Guid userId,
         CancellationToken cancellationToken)
     {
-        // Username and e-mail are display-only; they are never bound from the form, so they
-        // have to be re-read rather than trusted from the post.
+        // Username, e-mail and the Telegram state are display-only; they are never bound from
+        // the form, so they have to be re-read rather than trusted from the post.
         if (await _profile.GetAsync(userId, cancellationToken) is { } current)
         {
             model.UserName = current.UserName;
             model.Email = current.Email;
         }
+
+        model.Telegram = await _telegram.GetStateAsync(userId, cancellationToken);
     }
 
     private static IReadOnlyList<string> BuildTimeZoneOptions(string? current)

@@ -71,6 +71,8 @@
                     @L["nav.security"]
                 </a>
 
+                @await Component.InvokeAsync("UnreadNotifications")
+
                 @if (canSeeBackOffice)
                 {
                     <a class="btn btn--ghost btn--sm"

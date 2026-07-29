@@ -58,6 +58,12 @@
             <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="Audit" asp-action="Index">
                 @L["admin.nav.audit"]
             </a>
+            @if (User.IsInRole(RoleNames.SuperAdmin) || User.IsInRole(RoleNames.Admin))
+            {
+                <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="Messages" asp-action="Broadcast">
+                    @L["admin.nav.messages"]
+                </a>
+            }
             @if (User.IsInRole(RoleNames.SuperAdmin))
             {
                 @* Shown by role for convenience; the controller's policy is what enforces it. *@

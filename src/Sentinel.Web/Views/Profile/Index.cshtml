@@ -119,4 +119,114 @@
             @L["profile.contactSupportToChange"]
         </p>
     </section>
+
+    @if (Model.Telegram is { IsConfigured: true } telegram)
+    {
+        <section class="card" style="grid-column:1/-1">
+            <div class="card__header">
+                <div>
+                    <h2 class="card__title">@L["telegram.title"]</h2>
+                    <p class="card__hint">@L["telegram.subtitle"]</p>
+                </div>
+                @if (telegram.IsLinked)
+                {
+                    <span class="badge badge--success">@L["telegram.connected"]</span>
+                }
+                else
+                {
+                    <span class="badge badge--neutral">@L["telegram.notConnected"]</span>
+                }
+            </div>
+
+            <div class="stack">
+                @if (telegram.IsLinked)
+                {
+                    <dl class="stack stack--tight">
+                        @if (!string.IsNullOrEmpty(telegram.TelegramUsername))
+                        {
+                            <div>
+                                <dt class="stat__label">@L["telegram.account"]</dt>
+                                <dd class="mono" style="margin:var(--space-1) 0 0" dir="ltr">
+                                    @@@telegram.TelegramUsername
+                                </dd>
+                            </div>
+                        }
+                        @if (telegram.LinkedAt is { } linkedAt)
+                        {
+                            <div>
+                                <dt class="stat__label">@L["telegram.linkedAt"]</dt>
+                                <dd style="margin:var(--space-1) 0 0">
+                                    <time datetime="@UserTime.ToIso8601(linkedAt)">
+                                        @UserTime.Format(linkedAt, Model.TimeZoneId)
+                                    </time>
+                                </dd>
+                            </div>
+                        }
+                    </dl>
+
+                    <div class="divider"></div>
+
+                    <div class="cluster">
+                        <form method="post" asp-controller="Telegram" asp-action="SetNotifications">
+                            <input type="hidden" name="enabled" value="@(!telegram.NotificationsEnabled)" />
+                            <button type="submit" class="btn btn--outline btn--sm">
+                                @(telegram.NotificationsEnabled
+                                    ? L["telegram.mute"].Value
+                                    : L["telegram.unmute"].Value)
+                            </button>
+                        </form>
+
+                        <form method="post" asp-controller="Telegram" asp-action="Disconnect">
+                            <button type="submit" class="btn btn--danger btn--sm"
+                                    data-confirm="@L["telegram.disconnect.confirm"]"
+                                    data-confirm-title="@L["telegram.disconnect"]"
+                                    data-confirm-yes="@L["common.confirm"]"
+                                    data-confirm-no="@L["common.cancel"]">
+                                @L["telegram.disconnect"]
+                            </button>
+                        </form>
+                    </div>
+
+                    @if (!telegram.NotificationsEnabled)
+                    {
+                        <div class="alert alert--info" role="note">
+                            <span>@L["telegram.mutedNotice"]</span>
+                        </div>
+                    }
+                }
+                else if (!string.IsNullOrEmpty(Model.TelegramDeepLink))
+                {
+                    @* Shown once, immediately after requesting a link. The URL carries a
+                       single-use token that expires in minutes. *@
+                    <div class="alert alert--success" role="status">
+                        <div>
+                            <p>@L["telegram.linkReady"]</p>
+                            @if (Model.TelegramDeepLinkExpiresAt is { } expiresAt)
+                            {
+                                <p class="text-xs" style="margin-block-start:var(--space-2)">
+                                    @L["telegram.linkExpires",
+                                        UserTime.Format(expiresAt, Model.TimeZoneId, "HH:mm")]
+                                </p>
+                            }
+                        </div>
+                    </div>
+
+                    <a class="btn btn--primary" href="@Model.TelegramDeepLink"
+                       target="_blank" rel="noopener noreferrer">
+                        @L["telegram.openTelegram"]
+                    </a>
+
+                    <p class="text-xs text-muted">@L["telegram.linkInstructions"]</p>
+                }
+                else
+                {
+                    <p class="text-sm text-secondary">@L["telegram.explainer"]</p>
+
+                    <form method="post" asp-controller="Telegram" asp-action="Connect">
+                        <button type="submit" class="btn btn--primary">@L["telegram.connect"]</button>
+                    </form>
+                }
+            </div>
+        </section>
+    }
 </div>

@@ -1,0 +1,139 @@
+@using Sentinel.Domain.Notifications
+@model Sentinel.Web.Models.Notifications.NotificationsViewModel
+@{
+    ViewData["Title"] = L["notifications.title"].Value;
+    var notifications = Model.Notifications;
+
+    string KindBadge(NotificationKind kind) => kind switch
+    {
+        NotificationKind.AdminMessage => "badge--accent",
+        NotificationKind.Membership => "badge--info",
+        NotificationKind.Entitlement => "badge--success",
+        NotificationKind.Security => "badge--warning",
+        NotificationKind.Subscription => "badge--info",
+        _ => "badge--neutral",
+    };
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["notifications.title"]</h1>
+        <p class="page-head__subtitle">@L["notifications.subtitle"]</p>
+    </div>
+    @if (Model.UnreadCount > 0)
+    {
+        <form method="post" asp-action="MarkAllRead">
+            <button type="submit" class="btn btn--ghost btn--sm">@L["notifications.markAllRead"]</button>
+        </form>
+    }
+</div>
+
+<div class="stack">
+    @if (notifications.TotalCount == 0)
+    {
+        <div class="card">
+            <div class="empty-state">
+                <div class="empty-state__icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 8.5a6 6 0 1 0-12 0c0 6-2 7.5-2 7.5h16s-2-1.5-2-7.5z" />
+                        <path d="M10.5 19.5a2 2 0 0 0 3 0" />
+                    </svg>
+                </div>
+                <p class="empty-state__title">@L["notifications.empty.title"]</p>
+                <p class="empty-state__body">@L["notifications.empty.body"]</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        @foreach (var notification in notifications.Items)
+        {
+            <article class="card" style="@(notification.IsRead ? "box-shadow:none;background-color:var(--surface-canvas)" : "")">
+                <div class="card__header">
+                    <div style="min-inline-size:0">
+                        <div class="cluster">
+                            <span class="badge @KindBadge(notification.Kind) badge--plain">
+                                @L[$"notificationKind.{notification.Kind.ToString().ToLowerInvariant()}"]
+                            </span>
+                            @if (!notification.IsRead)
+                            {
+                                <span class="badge badge--accent">@L["notifications.unread"]</span>
+                            }
+                        </div>
+                        @* Both title and body are administrator free text. Razor encodes them;
+                           no Html.Raw anywhere on this page. *@
+                        <h2 class="card__title" style="margin-block-start:var(--space-2)">
+                            @notification.Title
+                        </h2>
+                    </div>
+                    <time class="text-xs text-muted" datetime="@UserTime.ToIso8601(notification.CreatedAt)">
+                        @UserTime.Format(notification.CreatedAt, Model.TimeZoneId)
+                    </time>
+                </div>
+
+                <p class="text-sm text-secondary" style="white-space:pre-wrap">@notification.Body</p>
+
+                <div class="cluster" style="margin-block-start:var(--space-4)">
+                    @if (!string.IsNullOrEmpty(notification.LinkPath))
+                    {
+                        <form method="post" asp-action="Open">
+                            <input type="hidden" name="id" value="@notification.Id" />
+                            <button type="submit" class="btn btn--outline btn--sm">
+                                @L["notifications.open"]
+                            </button>
+                        </form>
+                    }
+
+                    @if (!notification.IsRead)
+                    {
+                        <form method="post" asp-action="MarkRead">
+                            <input type="hidden" name="id" value="@notification.Id" />
+                            <button type="submit" class="btn btn--ghost btn--sm">
+                                @L["notifications.markRead"]
+                            </button>
+                        </form>
+                    }
+                </div>
+            </article>
+        }
+
+        @if (notifications.TotalPages > 1)
+        {
+            <div class="card cluster" style="justify-content:space-between;padding:var(--space-4)"
+                 role="navigation" aria-label="@L["admin.pager.label"]">
+                <span class="text-xs text-muted">
+                    @L["admin.pager.page", notifications.Page, notifications.TotalPages]
+                </span>
+
+                <div class="cluster">
+                    @if (notifications.HasPrevious)
+                    {
+                        <a class="btn btn--ghost btn--sm" asp-action="Index"
+                           asp-route-page="@(notifications.Page - 1)"
+                           asp-route-pageSize="@notifications.PageSize">
+                            @L["admin.pager.previous"]
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="btn btn--ghost btn--sm" aria-disabled="true">@L["admin.pager.previous"]</span>
+                    }
+
+                    @if (notifications.HasNext)
+                    {
+                        <a class="btn btn--ghost btn--sm" asp-action="Index"
+                           asp-route-page="@(notifications.Page + 1)"
+                           asp-route-pageSize="@notifications.PageSize">
+                            @L["admin.pager.next"]
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="btn btn--ghost btn--sm" aria-disabled="true">@L["admin.pager.next"]</span>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
