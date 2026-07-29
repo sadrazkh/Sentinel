@@ -1,9 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Sentinel.Application.Abstractions;
+using Sentinel.Application.Access;
 using Sentinel.Application.Accounts;
 using Sentinel.Application.Auditing;
+using Sentinel.Application.Memberships;
 using Sentinel.Application.Security;
+using Sentinel.Infrastructure.Access;
 using Sentinel.Infrastructure.Accounts;
 using Sentinel.Infrastructure.Auditing;
 using Sentinel.Infrastructure.Persistence;
@@ -60,6 +63,10 @@ public static class DependencyInjection
         services.AddScoped<IUserSessionService, UserSessionService>();
         services.AddScoped<ILoginAttemptService, LoginAttemptService>();
         services.AddScoped<IAccountOverviewQuery, AccountOverviewQuery>();
+
+        // Stateless apart from its options, so a singleton is enough.
+        services.AddSingleton<IMembershipStatusResolver, MembershipStatusResolver>();
+        services.AddScoped<IAccessDecisionService, AccessDecisionService>();
 
         return services;
     }

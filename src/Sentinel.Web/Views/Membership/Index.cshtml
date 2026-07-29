@@ -1,0 +1,186 @@
+@using Sentinel.Domain.Memberships
+@using Sentinel.Web.Models.Membership
+@model MembershipIndexViewModel
+@{
+    ViewData["Title"] = L["membership.title"].Value;
+
+    var membership = Model.Membership;
+    var statusLabel = L[AccessPresentation.MembershipStatusKey(membership.Status)].Value;
+    var statusBadge = AccessPresentation.MembershipBadgeClass(membership.Status);
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["membership.title"]</h1>
+        <p class="page-head__subtitle">@L["membership.subtitle"]</p>
+    </div>
+    <span class="badge @statusBadge">@statusLabel</span>
+</div>
+
+@if (membership.Status == MembershipStatus.None)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="6" width="18" height="13" rx="2.5" />
+                    <path d="M3 10.5h18M7 15h4" />
+                </svg>
+            </div>
+            <p class="empty-state__title">@L["membership.none.title"]</p>
+            <p class="empty-state__body">@L["membership.none.body"]</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack" style="gap:var(--space-6)">
+
+        @if (membership.IsInGracePeriod)
+        {
+            <div class="alert alert--warning" role="status">
+                <span>@L["membership.gracePeriod.notice", membership.DaysRemaining ?? 0]</span>
+            </div>
+        }
+        else if (membership.Status == MembershipStatus.Expired)
+        {
+            <div class="alert alert--danger" role="status">
+                <span>@L["membership.expired.notice"]</span>
+            </div>
+        }
+        else if (membership.IsRenewalDueSoon && membership.DaysRemaining is { } soon)
+        {
+            <div class="alert alert--warning" role="status">
+                <span>@L["membership.renewalWarning", soon]</span>
+            </div>
+        }
+
+        <section class="grid grid--stats">
+            <div class="stat">
+                <div class="stat__label">@L["membership.status"]</div>
+                <div class="stat__value" style="font-size:var(--text-md)">@statusLabel</div>
+            </div>
+
+            <div class="stat">
+                <div class="stat__label">@L["membership.tier"]</div>
+                <div class="stat__value" style="font-size:var(--text-md)">
+                    @(membership.Tier is { } tier ? L[AccessPresentation.TierKey(tier)].Value : L["account.notSet"].Value)
+                </div>
+            </div>
+
+            <div class="stat">
+                <div class="stat__label">@L["membership.endsAt"]</div>
+                <div class="stat__value" style="font-size:var(--text-md)">
+                    @if (membership.EndsAt is { } endsAt)
+                    {
+                        <time datetime="@UserTime.ToIso8601(endsAt)">
+                            @UserTime.Format(endsAt, Model.TimeZoneId, "yyyy/MM/dd")
+                        </time>
+                    }
+                    else
+                    {
+                        @L["membership.openEnded"]
+                    }
+                </div>
+                @if (membership.AccessEndsAt is { } accessEndsAt && membership.AccessEndsAt != membership.EndsAt)
+                {
+                    <div class="stat__meta">
+                        @L["membership.accessUntil", UserTime.Format(accessEndsAt, Model.TimeZoneId, "yyyy/MM/dd")]
+                    </div>
+                }
+            </div>
+
+            <div class="stat">
+                <div class="stat__label">@L["membership.daysRemaining"]</div>
+                <div class="stat__value">
+                    @(membership.DaysRemaining?.ToString() ?? "—")
+                </div>
+                @if (membership.StartsAt is { } startsAt)
+                {
+                    <div class="stat__meta">
+                        @L["membership.startedAt", UserTime.Format(startsAt, Model.TimeZoneId, "yyyy/MM/dd")]
+                    </div>
+                }
+            </div>
+        </section>
+
+        <section class="card card--flush">
+            <div style="padding:var(--space-6) var(--space-6) var(--space-4)">
+                <h2 class="card__title">@L["membership.unlocked.title"]</h2>
+                <p class="card__hint">@L["membership.unlocked.hint"]</p>
+            </div>
+
+            @if (Model.UnlockedApplications.Count == 0)
+            {
+                <div class="empty-state">
+                    <p class="empty-state__title">@L["membership.unlocked.empty.title"]</p>
+                    <p class="empty-state__body">@L["membership.unlocked.empty.body"]</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-scroll">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th scope="col">@L["membership.table.application"]</th>
+                            <th scope="col">@L["membership.table.minimumTier"]</th>
+                            <th scope="col"></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var app in Model.UnlockedApplications)
+                        {
+                            <tr>
+                                <td>@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa" ? app.NameFa : app.NameEn)</td>
+                                <td class="text-secondary">
+                                    @(app.MinimumTier is { } minimum ? L[AccessPresentation.TierKey(minimum)].Value : "—")
+                                </td>
+                                <td>
+                                    <a class="btn btn--outline btn--sm"
+                                       asp-controller="Apps" asp-action="Open"
+                                       asp-route-key="@app.Key"
+                                       target="_blank" rel="noopener noreferrer">@L["apps.open"]</a>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        @if (Model.LockedApplications.Count > 0)
+        {
+            <section class="card card--flush">
+                <div style="padding:var(--space-6) var(--space-6) var(--space-4)">
+                    <h2 class="card__title">@L["membership.locked.title"]</h2>
+                    <p class="card__hint">@L["membership.locked.hint"]</p>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th scope="col">@L["membership.table.application"]</th>
+                            <th scope="col">@L["membership.table.reason"]</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var app in Model.LockedApplications)
+                        {
+                            <tr>
+                                <td>@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa" ? app.NameFa : app.NameEn)</td>
+                                <td class="text-secondary">
+                                    @L[AccessPresentation.DenialReasonKey(app.Decision.Reason)]
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+    </div>
+}

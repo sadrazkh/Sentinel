@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Sentinel.Application.Access;
 using Sentinel.Application.Accounts;
 using Sentinel.Application.Authorization;
 using Sentinel.Domain.Identity;
@@ -13,9 +14,19 @@ public sealed class DashboardController : Controller
 {
     private const int RecentLoginCount = 5;
 
-    private readonly IAccountOverviewQuery _accountOverview;
+    /// <summary>How many application cards the dashboard shows before deferring to My Apps.</summary>
+    private const int FeaturedApplicationCount = 4;
 
-    public DashboardController(IAccountOverviewQuery accountOverview) => _accountOverview = accountOverview;
+    private readonly IAccountOverviewQuery _accountOverview;
+    private readonly IAccessDecisionService _accessDecisions;
+
+    public DashboardController(
+        IAccountOverviewQuery accountOverview,
+        IAccessDecisionService accessDecisions)
+    {
+        _accountOverview = accountOverview;
+        _accessDecisions = accessDecisions;
+    }
 
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -35,7 +46,16 @@ public sealed class DashboardController : Controller
             return Forbid();
         }
 
+        var catalog = await _accessDecisions.GetCatalogAsync(userId, cancellationToken);
         var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+
+        // Launchable applications first, so the dashboard leads with what the member can
+        // actually use rather than with what they cannot.
+        var featured = catalog.Applications
+            .OrderByDescending(a => a.CanLaunch)
+            .ThenBy(a => a.DisplayOrder)
+            .Take(FeaturedApplicationCount)
+            .ToList();
 
         return View(new DashboardViewModel
         {
@@ -51,6 +71,11 @@ public sealed class DashboardController : Controller
             RecentLoginAttempts = overview.RecentLoginAttempts,
             Roles = roles,
             CanAccessBackOffice = roles.Intersect(RoleNames.BackOffice, StringComparer.Ordinal).Any(),
+            Membership = catalog.Membership,
+            FeaturedApplications = featured,
+            AccessibleApplicationCount = catalog.AccessibleCount,
+            LockedApplicationCount = catalog.LockedCount,
+            ComingSoonApplicationCount = catalog.ComingSoonCount,
         });
     }
 }

@@ -1,0 +1,45 @@
+@using System.Globalization
+@using Sentinel.Application.Access
+@model IReadOnlyList<ApplicationCard>
+@{
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+}
+
+@* Rendered inside <noscript>. The Vue island owns the rich grid, but a member without
+   scripting still gets a complete, working list — the launch links go to the same server
+   endpoint and are subject to exactly the same checks. *@
+<ul class="stack stack--tight">
+    @foreach (var app in Model)
+    {
+        var name = isPersian ? app.NameFa : app.NameEn;
+        var description = isPersian ? app.DescriptionFa : app.DescriptionEn;
+        var (badgeClass, badgeLabelKey) = AccessPresentation.CardStatusBadge(app);
+
+        <li class="card" style="padding:var(--space-4)">
+            <div class="cluster" style="justify-content:space-between">
+                <strong>@name</strong>
+                <span class="badge @badgeClass">@L[badgeLabelKey]</span>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(description))
+            {
+                <p class="text-sm text-secondary" style="margin-block-start:var(--space-2)">@description</p>
+            }
+
+            <div style="margin-block-start:var(--space-3)">
+                @if (app.CanLaunch)
+                {
+                    <a class="btn btn--outline btn--sm"
+                       href="@Url.Action("Open", "Apps", new { key = app.Key })"
+                       target="_blank" rel="noopener noreferrer">@L["apps.open"]</a>
+                }
+                else
+                {
+                    <span class="text-xs text-muted">
+                        @L[AccessPresentation.DenialReasonKey(app.Decision.Reason)]
+                    </span>
+                }
+            </div>
+        </li>
+    }
+</ul>

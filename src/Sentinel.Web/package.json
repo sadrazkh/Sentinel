@@ -9,6 +9,7 @@
     "watch": "vite build --watch"
   },
   "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
     "vite": "^6.3.5"
   },
   "dependencies": {

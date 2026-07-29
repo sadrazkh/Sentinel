@@ -1,6 +1,9 @@
 using System.Globalization;
+using System.Text.Encodings.Web;
+using System.Text.Unicode;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.WebEncoders;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
@@ -203,6 +206,22 @@ builder.Services.AddControllersWithViews(options =>
     // [ValidateAntiForgeryToken] means one forgotten attribute is one CSRF hole.
     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
 });
+
+// By default the HTML encoder only lets Basic Latin through unescaped, so every Persian
+// character is emitted as a numeric entity — correct, but it roughly triples the size of a
+// Persian page and makes the markup unreadable. Widening the allow-list to the Arabic script
+// costs nothing in safety: '<', '>', '&', '"' and '\'' are still encoded, and the response
+// declares charset=utf-8, which is what the Basic-Latin default is guarding against.
+builder.Services.Configure<WebEncoderOptions>(options =>
+    options.TextEncoderSettings = new TextEncoderSettings(
+        UnicodeRanges.BasicLatin,
+        UnicodeRanges.Latin1Supplement,
+        UnicodeRanges.Arabic,
+        UnicodeRanges.ArabicSupplement,
+        UnicodeRanges.ArabicExtendedA,
+        UnicodeRanges.ArabicPresentationFormsA,
+        UnicodeRanges.ArabicPresentationFormsB,
+        UnicodeRanges.GeneralPunctuation));
 
 builder.Services.AddSingleton<LocalizationStore>();
 builder.Services.AddSingleton<IStringLocalizerFactory, JsonStringLocalizerFactory>();

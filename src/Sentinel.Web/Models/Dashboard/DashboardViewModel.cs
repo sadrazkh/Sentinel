@@ -1,3 +1,5 @@
+using Sentinel.Application.Access;
+using Sentinel.Application.Memberships;
 using Sentinel.Application.Security;
 using Sentinel.Domain.Identity;
 
@@ -30,4 +32,15 @@ public sealed class DashboardViewModel
 
     /// <summary>Whether the admin area link is shown. The area itself re-checks on the server.</summary>
     public required bool CanAccessBackOffice { get; init; }
+
+    public required MembershipSnapshot Membership { get; init; }
+
+    /// <summary>The few applications highlighted on the dashboard; the full set lives on My Apps.</summary>
+    public required IReadOnlyList<ApplicationCard> FeaturedApplications { get; init; }
+
+    public required int AccessibleApplicationCount { get; init; }
+
+    public required int LockedApplicationCount { get; init; }
+
+    public required int ComingSoonApplicationCount { get; init; }
 }

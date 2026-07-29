@@ -1,6 +1,11 @@
+@using Sentinel.Domain.Memberships
+@using Sentinel.Web.Models.Apps
 @model Sentinel.Web.Models.Dashboard.DashboardViewModel
 @{
     ViewData["Title"] = L["dashboard.title"].Value;
+
+    var culture = CultureInfo.CurrentUICulture;
+    var membership = Model.Membership;
 
     var (statusVariant, statusLabel) = Model.Status switch
     {
@@ -8,6 +13,17 @@
         UserAccountStatus.Suspended => ("badge--danger", L["status.suspended"].Value),
         _ => ("badge--neutral", L["status.disabled"].Value),
     };
+
+    var membershipLabel = L[AccessPresentation.MembershipStatusKey(membership.Status)].Value;
+    var membershipBadge = AccessPresentation.MembershipBadgeClass(membership.Status);
+
+    var featuredPayload = IslandPayload.Serialize(
+        Model.FeaturedApplications
+            .Select(card => AppCardPayload.From(
+                card, L, culture, key => Url.Action("Open", "Apps", new { key })!))
+            .ToList());
+
+    var labels = IslandPayload.Serialize(AppGridLabels.From(L));
 }
 
 <div class="page-head">
@@ -15,25 +31,76 @@
         <h1 class="page-head__title">@L["dashboard.greeting", Model.DisplayName]</h1>
         <p class="page-head__subtitle">@L["dashboard.subtitle"]</p>
     </div>
-    <span class="badge @statusVariant">@statusLabel</span>
+    <div class="cluster">
+        <span class="badge @membershipBadge">@membershipLabel</span>
+        <span class="badge @statusVariant">@statusLabel</span>
+    </div>
 </div>
 
 <div class="stack" style="gap:var(--space-6)">
 
-    <section class="grid grid--stats" aria-label="@L["account.section.title"]">
+    @if (membership.Status == MembershipStatus.Expired)
+    {
+        <div class="alert alert--danger" role="status">
+            <span>
+                @L["membership.expired.notice"]
+                <a asp-controller="Membership" asp-action="Index">@L["membership.viewDetails"]</a>
+            </span>
+        </div>
+    }
+    else if (membership.IsInGracePeriod)
+    {
+        <div class="alert alert--warning" role="status">
+            <span>
+                @L["membership.gracePeriod.notice", membership.DaysRemaining ?? 0]
+                <a asp-controller="Membership" asp-action="Index">@L["membership.viewDetails"]</a>
+            </span>
+        </div>
+    }
+    else if (membership.IsRenewalDueSoon && membership.DaysRemaining is { } daysLeft)
+    {
+        <div class="alert alert--warning" role="status">
+            <span>
+                @L["membership.renewalWarning", daysLeft]
+                <a asp-controller="Membership" asp-action="Index">@L["membership.viewDetails"]</a>
+            </span>
+        </div>
+    }
+
+    <section class="grid grid--stats" aria-label="@L["dashboard.summary"]">
         <div class="stat">
-            <div class="stat__label">@L["account.status"]</div>
-            <div class="stat__value">@statusLabel</div>
-            @if (Model.Status == UserAccountStatus.Suspended && Model.SuspendedUntil is { } until)
+            <div class="stat__label">@L["membership.status"]</div>
+            <div class="stat__value" style="font-size:var(--text-md)">@membershipLabel</div>
+            @if (membership.Tier is { } tier)
             {
-                <div class="stat__meta">@L["account.suspendedUntil", UserTime.Format(until, Model.TimeZoneId)]</div>
+                <div class="stat__meta">@L[AccessPresentation.TierKey(tier)]</div>
             }
         </div>
 
         <div class="stat">
-            <div class="stat__label">@L["security.activeSessions"]</div>
-            <div class="stat__value">@Model.ActiveSessionCount</div>
-            <div class="stat__meta">@L["security.activeSessions.hint"]</div>
+            <div class="stat__label">@L["membership.daysRemaining"]</div>
+            <div class="stat__value">@(membership.DaysRemaining?.ToString() ?? "—")</div>
+            @if (membership.EndsAt is { } endsAt)
+            {
+                <div class="stat__meta">
+                    <time datetime="@UserTime.ToIso8601(endsAt)">
+                        @UserTime.Format(endsAt, Model.TimeZoneId, "yyyy/MM/dd")
+                    </time>
+                </div>
+            }
+            else if (membership.Status == MembershipStatus.Active)
+            {
+                <div class="stat__meta">@L["membership.openEnded"]</div>
+            }
+        </div>
+
+        <div class="stat">
+            <div class="stat__label">@L["dashboard.availableApps"]</div>
+            <div class="stat__value">@Model.AccessibleApplicationCount</div>
+            @if (Model.ComingSoonApplicationCount > 0)
+            {
+                <div class="stat__meta">@L["dashboard.comingSoonCount", Model.ComingSoonApplicationCount]</div>
+            }
         </div>
 
         <div class="stat">
@@ -50,24 +117,42 @@
                     @L["account.never"]
                 }
             </div>
+            <div class="stat__meta">@L["security.activeSessions"]: @Model.ActiveSessionCount</div>
+        </div>
+    </section>
+
+    <section>
+        <div class="page-head" style="margin-block-end:var(--space-4)">
+            <h2 class="card__title">@L["dashboard.yourApps"]</h2>
+            <a class="btn btn--ghost btn--sm" asp-controller="Apps" asp-action="Index">
+                @L["dashboard.viewAllApps"]
+            </a>
         </div>
 
-        <div class="stat">
-            <div class="stat__label">@L["account.createdAt"]</div>
-            <div class="stat__value" style="font-size:var(--text-md)">
-                <time datetime="@UserTime.ToIso8601(Model.CreatedAt)">
-                    @UserTime.Format(Model.CreatedAt, Model.TimeZoneId, "yyyy/MM/dd")
-                </time>
+        @if (Model.FeaturedApplications.Count == 0)
+        {
+            <div class="card">
+                <div class="empty-state">
+                    <p class="empty-state__title">@L["apps.empty.title"]</p>
+                    <p class="empty-state__body">@L["apps.empty.body"]</p>
+                </div>
             </div>
-        </div>
+        }
+        else
+        {
+            @* Same AppCard component as My Apps, so a card cannot drift between the two pages. *@
+            <div id="dashboard-apps-island" data-apps="@featuredPayload" data-labels="@labels"></div>
+
+            <noscript>
+                @await Html.PartialAsync("_AppFallbackList", Model.FeaturedApplications)
+            </noscript>
+        }
     </section>
 
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))">
         <section class="card">
             <div class="card__header">
-                <div>
-                    <h2 class="card__title">@L["account.section.title"]</h2>
-                </div>
+                <h2 class="card__title">@L["account.section.title"]</h2>
             </div>
 
             <dl class="stack stack--tight">
@@ -203,3 +288,7 @@
         }
     </section>
 </div>
+
+@section Scripts {
+    <script type="module" src="~/js/dist/page-dashboard.js" asp-append-version="true"></script>
+}

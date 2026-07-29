@@ -1,0 +1,74 @@
+@using System.Globalization
+@using Sentinel.Web.Models.Apps
+@model AppsIndexViewModel
+@{
+    ViewData["Title"] = L["apps.title"].Value;
+
+    var culture = CultureInfo.CurrentUICulture;
+
+    // The payload is built server-side, already translated, and travels in a data- attribute.
+    // Razor encodes the attribute value and the browser's dataset API decodes it, so no raw
+    // HTML is emitted anywhere on this page.
+    var payload = IslandPayload.Serialize(
+        Model.Applications
+            .Select(card => AppCardPayload.From(
+                card, L, culture, key => Url.Action("Open", "Apps", new { key })!))
+            .ToList());
+
+    var labels = IslandPayload.Serialize(AppGridLabels.From(L));
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["apps.title"]</h1>
+        <p class="page-head__subtitle">@L["apps.subtitle"]</p>
+    </div>
+    <div class="cluster">
+        <span class="badge badge--success">@L["apps.count.available", Model.AccessibleCount]</span>
+        @if (Model.LockedCount > 0)
+        {
+            <span class="badge badge--neutral">@L["apps.count.locked", Model.LockedCount]</span>
+        }
+    </div>
+</div>
+
+@if (Model.Membership.IsRenewalDueSoon && Model.Membership.DaysRemaining is { } daysLeft)
+{
+    <div class="alert alert--warning" role="status" style="margin-block-end:var(--space-6)">
+        <span>
+            @L["membership.renewalWarning", daysLeft]
+            <a asp-controller="Membership" asp-action="Index">@L["membership.viewDetails"]</a>
+        </span>
+    </div>
+}
+
+@if (Model.Applications.Count == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3.5" y="3.5" width="7" height="7" rx="2" />
+                    <rect x="13.5" y="3.5" width="7" height="7" rx="2" />
+                    <rect x="3.5" y="13.5" width="7" height="7" rx="2" />
+                    <rect x="13.5" y="13.5" width="7" height="7" rx="2" />
+                </svg>
+            </div>
+            <p class="empty-state__title">@L["apps.empty.title"]</p>
+            <p class="empty-state__body">@L["apps.empty.body"]</p>
+        </div>
+    </div>
+}
+else
+{
+    <div id="apps-island" data-apps="@payload" data-labels="@labels"></div>
+
+    <noscript>
+        @await Html.PartialAsync("_AppFallbackList", Model.Applications)
+    </noscript>
+}
+
+@section Scripts {
+    <script type="module" src="~/js/dist/page-apps.js" asp-append-version="true"></script>
+}

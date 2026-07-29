@@ -1,0 +1,1 @@
+import{m as e,h as a,i as r,_ as p}from"./chunks/island.D9Dc404m.js";const d={props:{apps:{type:Array,required:!0},labels:{type:Object,required:!0}},render(){return r("div",{class:"grid grid--cards"},this.apps.map(s=>r(p,{key:s.id,app:s,labels:this.labels})))}};e("#dashboard-apps-island",d,s=>({apps:a(s,"apps",[]),labels:a(s,"labels",{})}));

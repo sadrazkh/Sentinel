@@ -55,7 +55,47 @@ public sealed class DatabaseSeeder
         if (_options.IncludeSampleApplications)
         {
             await SeedSampleApplicationsAsync(cancellationToken);
+            await SeedSampleMembershipsAsync(cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Development convenience: without a membership every sample application shows as locked,
+    /// which makes the portal impossible to look at on a fresh database. Gated behind the same
+    /// flag as the sample catalogue, which Production rejects.
+    /// </summary>
+    private async Task SeedSampleMembershipsAsync(CancellationToken cancellationToken)
+    {
+        var usersWithoutMembership = await _db.Users
+            .Where(u => u.Membership == null)
+            .Select(u => u.Id)
+            .ToListAsync(cancellationToken);
+
+        if (usersWithoutMembership.Count == 0)
+        {
+            return;
+        }
+
+        var now = _timeProvider.GetUtcNow();
+
+        foreach (var userId in usersWithoutMembership)
+        {
+            _db.Memberships.Add(new Membership
+            {
+                Id = SequentialGuid.New(now),
+                UserId = userId,
+                Tier = MembershipTier.Pro,
+                AdminState = MembershipAdminState.Active,
+                StartsAt = now.AddDays(-30),
+                EndsAt = now.AddDays(30),
+                Notes = "Seeded for local development.",
+            });
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Seeded a development membership for {Count} account(s).", usersWithoutMembership.Count);
     }
 
     private async Task SeedRolesAsync(CancellationToken cancellationToken)

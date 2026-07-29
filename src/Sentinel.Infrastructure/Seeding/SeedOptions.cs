@@ -7,8 +7,13 @@ public sealed class SeedOptions
     public SuperAdminSeedOptions SuperAdmin { get; set; } = new();
 
     /// <summary>
-    /// Adds a small catalogue of demonstration applications so a fresh install has something
-    /// to show. Off by default; intended for local development only.
+    /// Adds a small catalogue of demonstration applications, and gives any account that has no
+    /// membership an active one, so a fresh local install is immediately explorable.
+    /// <para>
+    /// Off by default and refused outright in Production by <c>StartupGuards</c> — granting
+    /// memberships to whoever happens to lack one is only ever acceptable on a throwaway
+    /// development database.
+    /// </para>
     /// </summary>
     public bool IncludeSampleApplications { get; set; }
 }

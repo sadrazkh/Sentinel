@@ -1,0 +1,29 @@
+@using Sentinel.Web.Models.Apps
+@model LaunchDeniedViewModel
+@{
+    ViewData["Title"] = L["launchDenied.title"].Value;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["launchDenied.title"]</h1>
+        <p class="page-head__subtitle">@L["launchDenied.subtitle", Model.ApplicationName]</p>
+    </div>
+</div>
+
+<div class="card" style="max-inline-size:56ch">
+    <div class="stack">
+        @* The reason is the member-facing explanation only. It never says whether some other
+           account holds a grant for this application, or why an administrator made a change. *@
+        <div class="alert alert--warning" role="alert">
+            <span>@L[AccessPresentation.DenialReasonKey(Model.Reason)]</span>
+        </div>
+
+        <p class="text-sm text-secondary">@L["launchDenied.help"]</p>
+
+        <div class="cluster">
+            <a class="btn btn--primary" asp-controller="Apps" asp-action="Index">@L["nav.myApps"]</a>
+            <a class="btn btn--ghost" asp-controller="Membership" asp-action="Index">@L["nav.membership"]</a>
+        </div>
+    </div>
+</div>
