@@ -359,6 +359,47 @@
         }
     </section>
 
+    @* ------------------------------------------------------------------ subscriptions ---- *@
+    @if (Model.CanWrite)
+    {
+        <section class="card">
+            <div class="card__header">
+                <div>
+                    <h2 class="card__title">@L["admin.subscriptions.addForUser"]</h2>
+                    <p class="card__hint">@L["configs.add.hint"]</p>
+                </div>
+                <a class="btn btn--outline btn--sm"
+                   asp-area="Admin" asp-controller="Subscriptions" asp-action="Index"
+                   asp-route-search="@user.UserName">
+                    @L["admin.subscriptions.forUser"]
+                </a>
+            </div>
+
+            <form method="post" asp-area="Admin" asp-controller="Subscriptions" asp-action="AddForUser"
+                  class="stack">
+                <input type="hidden" name="UserId" value="@user.Id" />
+
+                <div class="grid" style="grid-template-columns:1fr 2fr;gap:var(--space-3)">
+                    <div class="field">
+                        <label class="field__label" for="sub-title">@L["configs.add.label"]</label>
+                        <input id="sub-title" name="Title" class="input" maxlength="120"
+                               placeholder="@L["configs.add.labelPlaceholder"]" />
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label" for="sub-url">@L["configs.add.url"]</label>
+                        <input id="sub-url" name="Url" class="input" type="url" dir="ltr" required
+                               maxlength="2048" placeholder="https://…" autocomplete="off" />
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit" class="btn btn--primary btn--sm">@L["configs.add.submit"]</button>
+                </div>
+            </form>
+        </section>
+    }
+
     @* ----------------------------------------------------------------------- message ---- *@
     @if (Model.CanWrite)
     {

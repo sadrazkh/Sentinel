@@ -10,6 +10,7 @@ using Sentinel.Domain.Identity;
 using Sentinel.Domain.Memberships;
 using Sentinel.Domain.Notifications;
 using Sentinel.Domain.Security;
+using Sentinel.Domain.Subscriptions;
 using Sentinel.Infrastructure.Persistence.Converters;
 
 namespace Sentinel.Infrastructure.Persistence;
@@ -40,6 +41,8 @@ public class SentinelDbContext
     public DbSet<Notification> Notifications => Set<Notification>();
 
     public DbSet<TelegramLinkToken> TelegramLinkTokens => Set<TelegramLinkToken>();
+
+    public DbSet<SubscriptionSource> SubscriptionSources => Set<SubscriptionSource>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

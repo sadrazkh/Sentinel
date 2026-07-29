@@ -11,6 +11,7 @@ using Sentinel.Application.Memberships;
 using Sentinel.Application.Notifications;
 using Sentinel.Application.Security;
 using Sentinel.Application.Settings;
+using Sentinel.Application.Subscriptions;
 using Sentinel.Application.Users;
 using Sentinel.Infrastructure.Access;
 using Sentinel.Infrastructure.Accounts;
@@ -21,6 +22,7 @@ using Sentinel.Infrastructure.Media;
 using Sentinel.Infrastructure.Memberships;
 using Sentinel.Infrastructure.Notifications;
 using Sentinel.Infrastructure.Settings;
+using Sentinel.Infrastructure.Subscriptions;
 using Sentinel.Infrastructure.Users;
 using Sentinel.Infrastructure.Persistence;
 using Sentinel.Infrastructure.Security;
@@ -101,6 +103,14 @@ public static class DependencyInjection
 
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<ITelegramLinkService, TelegramLinkService>();
+
+        // One fetcher for the process: it owns a pooled HttpClient whose handler carries the
+        // connect-time address validation, and creating one per request would discard the
+        // connection pool along with it.
+        services.AddSingleton<ISubscriptionFetcher, SubscriptionFetcher>();
+        services.AddScoped<ISubscriptionService, SubscriptionService>();
+        services.AddScoped<ISubscriptionAdminService, SubscriptionAdminService>();
+        services.AddMemoryCache();
 
         return services;
     }

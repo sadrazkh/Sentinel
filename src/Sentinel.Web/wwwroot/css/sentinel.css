@@ -579,6 +579,98 @@ img, svg { display: block; max-width: 100%; }
   line-height: 1.5;
 }
 
+/* ---------------------------------------------------------------------- config card ---- */
+
+.grid--configs {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+}
+
+/* Denser than an application card on purpose: a subscription routinely carries dozens of
+   these, and they are scanned rather than read. */
+.config-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.config-card:hover { border-color: var(--border-strong); }
+
+.config-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+.config-card__protocol {
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.config-card__name {
+  font-size: var(--text-sm);
+  font-weight: 620;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-inline-size: 0;
+}
+
+.config-card__meta {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-xs);
+}
+
+.config-card__meta > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+.config-card__meta dt { color: var(--text-muted); flex: none; }
+
+.config-card__meta dd {
+  margin: 0;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-inline-size: 0;
+}
+
+/* ---------------------------------------------------------------------------- meter ---- */
+
+.meter {
+  block-size: 6px;
+  inline-size: 100%;
+  border-radius: var(--radius-full);
+  background-color: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.meter__fill {
+  block-size: 100%;
+  border-radius: inherit;
+  background-color: var(--accent);
+  transition: inline-size var(--duration-slow) var(--ease-out);
+}
+
+.meter__fill--warning { background-color: var(--warning); }
+.meter__fill--danger { background-color: var(--danger); }
+
 /* ---------------------------------------------------------------------------- toolbar ---- */
 
 .toolbar {

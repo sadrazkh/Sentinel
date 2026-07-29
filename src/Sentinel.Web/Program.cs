@@ -17,6 +17,7 @@ using Sentinel.Infrastructure.Media;
 using Sentinel.Infrastructure.Notifications;
 using Sentinel.Infrastructure.Persistence;
 using Sentinel.Infrastructure.Seeding;
+using Sentinel.Infrastructure.Subscriptions;
 using Sentinel.Web.Infrastructure;
 using Sentinel.Web.Localization;
 using Sentinel.Web.Security;
@@ -65,6 +66,11 @@ builder.Services.AddOptions<DatabaseOptions>()
 
 builder.Services.AddOptions<MediaStorageOptions>()
     .Bind(builder.Configuration.GetSection(MediaStorageOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddOptions<SubscriptionFetchOptions>()
+    .Bind(builder.Configuration.GetSection(SubscriptionFetchOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
 

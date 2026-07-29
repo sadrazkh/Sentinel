@@ -1,0 +1,229 @@
+@using Sentinel.Domain.Subscriptions
+@model SubscriptionAdminViewModel
+@{
+    ViewData["Title"] = L["admin.subscriptions.title"].Value;
+    var results = Model.Results;
+
+    static string FormatBytes(long? bytes) =>
+        bytes is null ? "—" : bytes switch
+        {
+            < 1024 => $"{bytes} B",
+            < 1024L * 1024 => $"{bytes / 1024.0:0.#} KB",
+            < 1024L * 1024 * 1024 => $"{bytes / (1024.0 * 1024):0.#} MB",
+            _ => $"{bytes / (1024.0 * 1024 * 1024):0.##} GB",
+        };
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.subscriptions.title"]</h1>
+        <p class="page-head__subtitle">@L["admin.subscriptions.subtitle"]</p>
+    </div>
+    <span class="badge badge--neutral numeric">@L["admin.subscriptions.count", results.TotalCount]</span>
+</div>
+
+<form method="get" class="card" style="margin-block-end:var(--space-6)">
+    <div class="cluster" style="align-items:end;gap:var(--space-3)">
+        <div class="field" style="flex:1;min-inline-size:min(100%,220px)">
+            <label class="field__label" for="search">@L["admin.subscriptions.search"]</label>
+            <input id="search" name="search" class="input" value="@Model.Search"
+                   placeholder="@L["admin.subscriptions.search.placeholder"]" />
+        </div>
+
+        <label class="checkbox">
+            <input type="checkbox" name="onlyDead" value="true" checked="@Model.OnlyDead" />
+            <span>@L["admin.subscriptions.onlyDead"]</span>
+        </label>
+
+        <button type="submit" class="btn btn--primary btn--sm">@L["admin.audit.apply"]</button>
+
+        @if (Model.OnlyDead || !string.IsNullOrWhiteSpace(Model.Search))
+        {
+            <a class="btn btn--ghost btn--sm" asp-action="Index">@L["admin.audit.clear"]</a>
+        }
+    </div>
+</form>
+
+@if (Model.OnlyDead && Model.CanWrite && results.TotalCount > 0)
+{
+    <div class="card" style="margin-block-end:var(--space-6)">
+        <div class="stack stack--tight">
+            <div class="alert alert--warning" role="note">
+                <span>@L["admin.subscriptions.purge.warning"]</span>
+            </div>
+
+            @* Typed confirmation rather than a dialog: this deletes across every member at once
+               and cannot be undone. *@
+            <form method="post" asp-action="PurgeDead" class="cluster" style="align-items:end">
+                <div class="field" style="min-inline-size:min(100%,200px)">
+                    <label class="field__label" for="confirmation">
+                        @L["admin.subscriptions.purge.confirmLabel"]
+                    </label>
+                    <input id="confirmation" name="confirmation" class="input" dir="ltr"
+                           autocomplete="off" placeholder="PURGE" />
+                </div>
+                <button type="submit" class="btn btn--danger">@L["admin.subscriptions.purge"]</button>
+            </form>
+        </div>
+    </div>
+}
+
+<div class="card card--flush">
+    @if (results.TotalCount == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 7.5h16M4 12h16M4 16.5h10" />
+                </svg>
+            </div>
+            <p class="empty-state__title">@L["admin.subscriptions.empty.title"]</p>
+            <p class="empty-state__body">
+                @(Model.OnlyDead
+                    ? L["admin.subscriptions.empty.noDead"].Value
+                    : L["admin.subscriptions.empty.body"].Value)
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th scope="col">@L["admin.subscriptions.owner"]</th>
+                    <th scope="col">@L["admin.subscriptions.name"]</th>
+                    <th scope="col">@L["admin.subscriptions.state"]</th>
+                    <th scope="col">@L["configs.traffic"]</th>
+                    <th scope="col">@L["configs.expiresAt"]</th>
+                    <th scope="col">@L["admin.subscriptions.servers"]</th>
+                    <th scope="col"></th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var row in results.Items)
+                {
+                    var isDead = row.IsDeadAt(Model.Now);
+
+                    <tr>
+                        <td>
+                            <a asp-area="Admin" asp-controller="Users" asp-action="Details"
+                               asp-route-id="@row.UserId">@row.UserDisplayName</a>
+                            <div class="mono text-xs text-muted" dir="ltr">@row.UserName</div>
+                        </td>
+                        <td>
+                            @* The subscription URL is deliberately never shown: it is the
+                               credential that retrieves this member's configs. *@
+                            @row.Title
+                        </td>
+                        <td>
+                            @if (row.IsExpiredAt(Model.Now))
+                            {
+                                <span class="badge badge--danger">@L["configs.expired"]</span>
+                            }
+                            else if (row.IsQuotaExhausted)
+                            {
+                                <span class="badge badge--danger">@L["configs.exhausted"]</span>
+                            }
+                            else if (row.LastFetchStatus == SubscriptionFetchStatus.Blocked)
+                            {
+                                <span class="badge badge--danger">@L["admin.subscriptions.blocked"]</span>
+                            }
+                            else if (row.LastFetchStatus == SubscriptionFetchStatus.Failed)
+                            {
+                                <span class="badge badge--warning">@L["configs.unavailable"]</span>
+                            }
+                            else if (row.LastFetchStatus == SubscriptionFetchStatus.NeverFetched)
+                            {
+                                <span class="badge badge--neutral">@L["configs.neverChecked"]</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge--success">@L["configs.active"]</span>
+                            }
+                        </td>
+                        <td class="table__numeric text-xs">
+                            @if (row.TotalBytes is { } total)
+                            {
+                                <span>@FormatBytes(row.UsedBytes) / @FormatBytes(total)</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">@L["configs.unlimited"]</span>
+                            }
+                        </td>
+                        <td class="table__numeric text-xs">
+                            @if (row.ExpiresAt is { } expiresAt)
+                            {
+                                <time datetime="@UserTime.ToIso8601(expiresAt)">
+                                    @UserTime.Format(expiresAt, Model.TimeZoneId, "yyyy/MM/dd")
+                                </time>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                        <td class="table__numeric">@(row.LastConfigCount?.ToString() ?? "—")</td>
+                        <td>
+                            @if (Model.CanWrite)
+                            {
+                                <form method="post" asp-action="Delete">
+                                    <input type="hidden" name="id" value="@row.Id" />
+                                    <input type="hidden" name="search" value="@Model.Search" />
+                                    <input type="hidden" name="onlyDead" value="@Model.OnlyDead" />
+                                    <button type="submit"
+                                            class="btn @(isDead ? "btn--danger" : "btn--ghost") btn--sm"
+                                            data-confirm="@L["admin.subscriptions.delete.confirm", row.Title, row.UserDisplayName]"
+                                            data-confirm-title="@L["admin.subscriptions.delete"]"
+                                            data-confirm-yes="@L["common.confirm"]"
+                                            data-confirm-no="@L["common.cancel"]">
+                                        @L["admin.subscriptions.delete"]
+                                    </button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+        @if (results.TotalPages > 1)
+        {
+            <div class="card__section cluster" style="justify-content:space-between"
+                 role="navigation" aria-label="@L["admin.pager.label"]">
+                <span class="text-xs text-muted">
+                    @L["admin.pager.page", results.Page, results.TotalPages]
+                </span>
+
+                <div class="cluster">
+                    @if (results.HasPrevious)
+                    {
+                        <a class="btn btn--ghost btn--sm" asp-action="Index"
+                           asp-all-route-data="Model.ToRouteValues(results.Page - 1)">
+                            @L["admin.pager.previous"]
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="btn btn--ghost btn--sm" aria-disabled="true">@L["admin.pager.previous"]</span>
+                    }
+
+                    @if (results.HasNext)
+                    {
+                        <a class="btn btn--ghost btn--sm" asp-action="Index"
+                           asp-all-route-data="Model.ToRouteValues(results.Page + 1)">
+                            @L["admin.pager.next"]
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="btn btn--ghost btn--sm" aria-disabled="true">@L["admin.pager.next"]</span>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>

@@ -39,5 +39,9 @@ public static class AuditActions
     public const string NotificationSent = "notification.sent";
     public const string NotificationBroadcast = "notification.broadcast";
 
+    public const string SubscriptionAdded = "subscription.added";
+    public const string SubscriptionRemoved = "subscription.removed";
+    public const string SubscriptionPurged = "subscription.purged";
+
     public const string SettingsUpdated = "settings.updated";
 }
