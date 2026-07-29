@@ -1,0 +1,126 @@
+@model ApplicationListViewModel
+@{
+    ViewData["Title"] = L["admin.applications.title"].Value;
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.applications.title"]</h1>
+        <p class="page-head__subtitle">@L["admin.applications.subtitle"]</p>
+    </div>
+    @if (Model.CanWrite)
+    {
+        <a class="btn btn--primary" asp-action="Create">@L["admin.applications.create"]</a>
+    }
+</div>
+
+@if (Model.Applications.Count == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3.5" y="3.5" width="7" height="7" rx="2" />
+                    <rect x="13.5" y="3.5" width="7" height="7" rx="2" />
+                    <rect x="3.5" y="13.5" width="7" height="7" rx="2" />
+                    <rect x="13.5" y="13.5" width="7" height="7" rx="2" />
+                </svg>
+            </div>
+            <p class="empty-state__title">@L["admin.applications.empty.title"]</p>
+            <p class="empty-state__body">@L["admin.applications.empty.body"]</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card card--flush">
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th scope="col">@L["admin.application.name"]</th>
+                    <th scope="col">@L["admin.application.publishStatus"]</th>
+                    <th scope="col">@L["admin.application.access"]</th>
+                    <th scope="col">@L["admin.application.grants"]</th>
+                    <th scope="col">@L["admin.application.displayOrder"]</th>
+                    <th scope="col"></th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var application in Model.Applications)
+                {
+                    var iconUrl = MediaUrls.ApplicationIcon(application.Key, application.IconPath);
+
+                    var publishBadge = application.PublishStatus switch
+                    {
+                        ApplicationPublishStatus.Published => "badge--success",
+                        ApplicationPublishStatus.ComingSoon => "badge--info",
+                        ApplicationPublishStatus.Retired => "badge--neutral",
+                        _ => "badge--warning",
+                    };
+
+                    <tr>
+                        <td>
+                            <div class="cluster" style="flex-wrap:nowrap">
+                                <span class="app-card__icon" aria-hidden="true"
+                                      style="inline-size:32px;block-size:32px;font-size:var(--text-sm)">
+                                    @if (iconUrl is not null)
+                                    {
+                                        <img src="@iconUrl" alt="" loading="lazy" />
+                                    }
+                                    else
+                                    {
+                                        @(application.NameEn.Length > 0 ? application.NameEn[..1].ToUpperInvariant() : "?")
+                                    }
+                                </span>
+                                <div>
+                                    <div style="font-weight:600">@(isPersian ? application.NameFa : application.NameEn)</div>
+                                    <div class="mono text-xs text-muted" dir="ltr">@application.Key</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="cluster">
+                                <span class="badge @publishBadge">
+                                    @L[$"publishStatus.{application.PublishStatus.ToString().ToLowerInvariant()}"]
+                                </span>
+                                @if (!application.IsEnabled)
+                                {
+                                    <span class="badge badge--danger">@L["admin.application.disabled"]</span>
+                                }
+                                @if (application.IsBeta)
+                                {
+                                    <span class="badge badge--warning">@L["appBadge.beta"]</span>
+                                }
+                            </div>
+                        </td>
+                        <td class="text-sm text-secondary">
+                            @if (application.RequiresExplicitEntitlement)
+                            {
+                                <span>@L["admin.application.access.entitlementOnly"]</span>
+                            }
+                            else if (application.MinimumTier is { } tier)
+                            {
+                                <span>@L["admin.application.access.minimumTier", L[AccessPresentation.TierKey(tier)].Value]</span>
+                            }
+                            else
+                            {
+                                <span>@L["admin.application.access.anyMember"]</span>
+                            }
+                        </td>
+                        <td class="table__numeric">@application.ActiveEntitlementCount</td>
+                        <td class="table__numeric">@application.DisplayOrder</td>
+                        <td>
+                            <a class="btn btn--outline btn--sm" asp-action="Edit" asp-route-id="@application.Id">
+                                @(Model.CanWrite ? L["admin.edit"].Value : L["admin.users.open"].Value)
+                            </a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

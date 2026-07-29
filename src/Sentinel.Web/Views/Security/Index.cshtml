@@ -1,0 +1,176 @@
+@model Sentinel.Web.Models.Account.SecurityViewModel
+@{
+    ViewData["Title"] = L["security.title"].Value;
+    var statusMessage = TempData["StatusMessage"] as string;
+
+    var errors = ViewData.ModelState
+        .SelectMany(entry => entry.Value!.Errors)
+        .Select(error => error.ErrorMessage)
+        .Where(message => !string.IsNullOrWhiteSpace(message))
+        .Distinct()
+        .ToList();
+
+    string Localize(string message) =>
+        message.Contains('.') && !message.Contains(' ') ? L[message].Value : message;
+
+    var rules = new List<string> { L["security.rule.length", Model.PasswordMinimumLength].Value };
+
+    if (Model.PasswordRequiresDigit)
+    {
+        rules.Add(L["security.rule.digit"].Value);
+    }
+
+    if (Model.PasswordRequiresUppercase)
+    {
+        rules.Add(L["security.rule.uppercase"].Value);
+    }
+
+    if (Model.PasswordRequiresNonAlphanumeric)
+    {
+        rules.Add(L["security.rule.symbol"].Value);
+    }
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["security.title"]</h1>
+        <p class="page-head__subtitle">@L["security.subtitle"]</p>
+    </div>
+    <a class="btn btn--ghost btn--sm" asp-controller="Activity" asp-action="Index">
+        @L["nav.activity"]
+    </a>
+</div>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert alert--success" role="status" style="margin-block-end:var(--space-6)">
+        <span>@statusMessage</span>
+    </div>
+}
+
+@if (errors.Count > 0)
+{
+    <div class="alert alert--danger" role="alert" style="margin-block-end:var(--space-6)">
+        <div>
+            @foreach (var error in errors)
+            {
+                <div>@Localize(error)</div>
+            }
+        </div>
+    </div>
+}
+
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));align-items:start">
+
+    <form method="post" asp-action="ChangePassword" class="card" autocomplete="off">
+        <div class="card__header">
+            <div>
+                <h2 class="card__title">@L["security.changePassword"]</h2>
+                <p class="card__hint">@L["security.changePassword.hint"]</p>
+            </div>
+        </div>
+
+        <div class="stack">
+            <div class="field">
+                <label class="field__label" for="CurrentPassword">@L["security.currentPassword"]</label>
+                <input id="CurrentPassword" name="CurrentPassword" class="input" type="password"
+                       dir="ltr" required maxlength="256" autocomplete="current-password" />
+            </div>
+
+            <div class="field">
+                <label class="field__label" for="NewPassword">@L["security.newPassword"]</label>
+                <input id="NewPassword" name="NewPassword" class="input" type="password"
+                       dir="ltr" required maxlength="256" autocomplete="new-password"
+                       minlength="@Model.PasswordMinimumLength" />
+            </div>
+
+            <div class="field">
+                <label class="field__label" for="ConfirmPassword">@L["security.confirmPassword"]</label>
+                <input id="ConfirmPassword" name="ConfirmPassword" class="input" type="password"
+                       dir="ltr" required maxlength="256" autocomplete="new-password" />
+            </div>
+
+            @* The rules are rendered from the server's own Identity configuration, so the list
+               a member reads cannot drift out of step with what is actually enforced. *@
+            <ul class="stack stack--tight text-xs text-muted">
+                @foreach (var rule in rules)
+                {
+                    <li>· @rule</li>
+                }
+            </ul>
+
+            <div class="alert alert--info" role="note">
+                <span>@L["security.changePassword.endsOtherSessions"]</span>
+            </div>
+
+            <div>
+                <button type="submit" class="btn btn--primary">@L["security.changePassword"]</button>
+            </div>
+        </div>
+    </form>
+
+    <section class="card">
+        <div class="card__header">
+            <div>
+                <h2 class="card__title">@L["security.activeSessions"]</h2>
+                <p class="card__hint">@L["security.activeSessions.hint"]</p>
+            </div>
+            <span class="badge badge--info badge--plain numeric">@Model.Sessions.Count</span>
+        </div>
+
+        <div class="stack stack--tight">
+            @foreach (var session in Model.Sessions)
+            {
+                <div class="card" style="padding:var(--space-4);box-shadow:none">
+                    <div class="cluster" style="justify-content:space-between">
+                        <div style="min-inline-size:0">
+                            <div class="cluster">
+                                <span class="mono text-sm" dir="ltr">@(session.IpAddress ?? "—")</span>
+                                @if (session.IsCurrent)
+                                {
+                                    <span class="badge badge--success">@L["security.session.current"]</span>
+                                }
+                            </div>
+                            <p class="text-xs text-muted truncate" style="max-inline-size:34ch" dir="ltr"
+                               title="@session.UserAgent">
+                                @(session.UserAgent ?? "—")
+                            </p>
+                            <p class="text-xs text-muted">
+                                @L["security.session.lastSeen"]:
+                                <time datetime="@UserTime.ToIso8601(session.LastSeenAt)">
+                                    @UserTime.Format(session.LastSeenAt, Model.TimeZoneId)
+                                </time>
+                            </p>
+                        </div>
+
+                        @if (!session.IsCurrent)
+                        {
+                            <form method="post" asp-action="RevokeSession">
+                                <input type="hidden" name="sessionId" value="@session.Id" />
+                                <button type="submit" class="btn btn--danger btn--sm"
+                                        data-confirm="@L["security.session.revokeConfirm"]"
+                                        data-confirm-title="@L["security.session.revoke"]"
+                                        data-confirm-yes="@L["common.confirm"]"
+                                        data-confirm-no="@L["common.cancel"]">
+                                    @L["security.session.revoke"]
+                                </button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="divider"></div>
+
+            <form method="post" asp-controller="Account" asp-action="LogoutEverywhere">
+                <button type="submit" class="btn btn--danger btn--block"
+                        data-confirm="@L["security.signOutEverywhere.confirmBody"]"
+                        data-confirm-title="@L["security.signOutEverywhere.confirmTitle"]"
+                        data-confirm-yes="@L["common.confirm"]"
+                        data-confirm-no="@L["common.cancel"]">
+                    @L["security.signOutEverywhere"]
+                </button>
+            </form>
+        </div>
+    </section>
+</div>

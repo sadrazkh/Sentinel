@@ -362,8 +362,15 @@
     @* ------------------------------------------------------------------- entitlements ---- *@
     <section class="card card--flush">
         <div style="padding:var(--space-6) var(--space-6) var(--space-4)">
-            <h2 class="card__title">@L["admin.user.entitlements"]</h2>
-            <p class="card__hint">@L["admin.user.entitlements.hint"]</p>
+            <div class="cluster" style="justify-content:space-between">
+                <div>
+                    <h2 class="card__title">@L["admin.user.entitlements"]</h2>
+                    <p class="card__hint">@L["admin.user.entitlements.hint"]</p>
+                </div>
+                <a class="btn btn--outline btn--sm" asp-action="Entitlements" asp-route-id="@user.Id">
+                    @L["admin.user.entitlements.manage"]
+                </a>
+            </div>
         </div>
 
         @if (user.Entitlements.Count == 0)

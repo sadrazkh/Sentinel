@@ -26,6 +26,7 @@ public class SentinelWebApplicationFactory : WebApplicationFactory<Program>
 
     private readonly SqliteConnection _keepAliveConnection;
     private readonly string _connectionString;
+    private readonly string _mediaRoot;
 
     public SentinelWebApplicationFactory()
     {
@@ -34,6 +35,9 @@ public class SentinelWebApplicationFactory : WebApplicationFactory<Program>
         _connectionString = $"Data Source=sentinel-tests-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
         _keepAliveConnection = new SqliteConnection(_connectionString);
         _keepAliveConnection.Open();
+
+        // Uploads go to a private temporary directory, never into the repository.
+        _mediaRoot = Path.Combine(Path.GetTempPath(), "sentinel-tests", Guid.NewGuid().ToString("N"));
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -59,6 +63,9 @@ public class SentinelWebApplicationFactory : WebApplicationFactory<Program>
         builder.UseSetting("Seed:SuperAdmin:DisplayName", "Test Administrator");
         builder.UseSetting("Seed:SuperAdmin:Password", AdminPassword);
         builder.UseSetting("Seed:IncludeSampleApplications", "false");
+
+        builder.UseSetting("MediaStorage:RootPath", _mediaRoot);
+        builder.UseSetting("MediaStorage:MaxIconBytes", "524288");
 
         ConfigureTestSettings(builder);
     }
@@ -88,9 +95,23 @@ public class SentinelWebApplicationFactory : WebApplicationFactory<Program>
     {
         base.Dispose(disposing);
 
-        if (disposing)
+        if (!disposing)
         {
-            _keepAliveConnection.Dispose();
+            return;
+        }
+
+        _keepAliveConnection.Dispose();
+
+        try
+        {
+            if (Directory.Exists(_mediaRoot))
+            {
+                Directory.Delete(_mediaRoot, recursive: true);
+            }
+        }
+        catch (IOException)
+        {
+            // A leftover temp directory is untidy, not a test failure.
         }
     }
 }

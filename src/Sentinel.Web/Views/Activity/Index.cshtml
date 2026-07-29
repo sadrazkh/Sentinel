@@ -1,0 +1,117 @@
+@model Sentinel.Web.Models.Account.ActivityViewModel
+@{
+    ViewData["Title"] = L["activity.title"].Value;
+    var history = Model.History;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["activity.title"]</h1>
+        <p class="page-head__subtitle">@L["activity.subtitle"]</p>
+    </div>
+    <a class="btn btn--ghost btn--sm" asp-controller="Security" asp-action="Index">
+        @L["nav.security"]
+    </a>
+</div>
+
+<div class="alert alert--info" role="note" style="margin-block-end:var(--space-6)">
+    <span>@L["loginHistory.hint"]</span>
+</div>
+
+<div class="card card--flush">
+    @if (history.TotalCount == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 7.5V12l3 1.8" />
+                </svg>
+            </div>
+            <p class="empty-state__title">@L["loginHistory.empty.title"]</p>
+            <p class="empty-state__body">@L["loginHistory.empty.body"]</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th scope="col">@L["loginHistory.time"]</th>
+                    <th scope="col">@L["loginHistory.result"]</th>
+                    <th scope="col">@L["loginHistory.ip"]</th>
+                    <th scope="col">@L["loginHistory.device"]</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var entry in history.Items)
+                {
+                    <tr>
+                        <td class="table__numeric">
+                            <time datetime="@UserTime.ToIso8601(entry.OccurredAt)">
+                                @UserTime.Format(entry.OccurredAt, Model.TimeZoneId)
+                            </time>
+                        </td>
+                        <td>
+                            @if (entry.Succeeded)
+                            {
+                                <span class="badge badge--success">@L["loginHistory.success"]</span>
+                            }
+                            else
+                            {
+                                @* The stored failure reason stays with the operator. It tells a
+                                   member nothing useful, and would confirm account state to
+                                   anyone reading over their shoulder. *@
+                                <span class="badge badge--danger">@L["loginHistory.failure"]</span>
+                            }
+                        </td>
+                        <td class="mono" dir="ltr">@(entry.IpAddress ?? "—")</td>
+                        <td class="text-sm truncate" style="max-inline-size:32ch" dir="ltr"
+                            title="@entry.UserAgent">
+                            @(entry.UserAgent ?? "—")
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+        @if (history.TotalPages > 1)
+        {
+            <div class="card__section cluster" style="justify-content:space-between"
+                 role="navigation" aria-label="@L["admin.pager.label"]">
+                <span class="text-xs text-muted">
+                    @L["admin.pager.page", history.Page, history.TotalPages]
+                </span>
+
+                <div class="cluster">
+                    @if (history.HasPrevious)
+                    {
+                        <a class="btn btn--ghost btn--sm" asp-action="Index"
+                           asp-route-page="@(history.Page - 1)" asp-route-pageSize="@history.PageSize">
+                            @L["admin.pager.previous"]
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="btn btn--ghost btn--sm" aria-disabled="true">@L["admin.pager.previous"]</span>
+                    }
+
+                    @if (history.HasNext)
+                    {
+                        <a class="btn btn--ghost btn--sm" asp-action="Index"
+                           asp-route-page="@(history.Page + 1)" asp-route-pageSize="@history.PageSize">
+                            @L["admin.pager.next"]
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="btn btn--ghost btn--sm" aria-disabled="true">@L["admin.pager.next"]</span>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>

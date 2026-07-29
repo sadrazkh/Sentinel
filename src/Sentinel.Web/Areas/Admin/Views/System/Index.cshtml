@@ -1,0 +1,140 @@
+@model SystemSettingsViewModel
+@{
+    ViewData["Title"] = L["admin.system.title"].Value;
+    var counters = Model.Counters;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.system.title"]</h1>
+        <p class="page-head__subtitle">@L["admin.system.subtitle"]</p>
+    </div>
+    <div class="cluster">
+        <span class="badge badge--neutral">@Model.EnvironmentName</span>
+        <span class="badge badge--neutral mono">@Model.Version</span>
+    </div>
+</div>
+
+<div class="stack" style="gap:var(--space-6)">
+
+    <section class="grid grid--stats" aria-label="@L["admin.system.counters"]">
+        <div class="stat">
+            <div class="stat__label">@L["admin.system.users"]</div>
+            <div class="stat__value">@counters.TotalUsers</div>
+            <div class="stat__meta">
+                @L["admin.system.usersBreakdown", counters.ActiveUsers, counters.SuspendedUsers, counters.DisabledUsers]
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="stat__label">@L["admin.system.activeMemberships"]</div>
+            <div class="stat__value">@counters.ActiveMemberships</div>
+            @if (counters.ExpiringSoon > 0)
+            {
+                <div class="stat__meta">@L["admin.system.expiringSoon", counters.ExpiringSoon]</div>
+            }
+        </div>
+
+        <div class="stat">
+            <div class="stat__label">@L["admin.system.applications"]</div>
+            <div class="stat__value">@counters.TotalApplications</div>
+            <div class="stat__meta">@L["admin.system.published", counters.PublishedApplications]</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat__label">@L["admin.system.entitlements"]</div>
+            <div class="stat__value">@counters.ActiveEntitlements</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat__label">@L["admin.system.activeSessions"]</div>
+            <div class="stat__value">@counters.ActiveSessions</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat__label">@L["admin.system.failedSignIns"]</div>
+            <div class="stat__value">@counters.FailedSignInsLast24Hours</div>
+            <div class="stat__meta">@L["admin.system.last24Hours"]</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat__label">@L["admin.system.auditEntries"]</div>
+            <div class="stat__value">@counters.AuditEntries</div>
+            <div class="stat__meta">
+                <a asp-area="Admin" asp-controller="Audit" asp-action="Index">@L["admin.nav.audit"]</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="card card--flush">
+        <div style="padding:var(--space-6) var(--space-6) var(--space-4)">
+            <h2 class="card__title">@L["admin.system.roles"]</h2>
+            <p class="card__hint">@L["admin.system.roles.hint"]</p>
+        </div>
+
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th scope="col">@L["admin.system.role"]</th>
+                    <th scope="col">@L["admin.system.roleDescription"]</th>
+                    <th scope="col">@L["admin.system.roleMembers"]</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var role in Model.Roles)
+                {
+                    <tr>
+                        <td>
+                            <span class="badge badge--accent badge--plain">@L[$"role.{role.Name}"]</span>
+                            <div class="mono text-xs text-muted" dir="ltr">@role.Name</div>
+                        </td>
+                        <td class="text-sm text-secondary">@role.Description</td>
+                        <td class="table__numeric">@role.MemberCount</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card card--flush">
+        <div style="padding:var(--space-6) var(--space-6) var(--space-4)">
+            <h2 class="card__title">@L["admin.system.settings"]</h2>
+            <p class="card__hint">@L["admin.system.settings.hint"]</p>
+        </div>
+
+        @* Read-only, and only non-secrets. Connection strings, the key-ring path and the seed
+           password are absent rather than masked: the safest way not to disclose a secret on a
+           page is never to put it on the page. *@
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th scope="col">@L["admin.system.setting"]</th>
+                    <th scope="col">@L["admin.system.value"]</th>
+                    <th scope="col">@L["admin.system.meaning"]</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var setting in Model.Settings)
+                {
+                    <tr>
+                        <td class="mono text-xs" dir="ltr">@setting.Key</td>
+                        <td>
+                            <span class="badge @(setting.IsSensitiveArea ? "badge--warning" : "badge--neutral") badge--plain mono">
+                                @setting.Value
+                            </span>
+                        </td>
+                        <td class="text-sm text-secondary">@L[setting.DescriptionKey]</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card__section">
+            <p class="text-xs text-muted">@L["admin.system.settings.readOnly"]</p>
+        </div>
+    </section>
+</div>

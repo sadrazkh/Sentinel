@@ -46,6 +46,8 @@ services:
       Security__RequireHttps: ${SECURITY_REQUIRE_HTTPS:-true}
 
       DataProtection__KeyRingPath: /var/sentinel/keys
+      MediaStorage__RootPath: /var/sentinel/media
+      MediaStorage__MaxIconBytes: ${MEDIA_MAX_ICON_BYTES:-524288}
 
       # First boot only. Clear these and redeploy once the administrator has signed in.
       Seed__SuperAdmin__Enabled: ${SEED_SUPERADMIN_ENABLED:-false}
@@ -55,9 +57,13 @@ services:
     volumes:
       # Persisted so authentication cookies survive a redeploy.
       - sentinel-keys:/var/sentinel/keys
+      # Uploaded icons. Without this, a redeploy leaves catalogue rows pointing at files
+      # that no longer exist.
+      - sentinel-media:/var/sentinel/media
     ports:
       - "${WEB_PORT:-8080}:8080"
 
 volumes:
   sentinel-db:
   sentinel-keys:
+  sentinel-media:

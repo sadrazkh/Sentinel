@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A second push to the same branch cancels the first: a superseded run tells you nothing.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only by default. A workflow that only builds and tests has no reason to hold a token
+# that can write to the repository.
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: src/Sentinel.Web/package-lock.json
+
+      - name: Restore .NET dependencies
+        run: dotnet restore
+
+      # NuGet audit runs as part of restore; this makes a vulnerable transitive package fail
+      # the build rather than scroll past as a warning.
+      - name: Fail on vulnerable packages
+        run: |
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee vulnerable.txt
+          if grep -q "has the following vulnerable packages" vulnerable.txt; then
+            echo "::error::Vulnerable packages detected."
+            exit 1
+          fi
+
+      - name: Install front-end dependencies
+        working-directory: src/Sentinel.Web
+        run: npm ci --no-audit --no-fund
+
+      - name: Build front-end bundles
+        working-directory: src/Sentinel.Web
+        run: npm run build
+
+      # The bundles under wwwroot/js/dist are committed so `dotnet run` works without Node.
+      # If a rebuild changes them, the commit is stale and the running site would not match
+      # the source it was built from.
+      - name: Verify committed bundles match their source
+        run: |
+          if ! git diff --quiet -- src/Sentinel.Web/wwwroot/js/dist; then
+            echo "::error::Committed front-end bundles are out of date. Run 'npm run build' in src/Sentinel.Web and commit the result."
+            git diff --stat -- src/Sentinel.Web/wwwroot/js/dist
+            exit 1
+          fi
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build --verbosity normal
+
+  migrations:
+    name: Migrations apply to a real PostgreSQL
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: sentinel_ci
+          POSTGRES_USER: sentinel
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+        options: >-
+          --health-cmd "pg_isready -U sentinel -d sentinel_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install EF Core tools
+        run: dotnet tool install --global dotnet-ef
+
+      # The test suite runs on SQLite, which is fast and needs no server — but the migrations
+      # shipped in this repository target PostgreSQL, so this job is what proves they actually
+      # apply to the engine production uses.
+      - name: Apply migrations
+        env:
+          SENTINEL_MIGRATIONS_CONNECTION: Host=localhost;Port=5432;Database=sentinel_ci;Username=sentinel;Password=ci-only-not-a-secret
+        run: dotnet ef database update --project src/Sentinel.Infrastructure
+
+      - name: Re-apply to confirm the migration set is idempotent
+        env:
+          SENTINEL_MIGRATIONS_CONNECTION: Host=localhost;Port=5432;Database=sentinel_ci;Username=sentinel;Password=ci-only-not-a-secret
+        run: dotnet ef database update --project src/Sentinel.Infrastructure
+
+      # A model change that was never scaffolded into a migration produces a schema that does
+      # not match the code. This catches it before deployment does.
+      - name: Fail if the model has changes without a migration
+        env:
+          SENTINEL_MIGRATIONS_CONNECTION: Host=localhost;Port=5432;Database=sentinel_ci;Username=sentinel;Password=ci-only-not-a-secret
+        run: |
+          dotnet ef migrations has-pending-model-changes --project src/Sentinel.Infrastructure
+
+  docker:
+    name: Production image builds
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Built but never pushed: this job's purpose is to catch a broken Dockerfile, and a CI
+      # run on a pull request should not be able to publish an image.
+      - name: Build the image
+        run: docker build --tag sentinel-portal:ci .

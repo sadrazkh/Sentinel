@@ -1,0 +1,227 @@
+@using Sentinel.Application.Media
+@model ApplicationEditViewModel
+@{
+    ViewData["Title"] = Model.IsNew ? L["admin.applications.create"].Value : Model.NameEn;
+
+    var maxIconBytes = (int)(ViewData["MaxIconBytes"] ?? 0);
+    var maxIconKb = maxIconBytes / 1024;
+    var iconUrl = Model.IsNew ? null : MediaUrls.ApplicationIcon(Model.Key, Model.IconPath);
+
+    var errors = ViewData.ModelState
+        .SelectMany(entry => entry.Value!.Errors)
+        .Select(error => error.ErrorMessage)
+        .Where(message => !string.IsNullOrWhiteSpace(message))
+        .Distinct()
+        .ToList();
+
+    string Localize(string message) =>
+        message.StartsWith("validation.", StringComparison.Ordinal)
+        || message.StartsWith("admin.", StringComparison.Ordinal)
+            ? L[message].Value
+            : message;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@ViewData["Title"]</h1>
+        <p class="page-head__subtitle">
+            @(Model.IsNew ? L["admin.applications.create.subtitle"].Value : Model.Key)
+        </p>
+    </div>
+    <a class="btn btn--ghost btn--sm" asp-action="Index">@L["admin.back"]</a>
+</div>
+
+@if (errors.Count > 0)
+{
+    <div class="alert alert--danger" role="alert" style="margin-block-end:var(--space-6)">
+        <div>
+            @foreach (var error in errors)
+            {
+                <div>@Localize(error)</div>
+            }
+        </div>
+    </div>
+}
+
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));align-items:start">
+
+    <form method="post"
+          asp-action="@(Model.IsNew ? "Create" : "Edit")"
+          asp-route-id="@(Model.IsNew ? null : Model.Id.ToString())"
+          class="card">
+        <input type="hidden" asp-for="ConcurrencyToken" />
+
+        <div class="stack">
+            <div class="field">
+                <label class="field__label" asp-for="Key">@L["admin.application.key"]</label>
+                @if (Model.IsNew)
+                {
+                    <input class="input" asp-for="Key" dir="ltr" required maxlength="64"
+                           autocomplete="off" spellcheck="false" placeholder="vault" />
+                    <p class="text-xs text-muted">@L["admin.application.key.hint"]</p>
+                }
+                else
+                {
+                    @* Immutable once created: the key is in every launch link already handed out,
+                       so changing it would silently break bookmarks and integrations. *@
+                    <input class="input" value="@Model.Key" dir="ltr" disabled />
+                    <input type="hidden" asp-for="Key" />
+                    <p class="text-xs text-muted">@L["admin.application.key.immutable"]</p>
+                }
+            </div>
+
+            <div class="grid" style="grid-template-columns:1fr 1fr">
+                <div class="field">
+                    <label class="field__label" asp-for="NameFa">@L["admin.application.nameFa"]</label>
+                    <input class="input" asp-for="NameFa" required maxlength="128" />
+                </div>
+                <div class="field">
+                    <label class="field__label" asp-for="NameEn">@L["admin.application.nameEn"]</label>
+                    <input class="input" asp-for="NameEn" dir="ltr" required maxlength="128" />
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="DescriptionFa">@L["admin.application.descriptionFa"]</label>
+                <textarea class="input" asp-for="DescriptionFa" rows="2" maxlength="1024"
+                          style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="DescriptionEn">@L["admin.application.descriptionEn"]</label>
+                <textarea class="input" asp-for="DescriptionEn" rows="2" maxlength="1024" dir="ltr"
+                          style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="LaunchUrl">@L["admin.application.launchUrl"]</label>
+                <input class="input" asp-for="LaunchUrl" type="url" dir="ltr" required maxlength="2048"
+                       placeholder="https://apps.example.com/vault" />
+                <p class="text-xs text-muted">@L["admin.application.launchUrl.hint"]</p>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))">
+                <div class="field">
+                    <label class="field__label" asp-for="PublishStatus">@L["admin.application.publishStatus"]</label>
+                    <select class="input" asp-for="PublishStatus">
+                        @foreach (var status in Enum.GetValues<ApplicationPublishStatus>())
+                        {
+                            <option value="@status" selected="@(Model.PublishStatus == status)">
+                                @L[$"publishStatus.{status.ToString().ToLowerInvariant()}"]
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" asp-for="MinimumTier">@L["admin.application.minimumTier"]</label>
+                    <select class="input" asp-for="MinimumTier">
+                        <option value="">@L["admin.application.minimumTier.none"]</option>
+                        @foreach (var tier in Enum.GetValues<MembershipTier>())
+                        {
+                            <option value="@tier" selected="@(Model.MinimumTier == tier)">
+                                @L[AccessPresentation.TierKey(tier)]
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" asp-for="DisplayOrder">@L["admin.application.displayOrder"]</label>
+                    <input class="input" asp-for="DisplayOrder" type="number" min="0" max="10000" dir="ltr" />
+                </div>
+            </div>
+
+            <div class="stack stack--tight">
+                <label class="checkbox">
+                    <input type="checkbox" asp-for="IsEnabled" />
+                    <span>@L["admin.application.isEnabled"]</span>
+                </label>
+                <p class="text-xs text-muted">@L["admin.application.isEnabled.hint"]</p>
+
+                <label class="checkbox">
+                    <input type="checkbox" asp-for="IsBeta" />
+                    <span>@L["admin.application.isBeta"]</span>
+                </label>
+
+                <label class="checkbox">
+                    <input type="checkbox" asp-for="RequiresExplicitEntitlement" />
+                    <span>@L["admin.application.requiresEntitlement"]</span>
+                </label>
+                <p class="text-xs text-muted">@L["admin.application.requiresEntitlement.hint"]</p>
+            </div>
+
+            <div class="cluster">
+                <button type="submit" class="btn btn--primary">
+                    @(Model.IsNew ? L["admin.applications.create"].Value : L["admin.save"].Value)
+                </button>
+                <a class="btn btn--ghost" asp-action="Index">@L["common.cancel"]</a>
+            </div>
+        </div>
+    </form>
+
+    @if (!Model.IsNew)
+    {
+        <section class="card">
+            <div class="card__header">
+                <div>
+                    <h2 class="card__title">@L["admin.application.icon"]</h2>
+                    <p class="card__hint">@L["admin.application.icon.hint", maxIconKb]</p>
+                </div>
+            </div>
+
+            <div class="stack">
+                <div class="cluster">
+                    <span class="app-card__icon" aria-hidden="true"
+                          style="inline-size:72px;block-size:72px;font-size:var(--text-lg)">
+                        @if (iconUrl is not null)
+                        {
+                            <img src="@iconUrl" alt="" />
+                        }
+                        else
+                        {
+                            @(Model.NameEn.Length > 0 ? Model.NameEn[..1].ToUpperInvariant() : "?")
+                        }
+                    </span>
+
+                    @if (iconUrl is not null)
+                    {
+                        <form method="post" asp-action="RemoveIcon" asp-route-id="@Model.Id">
+                            <button type="submit" class="btn btn--danger btn--sm"
+                                    data-confirm="@L["admin.application.icon.removeConfirm"]"
+                                    data-confirm-title="@L["admin.application.icon.remove"]"
+                                    data-confirm-yes="@L["common.confirm"]"
+                                    data-confirm-no="@L["common.cancel"]">
+                                @L["admin.application.icon.remove"]
+                            </button>
+                        </form>
+                    }
+                </div>
+
+                <div class="divider"></div>
+
+                <form method="post" asp-action="UploadIcon" enctype="multipart/form-data" class="stack">
+                    <input type="hidden" name="ApplicationId" value="@Model.Id" />
+
+                    <div class="field">
+                        <label class="field__label" for="Icon">@L["admin.application.icon.choose"]</label>
+                        @* The accept attribute is a convenience for the file picker only. What
+                           actually decides is the byte signature check on the server. *@
+                        <input id="Icon" name="Icon" class="input" type="file"
+                               accept="@ImageSignature.AcceptAttribute" required
+                               style="padding-block:var(--space-3)" />
+                        <p class="text-xs text-muted">@L["admin.application.icon.formats"]</p>
+                    </div>
+
+                    <div>
+                        <button type="submit" class="btn btn--primary">@L["admin.application.icon.upload"]</button>
+                    </div>
+                </form>
+
+                <p class="text-xs text-muted">@L["admin.application.icon.svgNote"]</p>
+            </div>
+        </section>
+    }
+</div>

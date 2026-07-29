@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using Sentinel.Application.Authorization;
 using Sentinel.Application.Common;
+using Sentinel.Application.Entitlements;
 using Sentinel.Application.Users;
 using Sentinel.Domain.Identity;
 using Sentinel.Web.Areas.Admin.Models;
@@ -28,6 +29,8 @@ public sealed class UsersController : Controller
     private readonly IUserAdminQuery _query;
     private readonly IUserAdminService _users;
     private readonly IMembershipAdminService _memberships;
+    private readonly IEntitlementAdminQuery _entitlementQuery;
+    private readonly IEntitlementAdminService _entitlements;
     private readonly IStringLocalizer<SharedResource> _localizer;
     private readonly TimeProvider _timeProvider;
 
@@ -35,12 +38,16 @@ public sealed class UsersController : Controller
         IUserAdminQuery query,
         IUserAdminService users,
         IMembershipAdminService memberships,
+        IEntitlementAdminQuery entitlementQuery,
+        IEntitlementAdminService entitlements,
         IStringLocalizer<SharedResource> localizer,
         TimeProvider timeProvider)
     {
         _query = query;
         _users = users;
         _memberships = memberships;
+        _entitlementQuery = entitlementQuery;
+        _entitlements = entitlements;
         _localizer = localizer;
         _timeProvider = timeProvider;
     }
@@ -208,6 +215,80 @@ public sealed class UsersController : Controller
             model.UserId, ToRequest(model), cancellationToken);
 
         return await CompleteAsync(result, model.UserId, "admin.membership.saved", cancellationToken);
+    }
+
+    /// <summary>
+    /// The entitlement editor: every application alongside this user's grant state and the
+    /// decision the access rules currently reach for it.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> Entitlements(Guid id, CancellationToken cancellationToken)
+    {
+        var detail = await _query.GetDetailAsync(id, cancellationToken);
+
+        if (detail is null)
+        {
+            return NotFound();
+        }
+
+        var rows = await _entitlementQuery.GetForUserAsync(id, cancellationToken);
+
+        return View(new UserEntitlementsViewModel
+        {
+            UserId = id,
+            UserDisplayName = detail.DisplayName,
+            Rows = rows,
+            CanWrite = CanWrite,
+            TimeZoneId = AdminTimeZone,
+        });
+    }
+
+    [HttpPost]
+    [Authorize(Policy = PolicyNames.BackOfficeWrite)]
+    public async Task<IActionResult> GrantEntitlement(
+        GrantEntitlementViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return RedirectToEntitlements(model.UserId, "admin.error.identityRejected");
+        }
+
+        var result = await _entitlements.GrantAsync(
+            model.UserId,
+            model.ApplicationId,
+            new GrantEntitlementRequest(
+                model.StartsAt is { } startsAt ? StartOfDayUtc(startsAt) : null,
+                model.ExpiresAt is { } expiresAt ? EndOfDayUtc(expiresAt) : null,
+                model.Notes,
+                model.ConcurrencyToken),
+            cancellationToken);
+
+        return RedirectToEntitlements(
+            model.UserId, result.Succeeded ? "admin.entitlement.granted" : result.ErrorKey);
+    }
+
+    [HttpPost]
+    [Authorize(Policy = PolicyNames.BackOfficeWrite)]
+    public async Task<IActionResult> RevokeEntitlement(
+        GrantEntitlementViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var result = await _entitlements.RevokeAsync(
+            model.UserId, model.ApplicationId, model.Notes, model.ConcurrencyToken, cancellationToken);
+
+        return RedirectToEntitlements(
+            model.UserId, result.Succeeded ? "admin.entitlement.revokedMessage" : result.ErrorKey);
+    }
+
+    private IActionResult RedirectToEntitlements(Guid userId, string? messageKey)
+    {
+        if (messageKey is not null)
+        {
+            TempData["StatusMessage"] = _localizer[messageKey].Value;
+        }
+
+        return RedirectToAction(nameof(Entitlements), new { id = userId });
     }
 
     /// <summary>

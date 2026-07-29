@@ -1,0 +1,162 @@
+@model UserEntitlementsViewModel
+@{
+    ViewData["Title"] = L["admin.entitlements.title"].Value;
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.entitlements.title"]</h1>
+        <p class="page-head__subtitle">@L["admin.entitlements.subtitle", Model.UserDisplayName]</p>
+    </div>
+    <a class="btn btn--ghost btn--sm" asp-action="Details" asp-route-id="@Model.UserId">
+        @L["admin.entitlements.backToUser"]
+    </a>
+</div>
+
+@if (!Model.CanWrite)
+{
+    <div class="alert alert--info" role="status" style="margin-block-end:var(--space-6)">
+        <span>@L["admin.readOnlyNotice"]</span>
+    </div>
+}
+
+<div class="alert alert--info" role="note" style="margin-block-end:var(--space-6)">
+    <span>@L["admin.entitlements.explainer"]</span>
+</div>
+
+<div class="stack">
+    @foreach (var row in Model.Rows)
+    {
+        var name = isPersian ? row.ApplicationNameFa : row.ApplicationNameEn;
+
+        var (decisionBadge, decisionLabel) = row.Decision.IsAllowed
+            ? ("badge--success", L["admin.entitlements.canOpen"].Value)
+            : ("badge--neutral", L[AccessPresentation.DenialReasonKey(row.Decision.Reason)].Value);
+
+        <section class="card">
+            <div class="card__header">
+                <div>
+                    <h2 class="card__title">@name</h2>
+                    <p class="card__hint mono" dir="ltr">@row.ApplicationKey</p>
+                </div>
+                <div class="cluster">
+                    @if (row.RequiresExplicitEntitlement)
+                    {
+                        <span class="badge badge--accent badge--plain">
+                            @L["admin.application.access.entitlementOnly"]
+                        </span>
+                    }
+                    <span class="badge @decisionBadge">@decisionLabel</span>
+                </div>
+            </div>
+
+            <div class="stack stack--tight">
+                <div class="cluster" style="gap:var(--space-4)">
+                    <span class="text-sm text-secondary">
+                        @L["admin.entitlement.state"]:
+                        @if (!row.HasGrant)
+                        {
+                            <span class="text-muted">@L["admin.entitlements.noGrant"]</span>
+                        }
+                        else if (row.GrantRevokedAt is { } revokedAt)
+                        {
+                            <span class="badge badge--danger">
+                                @L["admin.entitlement.revoked"] · @UserTime.Format(revokedAt, Model.TimeZoneId, "yyyy/MM/dd")
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge badge--success">@L["admin.entitlement.active"]</span>
+                        }
+                    </span>
+
+                    @if (row.HasGrant && row.GrantRevokedAt is null)
+                    {
+                        <span class="text-sm text-secondary">
+                            @L["admin.entitlement.starts"]:
+                            @UserTime.Format(row.GrantStartsAt!.Value, Model.TimeZoneId, "yyyy/MM/dd")
+                        </span>
+
+                        <span class="text-sm text-secondary">
+                            @L["admin.entitlement.expires"]:
+                            @(row.GrantExpiresAt is { } expires
+                                ? UserTime.Format(expires, Model.TimeZoneId, "yyyy/MM/dd")
+                                : L["admin.entitlements.noExpiry"].Value)
+                        </span>
+                    }
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(row.GrantNotes))
+                {
+                    <p class="text-xs text-muted">@row.GrantNotes</p>
+                }
+
+                @if (Model.CanWrite)
+                {
+                    <div class="divider"></div>
+
+                    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));align-items:end">
+                        <form method="post" asp-action="GrantEntitlement" class="grid"
+                              style="grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:var(--space-3);align-items:end;grid-column:1/-1">
+                            <input type="hidden" name="UserId" value="@Model.UserId" />
+                            <input type="hidden" name="ApplicationId" value="@row.ApplicationId" />
+                            <input type="hidden" name="ConcurrencyToken" value="@row.ConcurrencyToken" />
+
+                            <div class="field">
+                                <label class="field__label" for="starts-@row.ApplicationId">
+                                    @L["admin.entitlement.starts"]
+                                </label>
+                                <input id="starts-@row.ApplicationId" name="StartsAt" class="input"
+                                       type="date" dir="ltr"
+                                       value="@(row.GrantStartsAt?.UtcDateTime.ToString("yyyy-MM-dd"))" />
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="expires-@row.ApplicationId">
+                                    @L["admin.entitlement.expires"]
+                                </label>
+                                <input id="expires-@row.ApplicationId" name="ExpiresAt" class="input"
+                                       type="date" dir="ltr"
+                                       value="@(row.GrantExpiresAt?.UtcDateTime.ToString("yyyy-MM-dd"))" />
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="notes-@row.ApplicationId">
+                                    @L["admin.membership.notes"]
+                                </label>
+                                <input id="notes-@row.ApplicationId" name="Notes" class="input"
+                                       maxlength="512" value="@row.GrantNotes" />
+                            </div>
+
+                            <div class="cluster">
+                                <button type="submit" class="btn btn--primary btn--sm">
+                                    @(row.HasGrant && row.GrantRevokedAt is null
+                                        ? L["admin.entitlements.update"].Value
+                                        : L["admin.entitlements.grant"].Value)
+                                </button>
+                            </div>
+                        </form>
+
+                        @if (row.HasGrant && row.GrantRevokedAt is null)
+                        {
+                            <form method="post" asp-action="RevokeEntitlement" style="grid-column:1/-1">
+                                <input type="hidden" name="UserId" value="@Model.UserId" />
+                                <input type="hidden" name="ApplicationId" value="@row.ApplicationId" />
+                                <input type="hidden" name="ConcurrencyToken" value="@row.ConcurrencyToken" />
+
+                                <button type="submit" class="btn btn--danger btn--sm"
+                                        data-confirm="@L["admin.entitlements.revokeConfirmBody", name]"
+                                        data-confirm-title="@L["admin.entitlements.revokeConfirmTitle"]"
+                                        data-confirm-yes="@L["common.confirm"]"
+                                        data-confirm-no="@L["common.cancel"]">
+                                    @L["admin.entitlements.revoke"]
+                                </button>
+                            </form>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
+    }
+</div>

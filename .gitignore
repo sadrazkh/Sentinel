@@ -22,6 +22,10 @@ node_modules/
 *.db-shm
 *.db-wal
 
+# Uploaded media. User content, never source.
+media/
+src/Sentinel.Web/media/
+
 # Secrets — never commit these. Use user-secrets, environment variables or a secret store.
 .env
 .env.*

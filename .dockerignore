@@ -13,6 +13,8 @@ docs/
 **/*.db
 **/*.db-shm
 **/*.db-wal
+media/
+**/media/
 **/*.user
 **/*.log
 

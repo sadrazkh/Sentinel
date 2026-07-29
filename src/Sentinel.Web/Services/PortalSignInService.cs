@@ -39,6 +39,7 @@ public sealed class PortalSignInService : IPortalSignInService
     private readonly IAuditService _audit;
     private readonly ISentinelDbContext _db;
     private readonly IClientContext _clientContext;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly SentinelSecurityOptions _securityOptions;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<PortalSignInService> _logger;
@@ -51,6 +52,7 @@ public sealed class PortalSignInService : IPortalSignInService
         IAuditService audit,
         ISentinelDbContext db,
         IClientContext clientContext,
+        IHttpContextAccessor httpContextAccessor,
         IOptions<SentinelSecurityOptions> securityOptions,
         TimeProvider timeProvider,
         ILogger<PortalSignInService> logger)
@@ -62,6 +64,7 @@ public sealed class PortalSignInService : IPortalSignInService
         _audit = audit;
         _db = db;
         _clientContext = clientContext;
+        _httpContextAccessor = httpContextAccessor;
         _securityOptions = securityOptions.Value;
         _timeProvider = timeProvider;
         _logger = logger;
@@ -155,6 +158,34 @@ public sealed class PortalSignInService : IPortalSignInService
         await _db.Users
             .Where(u => u.Id == user.Id)
             .ExecuteUpdateAsync(set => set.SetProperty(u => u.LastLoginAt, now), cancellationToken);
+    }
+
+    public async Task RefreshSessionAsync(CancellationToken cancellationToken = default)
+    {
+        var httpContext = _httpContextAccessor.HttpContext;
+
+        if (httpContext is null
+            || _clientContext.UserId is not { } userId
+            || _clientContext.SessionId is not { } sessionId)
+        {
+            return;
+        }
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+
+        if (user is null)
+        {
+            return;
+        }
+
+        // The existing properties are carried over so a "remember me" cookie does not quietly
+        // become a session cookie, and the original expiry is preserved.
+        var authentication = await httpContext.AuthenticateAsync(IdentityConstants.ApplicationScheme);
+
+        await _signInManager.SignInWithClaimsAsync(
+            user,
+            authentication.Properties,
+            [new Claim(UserSession.ClaimType, sessionId.ToString())]);
     }
 
     public async Task SignOutAsync(CancellationToken cancellationToken = default)

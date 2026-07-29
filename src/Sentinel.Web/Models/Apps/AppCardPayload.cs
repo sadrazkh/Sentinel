@@ -46,7 +46,7 @@ public sealed record AppCardPayload(
             card.Key,
             isPersian ? card.NameFa : card.NameEn,
             isPersian ? card.DescriptionFa : card.DescriptionEn,
-            ResolveIconUrl(card.IconPath),
+            MediaUrls.ApplicationIcon(card.Key, card.IconPath),
             card.IsBeta,
             card.CanLaunch,
             card.CanLaunch ? openUrlFor(card.Key) : null,
@@ -58,26 +58,6 @@ public sealed record AppCardPayload(
                 : localizer[AccessPresentation.DenialReasonKey(card.Decision.Reason)].Value);
     }
 
-    /// <summary>
-    /// Only root-relative paths are emitted. Anything else stored in the column — an absolute
-    /// URL, a traversal attempt — is dropped and the card falls back to its letter avatar,
-    /// so a bad row cannot turn into an off-site image request that leaks the viewer's address.
-    /// </summary>
-    private static string? ResolveIconUrl(string? iconPath)
-    {
-        if (string.IsNullOrWhiteSpace(iconPath))
-        {
-            return null;
-        }
-
-        var trimmed = iconPath.Trim();
-
-        var isSafe = trimmed.StartsWith('/')
-                     && !trimmed.StartsWith("//", StringComparison.Ordinal)
-                     && !trimmed.Contains("..", StringComparison.Ordinal);
-
-        return isSafe ? trimmed : null;
-    }
 }
 
 /// <summary>The handful of UI strings the island renders that do not belong to a single card.</summary>

@@ -35,6 +35,13 @@ public static class PortalTestData
             var db = services.GetRequiredService<ISentinelDbContext>();
             var now = services.GetRequiredService<TimeProvider>().GetUtcNow();
 
+            // Idempotent, so a [Theory] whose cases share a subject does not fail on the
+            // second case with a duplicate-username error.
+            if (await userManager.FindByNameAsync(userName) is { } existing)
+            {
+                return existing.Id;
+            }
+
             var user = new ApplicationUser
             {
                 Id = SequentialGuid.New(),

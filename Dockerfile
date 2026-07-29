@@ -52,9 +52,15 @@ ENV DOTNET_RUNNING_IN_CONTAINER=true \
 
 COPY --from=build /app/publish .
 
-# Data-protection key ring. Mount a volume here, or every redeploy invalidates every
-# authentication cookie and signs all users out.
-RUN mkdir -p /var/sentinel/keys && chown -R $APP_UID:$APP_UID /var/sentinel
+# Two directories that must outlive the container:
+#   keys  — data-protection key ring; losing it invalidates every authentication cookie
+#   media — uploaded application icons; losing it leaves rows pointing at missing files
+# Both belong on mounted volumes. They are deliberately outside the web root, so nothing here
+# is ever served by the static-file middleware.
+RUN mkdir -p /var/sentinel/keys /var/sentinel/media \
+    && chown -R $APP_UID:$APP_UID /var/sentinel
+
+ENV MediaStorage__RootPath=/var/sentinel/media
 
 # The base image provides a non-root user; the application never needs root.
 USER $APP_UID

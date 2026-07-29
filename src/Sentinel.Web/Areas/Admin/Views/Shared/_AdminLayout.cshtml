@@ -52,6 +52,19 @@
             <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="Users" asp-action="Index">
                 @L["admin.nav.users"]
             </a>
+            <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="Applications" asp-action="Index">
+                @L["admin.nav.applications"]
+            </a>
+            <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="Audit" asp-action="Index">
+                @L["admin.nav.audit"]
+            </a>
+            @if (User.IsInRole(RoleNames.SuperAdmin))
+            {
+                @* Shown by role for convenience; the controller's policy is what enforces it. *@
+                <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="System" asp-action="Index">
+                    @L["admin.nav.system"]
+                </a>
+            }
         </nav>
 
         <span class="header-spacer"></span>

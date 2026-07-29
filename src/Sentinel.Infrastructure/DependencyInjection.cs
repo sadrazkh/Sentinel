@@ -4,13 +4,21 @@ using Sentinel.Application.Abstractions;
 using Sentinel.Application.Access;
 using Sentinel.Application.Accounts;
 using Sentinel.Application.Auditing;
+using Sentinel.Application.Catalog;
+using Sentinel.Application.Entitlements;
+using Sentinel.Application.Media;
 using Sentinel.Application.Memberships;
 using Sentinel.Application.Security;
+using Sentinel.Application.Settings;
 using Sentinel.Application.Users;
 using Sentinel.Infrastructure.Access;
 using Sentinel.Infrastructure.Accounts;
 using Sentinel.Infrastructure.Auditing;
+using Sentinel.Infrastructure.Catalog;
+using Sentinel.Infrastructure.Entitlements;
+using Sentinel.Infrastructure.Media;
 using Sentinel.Infrastructure.Memberships;
+using Sentinel.Infrastructure.Settings;
 using Sentinel.Infrastructure.Users;
 using Sentinel.Infrastructure.Persistence;
 using Sentinel.Infrastructure.Security;
@@ -74,6 +82,20 @@ public static class DependencyInjection
         services.AddScoped<IUserAdminQuery, UserAdminQuery>();
         services.AddScoped<IUserAdminService, UserAdminService>();
         services.AddScoped<IMembershipAdminService, MembershipAdminService>();
+
+        services.AddScoped<IApplicationAdminQuery, ApplicationAdminQuery>();
+        services.AddScoped<IApplicationAdminService, ApplicationAdminService>();
+        services.AddScoped<IEntitlementAdminQuery, EntitlementAdminQuery>();
+        services.AddScoped<IEntitlementAdminService, EntitlementAdminService>();
+
+        // Stateless once its root path is resolved.
+        services.AddSingleton<IApplicationIconStorage, LocalApplicationIconStorage>();
+
+        services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IActivityQuery, ActivityQuery>();
+        services.AddScoped<IAuditLogQuery, AuditLogQuery>();
+        services.AddScoped<ISystemOverviewQuery, SystemOverviewQuery>();
+        services.AddScoped<IRoleSummaryQuery, RoleSummaryQuery>();
 
         return services;
     }

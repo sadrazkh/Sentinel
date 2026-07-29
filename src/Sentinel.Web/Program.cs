@@ -13,6 +13,7 @@ using Sentinel.Application.Abstractions;
 using Sentinel.Application.Options;
 using Sentinel.Domain.Identity;
 using Sentinel.Infrastructure;
+using Sentinel.Infrastructure.Media;
 using Sentinel.Infrastructure.Persistence;
 using Sentinel.Infrastructure.Seeding;
 using Sentinel.Web.Infrastructure;
@@ -59,6 +60,11 @@ builder.Services.AddOptions<SeedOptions>()
 
 builder.Services.AddOptions<DatabaseOptions>()
     .Bind(builder.Configuration.GetSection(DatabaseOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<MediaStorageOptions>()
+    .Bind(builder.Configuration.GetSection(MediaStorageOptions.SectionName))
+    .ValidateDataAnnotations()
     .ValidateOnStart();
 
 // The provider must be known before the DbContext is registered, so this one section is also

@@ -1,0 +1,214 @@
+@using Sentinel.Domain.Auditing
+@model AuditIndexViewModel
+@{
+    ViewData["Title"] = L["admin.audit.title"].Value;
+    var entries = Model.Entries;
+    var filter = Model.Filter;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.audit.title"]</h1>
+        <p class="page-head__subtitle">@L["admin.audit.subtitle"]</p>
+    </div>
+    <span class="badge badge--neutral numeric">@L["admin.audit.count", entries.TotalCount]</span>
+</div>
+
+<form method="get" class="card" style="margin-block-end:var(--space-6)">
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));align-items:end">
+        <div class="field">
+            <label class="field__label" for="Action">@L["admin.audit.action"]</label>
+            @* Named auditAction: "action" is a reserved MVC route value, and a form field of
+               that name binds to the controller action's own name instead of this filter. *@
+            <select id="Action" name="auditAction" class="input">
+                <option value="">@L["admin.audit.anyAction"]</option>
+                @foreach (var action in Model.KnownActions)
+                {
+                    <option value="@action" selected="@(filter.Action == action)">@action</option>
+                }
+            </select>
+        </div>
+
+        <div class="field">
+            <label class="field__label" for="Result">@L["admin.audit.result"]</label>
+            <select id="Result" name="Result" class="input">
+                <option value="">@L["admin.audit.anyResult"]</option>
+                @foreach (var result in Model.KnownResults)
+                {
+                    <option value="@result" selected="@(filter.Result == result)">
+                        @L[$"admin.audit.result.{result.ToString().ToLowerInvariant()}"]
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="field">
+            <label class="field__label" for="EntityId">@L["admin.audit.entityId"]</label>
+            <input id="EntityId" name="EntityId" class="input" dir="ltr" maxlength="128"
+                   value="@filter.EntityId" placeholder="@L["admin.audit.entityId.hint"]" />
+        </div>
+
+        <div class="field">
+            <label class="field__label" for="From">@L["admin.audit.from"]</label>
+            <input id="From" name="From" class="input" type="date" dir="ltr"
+                   value="@filter.From?.ToString("yyyy-MM-dd")" />
+        </div>
+
+        <div class="field">
+            <label class="field__label" for="To">@L["admin.audit.to"]</label>
+            <input id="To" name="To" class="input" type="date" dir="ltr"
+                   value="@filter.To?.ToString("yyyy-MM-dd")" />
+        </div>
+
+        <div class="cluster">
+            <button type="submit" class="btn btn--primary btn--sm">@L["admin.audit.apply"]</button>
+            @if (filter.HasAnyFilter)
+            {
+                <a class="btn btn--ghost btn--sm" asp-action="Index">@L["admin.audit.clear"]</a>
+            }
+        </div>
+    </div>
+</form>
+
+<div class="card card--flush">
+    @if (entries.TotalCount == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 4.5h14v15l-7-3.2-7 3.2z" />
+                </svg>
+            </div>
+            <p class="empty-state__title">@L["admin.audit.empty.title"]</p>
+            <p class="empty-state__body">
+                @(filter.HasAnyFilter ? L["admin.audit.empty.filtered"].Value : L["admin.audit.empty.body"].Value)
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th scope="col">@L["admin.audit.when"]</th>
+                    <th scope="col">@L["admin.audit.actor"]</th>
+                    <th scope="col">@L["admin.audit.action"]</th>
+                    <th scope="col">@L["admin.audit.target"]</th>
+                    <th scope="col">@L["admin.audit.result"]</th>
+                    <th scope="col">@L["admin.audit.details"]</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var entry in entries.Items)
+                {
+                    var resultBadge = entry.Result switch
+                    {
+                        AuditResult.Success => "badge--success",
+                        AuditResult.Denied => "badge--warning",
+                        _ => "badge--danger",
+                    };
+
+                    <tr>
+                        <td class="table__numeric">
+                            <time datetime="@UserTime.ToIso8601(entry.OccurredAt)">
+                                @UserTime.Format(entry.OccurredAt, Model.TimeZoneId)
+                            </time>
+                            @if (!string.IsNullOrEmpty(entry.IpAddress))
+                            {
+                                <div class="mono text-xs text-muted" dir="ltr">@entry.IpAddress</div>
+                            }
+                        </td>
+                        <td>
+                            @if (entry.ActorUserId is { } actorId)
+                            {
+                                <a asp-area="Admin" asp-controller="Users" asp-action="Details"
+                                   asp-route-id="@actorId">
+                                    @(entry.ActorUserName ?? actorId.ToString())
+                                </a>
+                            }
+                            else
+                            {
+                                @* Anonymous events, such as a failed sign-in for an unknown name. *@
+                                <span class="text-muted">@L["admin.audit.anonymous"]</span>
+                            }
+                        </td>
+                        <td class="mono text-xs" dir="ltr">@entry.Action</td>
+                        <td class="text-xs">
+                            <div>@entry.EntityType</div>
+                            @if (!string.IsNullOrEmpty(entry.EntityId))
+                            {
+                                <div class="mono text-muted truncate" style="max-inline-size:22ch" dir="ltr">
+                                    @entry.EntityId
+                                </div>
+                            }
+                        </td>
+                        <td>
+                            <span class="badge @resultBadge">
+                                @L[$"admin.audit.result.{entry.Result.ToString().ToLowerInvariant()}"]
+                            </span>
+                        </td>
+                        <td class="text-xs">
+                            @* Metadata is screened at write time against secret-looking key
+                               names, so what reaches here is safe to display — and Razor
+                               encodes it regardless. *@
+                            @if (!string.IsNullOrEmpty(entry.MetadataJson))
+                            {
+                                <details>
+                                    <summary class="text-muted" style="cursor:pointer">
+                                        @L["admin.audit.showMetadata"]
+                                    </summary>
+                                    <pre class="mono" dir="ltr"
+                                         style="white-space:pre-wrap;word-break:break-all;margin-block-start:var(--space-2)">@entry.MetadataJson</pre>
+                                </details>
+                            }
+                            @if (!string.IsNullOrEmpty(entry.CorrelationId))
+                            {
+                                <div class="mono text-muted truncate" style="max-inline-size:18ch" dir="ltr"
+                                     title="@entry.CorrelationId">@entry.CorrelationId</div>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+        @if (entries.TotalPages > 1)
+        {
+            <div class="card__section cluster" style="justify-content:space-between"
+                 role="navigation" aria-label="@L["admin.pager.label"]">
+                <span class="text-xs text-muted">
+                    @L["admin.pager.page", entries.Page, entries.TotalPages]
+                </span>
+
+                <div class="cluster">
+                    @if (entries.HasPrevious)
+                    {
+                        <a class="btn btn--ghost btn--sm" asp-action="Index"
+                           asp-all-route-data="filter.ToRouteValues(entries.Page - 1)">
+                            @L["admin.pager.previous"]
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="btn btn--ghost btn--sm" aria-disabled="true">@L["admin.pager.previous"]</span>
+                    }
+
+                    @if (entries.HasNext)
+                    {
+                        <a class="btn btn--ghost btn--sm" asp-action="Index"
+                           asp-all-route-data="filter.ToRouteValues(entries.Page + 1)">
+                            @L["admin.pager.next"]
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="btn btn--ghost btn--sm" aria-disabled="true">@L["admin.pager.next"]</span>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
