@@ -205,6 +205,11 @@ builder.Services.AddControllersWithViews(options =>
     // Every unsafe verb is validated by default. Relying on each action to remember
     // [ValidateAntiForgeryToken] means one forgotten attribute is one CSRF hole.
     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+
+    // Inserted ahead of the default simple-type binder. Without it, the Persian culture reads
+    // the ISO date an <input type="date"> submits through the Persian calendar and stores a
+    // year six centuries out. See Iso8601DateModelBinder.
+    options.ModelBinderProviders.Insert(0, new Iso8601DateModelBinderProvider());
 });
 
 // By default the HTML encoder only lets Basic Latin through unescaped, so every Persian
@@ -323,6 +328,11 @@ app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Areas first: the admin area's routes must match before the catch-all default pattern.
+app.MapControllerRoute(
+    name: "areas",
+    pattern: "{area:exists}/{controller=Users}/{action=Index}/{id?}");
 
 app.MapControllerRoute(
     name: "default",

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sentinel.Application.Identity;
 using Sentinel.Domain.Catalog;
 using Sentinel.Domain.Common;
 using Sentinel.Domain.Identity;
@@ -55,19 +56,105 @@ public sealed class DatabaseSeeder
         if (_options.IncludeSampleApplications)
         {
             await SeedSampleApplicationsAsync(cancellationToken);
+            await SeedSampleMembersAsync(cancellationToken);
             await SeedSampleMembershipsAsync(cancellationToken);
         }
     }
 
     /// <summary>
-    /// Development convenience: without a membership every sample application shows as locked,
-    /// which makes the portal impossible to look at on a fresh database. Gated behind the same
-    /// flag as the sample catalogue, which Production rejects.
+    /// Creates one account per interesting portal state — healthy, expiring, in grace, expired,
+    /// suspended, no membership — so every branch of the access rules can be seen in a browser
+    /// rather than inferred from tests. Skipped entirely when no fixture password is configured.
+    /// </summary>
+    private async Task SeedSampleMembersAsync(CancellationToken cancellationToken)
+    {
+        var password = _options.SampleMemberPassword;
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            _logger.LogInformation(
+                "Seed:SampleMemberPassword is empty; skipping the sample member accounts.");
+            return;
+        }
+
+        var now = _timeProvider.GetUtcNow();
+        var created = 0;
+
+        foreach (var sample in SampleMembers.All)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (await _userManager.FindByNameAsync(sample.UserName) is not null)
+            {
+                continue;
+            }
+
+            var user = new ApplicationUser
+            {
+                Id = SequentialGuid.New(now),
+                UserName = sample.UserName,
+                Email = $"{sample.UserName}@example.com",
+                EmailConfirmed = true,
+                PhoneNumber = sample.PhoneNumber,
+                NormalizedPhoneNumber = PhoneNumberNormalizer.Normalize(sample.PhoneNumber),
+                DisplayName = sample.DisplayName,
+                Status = sample.AccountStatus,
+                StatusNote = sample.AccountStatus == UserAccountStatus.Active ? null : sample.Purpose,
+            };
+
+            var result = await _userManager.CreateAsync(user, password);
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    $"Could not create the sample member '{sample.UserName}': {Describe(result)}");
+            }
+
+            await _userManager.AddToRoleAsync(user, RoleNames.Member);
+
+            if (sample.WithMembership)
+            {
+                _db.Memberships.Add(new Membership
+                {
+                    Id = SequentialGuid.New(now),
+                    UserId = user.Id,
+                    Tier = sample.Tier,
+                    AdminState = sample.MembershipState,
+                    StartsAt = now.AddDays(-60),
+                    EndsAt = sample.EndsInDays is { } days ? now.AddDays(days) : null,
+                    Notes = sample.Purpose,
+                });
+            }
+
+            created++;
+        }
+
+        if (created > 0)
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+
+            _logger.LogWarning(
+                "Seeded {Count} sample member account(s) with a shared development password. " +
+                "This only ever happens when Seed:IncludeSampleApplications is on, which " +
+                "Production refuses.",
+                created);
+        }
+    }
+
+    /// <summary>
+    /// Development convenience for accounts that are not part of the sample set — the seeded
+    /// administrator, most importantly. Without a membership every application shows as locked,
+    /// which makes the portal impossible to look at on a fresh database.
+    /// <para>
+    /// Sample members are excluded: their membership state is the whole point of them, and
+    /// giving <c>member.nomembership</c> a membership would defeat it.
+    /// </para>
     /// </summary>
     private async Task SeedSampleMembershipsAsync(CancellationToken cancellationToken)
     {
+        var sampleUserNames = SampleMembers.All.Select(s => s.UserName).ToList();
+
         var usersWithoutMembership = await _db.Users
-            .Where(u => u.Membership == null)
+            .Where(u => u.Membership == null && !sampleUserNames.Contains(u.UserName!))
             .Select(u => u.Id)
             .ToListAsync(cancellationToken);
 

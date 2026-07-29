@@ -25,6 +25,9 @@ public sealed class ApplicationUserConfiguration : IEntityTypeConfiguration<Appl
             .HasMaxLength(ApplicationUser.TimeZoneMaxLength)
             .IsRequired();
 
+        builder.Property(u => u.NormalizedPhoneNumber)
+            .HasMaxLength(ApplicationUser.NormalizedPhoneMaxLength);
+
         builder.Property(u => u.Status)
             .HasConversion<int>()
             .IsRequired();
@@ -32,6 +35,11 @@ public sealed class ApplicationUserConfiguration : IEntityTypeConfiguration<Appl
         // Admin list filters on status and sorts by creation date.
         builder.HasIndex(u => u.Status);
         builder.HasIndex(u => u.CreatedAt);
+
+        // One account per phone number. PostgreSQL and SQLite treat NULLs as distinct, so
+        // accounts without a phone are unaffected; SQL Server needs a filtered index, which
+        // SentinelDbContext adds for that provider only.
+        builder.HasIndex(u => u.NormalizedPhoneNumber).IsUnique();
 
         builder.HasOne(u => u.Membership)
             .WithOne(m => m.User!)

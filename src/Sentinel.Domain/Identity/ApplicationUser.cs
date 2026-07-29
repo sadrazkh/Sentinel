@@ -17,8 +17,17 @@ public class ApplicationUser : IdentityUser<Guid>, ITimestamped
     public const int StatusNoteMaxLength = 512;
     public const int CultureMaxLength = 16;
     public const int TimeZoneMaxLength = 64;
+    public const int NormalizedPhoneMaxLength = 16;
 
     public string DisplayName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Canonical <c>+&lt;digits&gt;</c> form of <see cref="IdentityUser{TKey}.PhoneNumber"/>,
+    /// produced by <c>PhoneNumberNormalizer</c>. Unique when present, which is what allows
+    /// signing in by phone: the lookup is an indexed equality match and two accounts can never
+    /// claim the same number in different spellings.
+    /// </summary>
+    public string? NormalizedPhoneNumber { get; set; }
 
     public UserAccountStatus Status { get; set; } = UserAccountStatus.Active;
 

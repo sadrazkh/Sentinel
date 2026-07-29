@@ -41,6 +41,7 @@ export default defineConfig({
         'page-login': resolve(here, 'Scripts/pages/login.js'),
         'page-apps': resolve(here, 'Scripts/pages/apps.js'),
         'page-dashboard': resolve(here, 'Scripts/pages/dashboard.js'),
+        'page-membership-editor': resolve(here, 'Scripts/pages/membership-editor.js'),
       },
       output: {
         entryFileNames: '[name].js',

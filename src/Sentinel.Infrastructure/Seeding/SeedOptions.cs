@@ -16,6 +16,16 @@ public sealed class SeedOptions
     /// </para>
     /// </summary>
     public bool IncludeSampleApplications { get; set; }
+
+    /// <summary>
+    /// Password given to the seeded sample members. Leave empty to skip creating them.
+    /// <para>
+    /// This is a test fixture, in the same category as the credentials the integration suite
+    /// uses — not a secret. It only ever reaches a throwaway development database, because
+    /// <see cref="IncludeSampleApplications"/> is refused outright in Production.
+    /// </para>
+    /// </summary>
+    public string SampleMemberPassword { get; set; } = string.Empty;
 }
 
 public sealed class SuperAdminSeedOptions

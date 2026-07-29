@@ -1,0 +1,235 @@
+@model UserListViewModel
+@{
+    ViewData["Title"] = L["admin.users.title"].Value;
+
+    var results = Model.Results;
+    var filter = Model.Filter;
+
+    // Sort links keep every active filter, so sorting never silently widens the result set.
+    Dictionary<string, string?> SortRoute(UserSortField field) => filter.ToRouteValues(page: 1, sortBy: field);
+
+    string SortIndicator(UserSortField field) =>
+        filter.SortBy != field ? string.Empty : filter.Descending ? " ↓" : " ↑";
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.users.title"]</h1>
+        <p class="page-head__subtitle">
+            @L["admin.users.showing", results.FirstItemNumber, results.LastItemNumber, results.TotalCount]
+        </p>
+    </div>
+    @if (Model.CanWrite)
+    {
+        <a class="btn btn--primary" asp-action="Create">@L["admin.users.create"]</a>
+    }
+</div>
+
+<form method="get" class="card" style="margin-block-end:var(--space-6)">
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))">
+        <div class="field">
+            <label class="field__label" for="search">@L["admin.users.search"]</label>
+            <input id="search" name="search" class="input" type="search"
+                   value="@filter.Search" maxlength="128"
+                   placeholder="@L["admin.users.search.placeholder"]" />
+        </div>
+
+        <div class="field">
+            <label class="field__label" for="status">@L["admin.user.status"]</label>
+            <select id="status" name="status" class="input">
+                <option value="">@L["admin.filter.any"]</option>
+                @foreach (var status in Enum.GetValues<UserAccountStatus>())
+                {
+                    <option value="@status" selected="@(filter.Status == status)">
+                        @L[$"status.{status.ToString().ToLowerInvariant()}"]
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="field">
+            <label class="field__label" for="role">@L["admin.user.roles"]</label>
+            <select id="role" name="role" class="input">
+                <option value="">@L["admin.filter.any"]</option>
+                @foreach (var role in RoleNames.All)
+                {
+                    <option value="@role" selected="@(filter.Role == role)">@L[$"role.{role}"]</option>
+                }
+            </select>
+        </div>
+
+        <div class="field">
+            <label class="field__label" for="expiringWithinDays">@L["admin.users.expiringWithin"]</label>
+            <select id="expiringWithinDays" name="expiringWithinDays" class="input">
+                <option value="">@L["admin.filter.any"]</option>
+                @foreach (var days in new[] { 7, 14, 30, 90 })
+                {
+                    <option value="@days" selected="@(filter.ExpiringWithinDays == days)">
+                        @L["admin.users.expiringWithin.days", days]
+                    </option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <input type="hidden" name="sortBy" value="@filter.SortBy" />
+    <input type="hidden" name="descending" value="@filter.Descending.ToString().ToLowerInvariant()" />
+
+    <div class="cluster" style="margin-block-start:var(--space-4)">
+        <button type="submit" class="btn btn--primary btn--sm">@L["admin.filter.apply"]</button>
+        <a class="btn btn--ghost btn--sm" asp-action="Index">@L["admin.filter.reset"]</a>
+    </div>
+</form>
+
+@if (results.TotalCount == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m20 20-3.6-3.6" />
+                </svg>
+            </div>
+            <p class="empty-state__title">@L["admin.users.empty.title"]</p>
+            <p class="empty-state__body">@L["admin.users.empty.body"]</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card card--flush">
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th scope="col">
+                        <a asp-action="Index" asp-all-route-data="SortRoute(UserSortField.DisplayName)">
+                            @L["admin.user.displayName"]@SortIndicator(UserSortField.DisplayName)
+                        </a>
+                    </th>
+                    <th scope="col">
+                        <a asp-action="Index" asp-all-route-data="SortRoute(UserSortField.Status)">
+                            @L["admin.user.status"]@SortIndicator(UserSortField.Status)
+                        </a>
+                    </th>
+                    <th scope="col">@L["membership.status"]</th>
+                    <th scope="col">@L["account.roles"]</th>
+                    <th scope="col">
+                        <a asp-action="Index" asp-all-route-data="SortRoute(UserSortField.LastLoginAt)">
+                            @L["account.lastLogin"]@SortIndicator(UserSortField.LastLoginAt)
+                        </a>
+                    </th>
+                    <th scope="col">
+                        <a asp-action="Index" asp-all-route-data="SortRoute(UserSortField.CreatedAt)">
+                            @L["account.createdAt"]@SortIndicator(UserSortField.CreatedAt)
+                        </a>
+                    </th>
+                    <th scope="col"></th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var user in results.Items)
+                {
+                    var statusBadge = user.Status switch
+                    {
+                        UserAccountStatus.Active => "badge--success",
+                        UserAccountStatus.Suspended => "badge--danger",
+                        _ => "badge--neutral",
+                    };
+
+                    <tr>
+                        <td>
+                            <div style="font-weight:600">@user.DisplayName</div>
+                            <div class="mono text-xs text-muted" dir="ltr">@user.UserName</div>
+                        </td>
+                        <td>
+                            <span class="badge @statusBadge">
+                                @L[$"status.{user.Status.ToString().ToLowerInvariant()}"]
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge @AccessPresentation.MembershipBadgeClass(user.Membership.Status)">
+                                @L[AccessPresentation.MembershipStatusKey(user.Membership.Status)]
+                            </span>
+                            @if (user.Membership.DaysRemaining is { } days && user.Membership.GrantsAccess)
+                            {
+                                <div class="text-xs text-muted numeric">
+                                    @L["admin.users.daysLeft", days]
+                                </div>
+                            }
+                        </td>
+                        <td>
+                            <div class="cluster">
+                                @foreach (var role in user.Roles)
+                                {
+                                    <span class="badge badge--neutral badge--plain">@L[$"role.{role}"]</span>
+                                }
+                            </div>
+                        </td>
+                        <td class="table__numeric text-sm">
+                            @if (user.LastLoginAt is { } lastLogin)
+                            {
+                                <time datetime="@UserTime.ToIso8601(lastLogin)">
+                                    @UserTime.Format(lastLogin, Model.TimeZoneId)
+                                </time>
+                            }
+                            else
+                            {
+                                <span class="text-muted">@L["account.never"]</span>
+                            }
+                        </td>
+                        <td class="table__numeric text-sm">
+                            <time datetime="@UserTime.ToIso8601(user.CreatedAt)">
+                                @UserTime.Format(user.CreatedAt, Model.TimeZoneId, "yyyy/MM/dd")
+                            </time>
+                        </td>
+                        <td>
+                            <a class="btn btn--outline btn--sm" asp-action="Details" asp-route-id="@user.Id">
+                                @L["admin.users.open"]
+                            </a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (results.TotalPages > 1)
+    {
+        <nav class="cluster" style="justify-content:space-between;margin-block-start:var(--space-5)"
+             aria-label="@L["admin.pager.label"]">
+            <div class="text-sm text-muted">
+                @L["admin.pager.page", results.Page, results.TotalPages]
+            </div>
+
+            <div class="cluster">
+                @if (results.HasPrevious)
+                {
+                    <a class="btn btn--ghost btn--sm" asp-action="Index"
+                       asp-all-route-data="filter.ToRouteValues(page: results.Page - 1)">
+                        @L["admin.pager.previous"]
+                    </a>
+                }
+                else
+                {
+                    <span class="btn btn--ghost btn--sm" aria-disabled="true">@L["admin.pager.previous"]</span>
+                }
+
+                @if (results.HasNext)
+                {
+                    <a class="btn btn--ghost btn--sm" asp-action="Index"
+                       asp-all-route-data="filter.ToRouteValues(page: results.Page + 1)">
+                        @L["admin.pager.next"]
+                    </a>
+                }
+                else
+                {
+                    <span class="btn btn--ghost btn--sm" aria-disabled="true">@L["admin.pager.next"]</span>
+                }
+            </div>
+        </nav>
+    }
+}

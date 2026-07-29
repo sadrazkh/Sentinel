@@ -7,8 +7,7 @@
     var isPersian = culture.TwoLetterISOLanguageName == "fa";
     var otherCulture = isPersian ? PortalCultures.English : PortalCultures.Persian;
     var otherCultureLabel = isPersian ? L["language.english"] : L["language.persian"];
-    var isAuthenticated = User.Identity?.IsAuthenticated == true;
-    var canSeeBackOffice = RoleNames.BackOffice.Any(role => User.IsInRole(role));
+    var statusMessage = TempData["StatusMessage"] as string;
 }
 <!DOCTYPE html>
 <html lang="@culture.TwoLetterISOLanguageName" dir="@direction">
@@ -16,13 +15,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <title>@(ViewData["Title"] ?? L["app.name"].Value) · @L["app.name"]</title>
+    <title>@(ViewData["Title"] ?? L["admin.title"].Value) · @L["admin.title"]</title>
     <link rel="icon" href="~/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="~/css/sentinel.css" asp-append-version="true" />
-    @await RenderSectionAsync("Head", required: false)
 
-    @* Applied before first paint so the page never flashes the wrong theme. Inline because
-       it must run synchronously ahead of the stylesheet; the CSP nonce is what permits it. *@
     <script nonce="@nonce">
         (function () {
             try {
@@ -39,7 +35,7 @@
 
 <div class="app-shell">
     <header class="app-header">
-        <a class="brand" asp-controller="Home" asp-action="Index">
+        <a class="brand" asp-area="" asp-controller="Dashboard" asp-action="Index">
             <span class="brand__mark" aria-hidden="true">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
@@ -50,30 +46,13 @@
             <span class="brand__label">@L["app.name"]</span>
         </a>
 
-        @if (isAuthenticated)
-        {
-            @* Links are shown by role for convenience only. Every destination re-checks
-               authorization on the server, so hiding a link is never the control. *@
-            <nav class="cluster" aria-label="@L["nav.primary"]">
-                <a class="btn btn--ghost btn--sm" asp-controller="Dashboard" asp-action="Index">
-                    @L["nav.dashboard"]
-                </a>
-                <a class="btn btn--ghost btn--sm" asp-controller="Apps" asp-action="Index">
-                    @L["nav.myApps"]
-                </a>
-                <a class="btn btn--ghost btn--sm" asp-controller="Membership" asp-action="Index">
-                    @L["nav.membership"]
-                </a>
+        <span class="badge badge--accent badge--plain">@L["admin.title"]</span>
 
-                @if (canSeeBackOffice)
-                {
-                    <a class="btn btn--ghost btn--sm"
-                       asp-area="Admin" asp-controller="Users" asp-action="Index">
-                        @L["nav.adminArea"]
-                    </a>
-                }
-            </nav>
-        }
+        <nav class="cluster" aria-label="@L["admin.nav"]">
+            <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="Users" asp-action="Index">
+                @L["admin.nav.users"]
+            </a>
+        </nav>
 
         <span class="header-spacer"></span>
 
@@ -93,7 +72,7 @@
                 </svg>
             </button>
 
-            <form method="post" asp-controller="Home" asp-action="SetLanguage">
+            <form method="post" asp-area="" asp-controller="Home" asp-action="SetLanguage">
                 <input type="hidden" name="culture" value="@otherCulture" />
                 <input type="hidden" name="returnUrl" value="@currentPath" />
                 <button type="submit" class="btn btn--ghost btn--sm" title="@L["language.switch"]">
@@ -101,21 +80,29 @@
                 </button>
             </form>
 
-            @if (isAuthenticated)
-            {
-                <form method="post" asp-controller="Account" asp-action="Logout">
-                    <button type="submit" class="btn btn--ghost btn--sm">@L["nav.signOut"]</button>
-                </form>
-            }
+            <a class="btn btn--ghost btn--sm" asp-area="" asp-controller="Dashboard" asp-action="Index">
+                @L["admin.backToPortal"]
+            </a>
+
+            <form method="post" asp-area="" asp-controller="Account" asp-action="Logout">
+                <button type="submit" class="btn btn--ghost btn--sm">@L["nav.signOut"]</button>
+            </form>
         </div>
     </header>
 
-    <main class="app-main" id="main-content">
+    <main class="app-main" id="main-content" style="max-width:1440px">
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <div class="alert alert--success" role="status" style="margin-block-end:var(--space-6)">
+                <span>@statusMessage</span>
+            </div>
+        }
+
         @RenderBody()
     </main>
 
     <footer class="app-footer">
-        @L["app.name"] · @L["app.tagline"] — @DateTimeOffset.UtcNow.Year @L["app.copyright"]
+        @L["app.name"] · @L["admin.title"]
     </footer>
 </div>
 

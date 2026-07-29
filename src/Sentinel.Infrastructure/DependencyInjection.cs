@@ -6,9 +6,12 @@ using Sentinel.Application.Accounts;
 using Sentinel.Application.Auditing;
 using Sentinel.Application.Memberships;
 using Sentinel.Application.Security;
+using Sentinel.Application.Users;
 using Sentinel.Infrastructure.Access;
 using Sentinel.Infrastructure.Accounts;
 using Sentinel.Infrastructure.Auditing;
+using Sentinel.Infrastructure.Memberships;
+using Sentinel.Infrastructure.Users;
 using Sentinel.Infrastructure.Persistence;
 using Sentinel.Infrastructure.Security;
 using Sentinel.Infrastructure.Seeding;
@@ -67,6 +70,10 @@ public static class DependencyInjection
         // Stateless apart from its options, so a singleton is enough.
         services.AddSingleton<IMembershipStatusResolver, MembershipStatusResolver>();
         services.AddScoped<IAccessDecisionService, AccessDecisionService>();
+
+        services.AddScoped<IUserAdminQuery, UserAdminQuery>();
+        services.AddScoped<IUserAdminService, UserAdminService>();
+        services.AddScoped<IMembershipAdminService, MembershipAdminService>();
 
         return services;
     }

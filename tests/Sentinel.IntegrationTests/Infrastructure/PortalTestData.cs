@@ -149,6 +149,79 @@ public static class PortalTestData
                     .SetProperty(u => u.SuspendedUntil, suspendedUntil));
         });
 
+    public static Task AddToRoleAsync(
+        this SentinelWebApplicationFactory factory,
+        string userName,
+        string role) =>
+        factory.WithScopeAsync(async services =>
+        {
+            var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByNameAsync(userName);
+
+            Assert.NotNull(user);
+            var result = await userManager.AddToRoleAsync(user!, role);
+            Assert.True(result.Succeeded);
+        });
+
+    public static Task<UserAccountStatus> GetAccountStatusAsync(
+        this SentinelWebApplicationFactory factory,
+        Guid userId) =>
+        factory.WithScopeAsync(async services =>
+        {
+            var db = services.GetRequiredService<ISentinelDbContext>();
+
+            return await db.Users
+                .AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => u.Status)
+                .FirstAsync();
+        });
+
+    public static Task<IList<string>> GetRolesAsync(
+        this SentinelWebApplicationFactory factory,
+        Guid userId) =>
+        factory.WithScopeAsync(async services =>
+        {
+            var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByIdAsync(userId.ToString());
+
+            Assert.NotNull(user);
+            return await userManager.GetRolesAsync(user!);
+        });
+
+    public static Task<bool> UserExistsAsync(
+        this SentinelWebApplicationFactory factory,
+        string userName) =>
+        factory.WithScopeAsync(async services =>
+        {
+            var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+            return await userManager.FindByNameAsync(userName) is not null;
+        });
+
+    public static Task<Guid> GetUserIdAsync(
+        this SentinelWebApplicationFactory factory,
+        string userName) =>
+        factory.WithScopeAsync(async services =>
+        {
+            var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByNameAsync(userName);
+
+            Assert.NotNull(user);
+            return user!.Id;
+        });
+
+    public static Task<Membership?> GetMembershipAsync(
+        this SentinelWebApplicationFactory factory,
+        Guid userId) =>
+        factory.WithScopeAsync(async services =>
+        {
+            var db = services.GetRequiredService<ISentinelDbContext>();
+
+            return await db.Memberships
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.UserId == userId);
+        });
+
     public static Task<List<string>> RecentAuditActionsAsync(
         this SentinelWebApplicationFactory factory,
         string entityId) =>

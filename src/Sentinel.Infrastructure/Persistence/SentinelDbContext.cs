@@ -40,6 +40,17 @@ public class SentinelDbContext
     {
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(typeof(SentinelDbContext).Assembly);
+
+        if (Database.IsSqlServer())
+        {
+            // SQL Server permits only a single NULL in a unique index, which would mean just
+            // one account could exist without a phone number. Everywhere else NULLs are
+            // distinct and no filter is needed.
+            builder.Entity<ApplicationUser>()
+                .HasIndex(u => u.NormalizedPhoneNumber)
+                .IsUnique()
+                .HasFilter("[NormalizedPhoneNumber] IS NOT NULL");
+        }
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

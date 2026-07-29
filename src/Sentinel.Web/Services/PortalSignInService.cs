@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Sentinel.Application.Abstractions;
 using Sentinel.Application.Auditing;
 using Sentinel.Application.Security;
+using Sentinel.Application.Identity;
 using Sentinel.Domain.Auditing;
 using Sentinel.Domain.Identity;
 using Sentinel.Domain.Security;
@@ -218,8 +219,8 @@ public sealed class PortalSignInService : IPortalSignInService
     }
 
     /// <summary>
-    /// Accepts a username or an e-mail address. Both go through Identity's normalisation, so
-    /// the lookup is an indexed equality match and never string-concatenated SQL.
+    /// Accepts a username, an e-mail address or a phone number, tried in that order. Each is
+    /// an indexed equality match on a normalised column — never string-concatenated SQL.
     /// </summary>
     private async Task<ApplicationUser?> FindUserAsync(string identifier, CancellationToken cancellationToken)
     {
@@ -234,9 +235,18 @@ public sealed class PortalSignInService : IPortalSignInService
             return byName;
         }
 
-        return identifier.Contains('@', StringComparison.Ordinal)
-            ? await _userManager.FindByEmailAsync(identifier)
-            : null;
+        if (identifier.Contains('@', StringComparison.Ordinal))
+        {
+            return await _userManager.FindByEmailAsync(identifier);
+        }
+
+        // Normalisation is what makes "۰۹۱۲…", "0912…" and "+98912…" all find the same account.
+        var normalizedPhone = PhoneNumberNormalizer.Normalize(identifier);
+
+        return normalizedPhone is null
+            ? null
+            : await _userManager.Users
+                .FirstOrDefaultAsync(u => u.NormalizedPhoneNumber == normalizedPhone, cancellationToken);
     }
 
     private async Task<SignInOutcome> FailAsync(
