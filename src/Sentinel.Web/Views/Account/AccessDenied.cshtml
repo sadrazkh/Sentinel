@@ -1,0 +1,23 @@
+@{
+    Layout = "_LayoutAuth";
+    ViewData["Title"] = L["accessDenied.title"].Value;
+    ViewData["AuthTitle"] = L["accessDenied.title"].Value;
+    var attemptedPath = ViewData["AttemptedPath"] as string;
+}
+
+<div class="stack">
+    <div class="alert alert--warning" role="alert">
+        <span>@L["accessDenied.message"]</span>
+    </div>
+
+    @if (!string.IsNullOrEmpty(attemptedPath))
+    {
+        @* Safe to echo: the controller only keeps it after Url.IsLocalUrl, and Razor
+           HTML-encodes it on the way out. *@
+        <p class="text-xs text-muted mono truncate">@attemptedPath</p>
+    }
+
+    <a class="btn btn--outline btn--block" asp-controller="Dashboard" asp-action="Index">
+        @L["common.backToDashboard"]
+    </a>
+</div>

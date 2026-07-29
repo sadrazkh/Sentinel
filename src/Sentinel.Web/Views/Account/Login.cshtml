@@ -1,0 +1,106 @@
+@model Sentinel.Web.Models.Account.LoginViewModel
+@{
+    Layout = "_LayoutAuth";
+    ViewData["Title"] = L["login.title"].Value;
+    ViewData["AuthTitle"] = L["login.title"].Value;
+    ViewData["AuthSubtitle"] = L["login.subtitle"].Value;
+
+    // ModelState error messages are localisation keys (see LoginViewModel); resolve them here
+    // so the attributes stay culture-free.
+    var summaryErrors = ViewData.ModelState
+        .SelectMany(entry => entry.Value!.Errors)
+        .Select(error => L[error.ErrorMessage].Value)
+        .Distinct()
+        .ToList();
+}
+
+<form method="post" asp-controller="Account" asp-action="Login" data-login-form novalidate>
+    @* Anti-forgery token. Rendered explicitly rather than relying on the tag helper's
+       implicit injection, because the script layer reads it for fetch requests too. *@
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="ReturnUrl" />
+
+    @if (summaryErrors.Count > 0)
+    {
+        <div class="alert alert--danger" role="alert" style="margin-block-end:var(--space-5)">
+            <div>
+                @foreach (var error in summaryErrors)
+                {
+                    <div>@error</div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="stack">
+        <div class="field">
+            <label class="field__label" asp-for="Identifier">@L["login.identifier"]</label>
+            <div class="field__control">
+                <input class="input"
+                       asp-for="Identifier"
+                       autocomplete="username"
+                       autocapitalize="none"
+                       autocorrect="off"
+                       spellcheck="false"
+                       dir="ltr"
+                       required
+                       maxlength="256"
+                       placeholder="@L["login.identifier.placeholder"]" />
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="field__label" asp-for="Password">@L["login.password"]</label>
+            <div class="field__control">
+                <input class="input input--with-affix"
+                       asp-for="Password"
+                       type="password"
+                       autocomplete="current-password"
+                       dir="ltr"
+                       required
+                       maxlength="256"
+                       placeholder="@L["login.password.placeholder"]" />
+
+                @* Hidden until the script enables it, so a no-JS visitor never sees a
+                   control that would do nothing. *@
+                <button type="button"
+                        class="field__affix"
+                        data-password-toggle
+                        hidden
+                        aria-pressed="false"
+                        aria-label="@L["login.showPassword"]"
+                        data-label-show="@L["login.showPassword"]"
+                        data-label-hide="@L["login.hidePassword"]">
+                    <svg data-icon="show" width="17" height="17" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                        <path d="M2.5 12S6 5.6 12 5.6 21.5 12 21.5 12 18 18.4 12 18.4 2.5 12 2.5 12Z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    <svg data-icon="hide" width="17" height="17" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" hidden>
+                        <path d="M3 3l18 18M10.6 10.7a3 3 0 0 0 4.2 4.2" />
+                        <path d="M7.4 7.5C4.5 9.2 2.5 12 2.5 12s3.5 6.4 9.5 6.4c1.6 0 3-.4 4.2-1M17.9 15.3c2-1.6 3.6-3.3 3.6-3.3S18 5.6 12 5.6c-.7 0-1.4.1-2 .2" />
+                    </svg>
+                </button>
+            </div>
+            <p class="field__error" data-capslock-hint hidden>@L["login.capsLock"]</p>
+        </div>
+
+        <label class="checkbox">
+            <input asp-for="RememberMe" type="checkbox" />
+            <span>@L["login.rememberMe"]</span>
+        </label>
+
+        <button type="submit"
+                class="btn btn--primary btn--block"
+                data-label-busy="@L["login.submitting"]">
+            @L["login.submit"]
+        </button>
+    </div>
+</form>
+
+<p class="auth-aside">@L["login.help"]</p>
+
+@section Scripts {
+    <script type="module" src="~/js/dist/page-login.js" asp-append-version="true"></script>
+}

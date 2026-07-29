@@ -1,0 +1,63 @@
+# Local stack: the portal plus its PostgreSQL database.
+#
+# Every secret comes from a .env file that is never committed — copy .env.example to .env and
+# fill it in. Nothing here is production-ready ingress: put a TLS-terminating reverse proxy in
+# front and set Security__ForwardedHeaderHops to the number of proxies you actually run.
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sentinel}
+      POSTGRES_USER: ${POSTGRES_USER:-sentinel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — see .env.example}
+    volumes:
+      - sentinel-db:/var/lib/postgresql/data
+    healthcheck:
+      # The app waits for this, so it never starts against a database still booting.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sentinel} -d ${POSTGRES_DB:-sentinel}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    # Not published to the host: only the application needs to reach it.
+    expose:
+      - "5432"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+
+      ConnectionStrings__Sentinel: >-
+        Host=db;Port=5432;Database=${POSTGRES_DB:-sentinel};Username=${POSTGRES_USER:-sentinel};Password=${POSTGRES_PASSWORD}
+      Database__Provider: PostgreSql
+      Database__MigrateOnStartup: ${DATABASE_MIGRATE_ON_STARTUP:-true}
+
+      # TLS is terminated by the proxy in front of this container, which then forwards the
+      # original scheme and client address. With no proxy in front, set both to 0/false.
+      Security__ForwardedHeaderHops: ${FORWARDED_HEADER_HOPS:-1}
+      Security__RequireHttps: ${SECURITY_REQUIRE_HTTPS:-true}
+
+      DataProtection__KeyRingPath: /var/sentinel/keys
+
+      # First boot only. Clear these and redeploy once the administrator has signed in.
+      Seed__SuperAdmin__Enabled: ${SEED_SUPERADMIN_ENABLED:-false}
+      Seed__SuperAdmin__UserName: ${SEED_SUPERADMIN_USERNAME:-}
+      Seed__SuperAdmin__Email: ${SEED_SUPERADMIN_EMAIL:-}
+      Seed__SuperAdmin__Password: ${SEED_SUPERADMIN_PASSWORD:-}
+    volumes:
+      # Persisted so authentication cookies survive a redeploy.
+      - sentinel-keys:/var/sentinel/keys
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+
+volumes:
+  sentinel-db:
+  sentinel-keys:

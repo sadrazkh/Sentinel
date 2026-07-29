@@ -1,0 +1,41 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+*.suo
+.vs/
+.vscode/
+.idea/
+
+# Front-end
+node_modules/
+
+# Built front-end bundles ARE committed on purpose: `dotnet run` and `docker build`
+# then work without Node installed. Regenerate them with `npm run build`.
+!src/Sentinel.Web/wwwroot/js/dist/
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets — never commit these. Use user-secrets, environment variables or a secret store.
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+*.pfx
+*.p12
+secrets.json
+
+# Logs
+*.log
+logs/
+
+# OS noise
+.DS_Store
+Thumbs.db

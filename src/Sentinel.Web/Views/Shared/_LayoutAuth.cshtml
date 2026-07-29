@@ -1,0 +1,77 @@
+@using System.Globalization
+@{
+    var culture = CultureInfo.CurrentUICulture;
+    var direction = PortalCultures.DirectionAttribute(culture);
+    var nonce = ContentSecurityPolicyNonce.GetOrCreate(Context);
+    var currentPath = $"{Context.Request.Path}{Context.Request.QueryString}";
+    var isPersian = culture.TwoLetterISOLanguageName == "fa";
+    var otherCulture = isPersian ? PortalCultures.English : PortalCultures.Persian;
+    var otherCultureLabel = isPersian ? L["language.english"] : L["language.persian"];
+}
+<!DOCTYPE html>
+<html lang="@culture.TwoLetterISOLanguageName" dir="@direction">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>@(ViewData["Title"] ?? L["app.name"].Value) · @L["app.name"]</title>
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="~/css/sentinel.css" asp-append-version="true" />
+
+    <script nonce="@nonce">
+        (function () {
+            try {
+                var stored = window.localStorage.getItem('sentinel.theme');
+                if (stored === 'light' || stored === 'dark') {
+                    document.documentElement.setAttribute('data-theme', stored);
+                }
+            } catch (e) { /* storage blocked; fall back to the OS preference */ }
+        })();
+    </script>
+</head>
+<body>
+<div class="auth-shell">
+    <div>
+        <div class="auth-card">
+            <div class="auth-card__head">
+                <span class="brand__mark" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2.5 4.5 5.8v5.4c0 4.6 3.2 8.9 7.5 10.3 4.3-1.4 7.5-5.7 7.5-10.3V5.8z" />
+                        <path d="m9.2 12.1 2 2 3.6-3.9" />
+                    </svg>
+                </span>
+                <h1 class="auth-card__title">@(ViewData["AuthTitle"] ?? L["app.name"].Value)</h1>
+                @if (ViewData["AuthSubtitle"] is string subtitle)
+                {
+                    <p class="auth-card__subtitle">@subtitle</p>
+                }
+            </div>
+
+            @RenderBody()
+        </div>
+
+        <div class="auth-aside cluster" style="justify-content:center">
+            <button type="button"
+                    class="btn btn--ghost btn--sm"
+                    data-theme-toggle
+                    data-label-light="@L["theme.light"]"
+                    data-label-dark="@L["theme.dark"]"
+                    data-label-auto="@L["theme.auto"]"
+                    aria-label="@L["theme.toggle"]">
+                @L["theme.toggle"]
+            </button>
+
+            <form method="post" asp-controller="Home" asp-action="SetLanguage">
+                <input type="hidden" name="culture" value="@otherCulture" />
+                <input type="hidden" name="returnUrl" value="@currentPath" />
+                <button type="submit" class="btn btn--ghost btn--sm">@otherCultureLabel</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="~/js/dist/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

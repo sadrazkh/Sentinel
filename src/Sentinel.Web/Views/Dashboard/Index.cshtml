@@ -1,0 +1,205 @@
+@model Sentinel.Web.Models.Dashboard.DashboardViewModel
+@{
+    ViewData["Title"] = L["dashboard.title"].Value;
+
+    var (statusVariant, statusLabel) = Model.Status switch
+    {
+        UserAccountStatus.Active => ("badge--success", L["status.active"].Value),
+        UserAccountStatus.Suspended => ("badge--danger", L["status.suspended"].Value),
+        _ => ("badge--neutral", L["status.disabled"].Value),
+    };
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["dashboard.greeting", Model.DisplayName]</h1>
+        <p class="page-head__subtitle">@L["dashboard.subtitle"]</p>
+    </div>
+    <span class="badge @statusVariant">@statusLabel</span>
+</div>
+
+<div class="stack" style="gap:var(--space-6)">
+
+    <section class="grid grid--stats" aria-label="@L["account.section.title"]">
+        <div class="stat">
+            <div class="stat__label">@L["account.status"]</div>
+            <div class="stat__value">@statusLabel</div>
+            @if (Model.Status == UserAccountStatus.Suspended && Model.SuspendedUntil is { } until)
+            {
+                <div class="stat__meta">@L["account.suspendedUntil", UserTime.Format(until, Model.TimeZoneId)]</div>
+            }
+        </div>
+
+        <div class="stat">
+            <div class="stat__label">@L["security.activeSessions"]</div>
+            <div class="stat__value">@Model.ActiveSessionCount</div>
+            <div class="stat__meta">@L["security.activeSessions.hint"]</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat__label">@L["account.lastLogin"]</div>
+            <div class="stat__value" style="font-size:var(--text-md)">
+                @if (Model.LastLoginAt is { } lastLogin)
+                {
+                    <time datetime="@UserTime.ToIso8601(lastLogin)">
+                        @UserTime.Format(lastLogin, Model.TimeZoneId)
+                    </time>
+                }
+                else
+                {
+                    @L["account.never"]
+                }
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="stat__label">@L["account.createdAt"]</div>
+            <div class="stat__value" style="font-size:var(--text-md)">
+                <time datetime="@UserTime.ToIso8601(Model.CreatedAt)">
+                    @UserTime.Format(Model.CreatedAt, Model.TimeZoneId, "yyyy/MM/dd")
+                </time>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))">
+        <section class="card">
+            <div class="card__header">
+                <div>
+                    <h2 class="card__title">@L["account.section.title"]</h2>
+                </div>
+            </div>
+
+            <dl class="stack stack--tight">
+                <div>
+                    <dt class="stat__label">@L["account.userName"]</dt>
+                    <dd class="mono" style="margin:var(--space-1) 0 0" dir="ltr">@Model.UserName</dd>
+                </div>
+                <div class="divider"></div>
+                <div>
+                    <dt class="stat__label">@L["account.email"]</dt>
+                    <dd class="mono" style="margin:var(--space-1) 0 0" dir="ltr">
+                        @(string.IsNullOrEmpty(Model.Email) ? L["account.notSet"].Value : Model.Email)
+                    </dd>
+                </div>
+                <div class="divider"></div>
+                <div>
+                    <dt class="stat__label">@L["account.roles"]</dt>
+                    <dd style="margin:var(--space-2) 0 0">
+                        <div class="cluster">
+                            @if (Model.Roles.Count == 0)
+                            {
+                                <span class="text-muted text-sm">@L["account.notSet"]</span>
+                            }
+                            else
+                            {
+                                @foreach (var role in Model.Roles)
+                                {
+                                    <span class="badge badge--accent badge--plain">@L[$"role.{role}"]</span>
+                                }
+                            }
+                        </div>
+                    </dd>
+                </div>
+            </dl>
+        </section>
+
+        <section class="card">
+            <div class="card__header">
+                <div>
+                    <h2 class="card__title">@L["security.section.title"]</h2>
+                    <p class="card__hint">@L["security.activeSessions.hint"]</p>
+                </div>
+            </div>
+
+            <div class="stack stack--tight">
+                <div class="cluster" style="justify-content:space-between">
+                    <span class="text-secondary text-sm">@L["security.activeSessions"]</span>
+                    <span class="badge badge--info badge--plain numeric">@Model.ActiveSessionCount</span>
+                </div>
+
+                <div class="divider"></div>
+
+                @* Confirmation is a courtesy in the browser; the POST is still authorised and
+                   anti-forgery validated on the server. *@
+                <form method="post" asp-controller="Account" asp-action="LogoutEverywhere">
+                    <button type="submit"
+                            class="btn btn--danger btn--block"
+                            data-confirm="@L["security.signOutEverywhere.confirmBody"]"
+                            data-confirm-title="@L["security.signOutEverywhere.confirmTitle"]"
+                            data-confirm-yes="@L["common.confirm"]"
+                            data-confirm-no="@L["common.cancel"]">
+                        @L["security.signOutEverywhere"]
+                    </button>
+                </form>
+            </div>
+        </section>
+    </div>
+
+    <section class="card card--flush">
+        <div style="padding:var(--space-6) var(--space-6) var(--space-4)">
+            <h2 class="card__title">@L["loginHistory.title"]</h2>
+            <p class="card__hint">@L["loginHistory.hint"]</p>
+        </div>
+
+        @if (Model.RecentLoginAttempts.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-state__icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7.5V12l3 1.8" />
+                    </svg>
+                </div>
+                <p class="empty-state__title">@L["loginHistory.empty.title"]</p>
+                <p class="empty-state__body">@L["loginHistory.empty.body"]</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th scope="col">@L["loginHistory.time"]</th>
+                        <th scope="col">@L["loginHistory.result"]</th>
+                        <th scope="col">@L["loginHistory.ip"]</th>
+                        <th scope="col">@L["loginHistory.device"]</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var attempt in Model.RecentLoginAttempts)
+                    {
+                        <tr>
+                            <td class="table__numeric">
+                                <time datetime="@UserTime.ToIso8601(attempt.OccurredAt)">
+                                    @UserTime.Format(attempt.OccurredAt, Model.TimeZoneId)
+                                </time>
+                            </td>
+                            <td>
+                                @if (attempt.Succeeded)
+                                {
+                                    <span class="badge badge--success">@L["loginHistory.success"]</span>
+                                }
+                                else
+                                {
+                                    @* The specific failure reason is stored for operators but not
+                                       shown here: it is of no use to the member and would leak
+                                       account state to anyone reading over their shoulder. *@
+                                    <span class="badge badge--danger">@L["loginHistory.failure"]</span>
+                                }
+                            </td>
+                            <td class="mono" dir="ltr">@(attempt.IpAddress ?? "—")</td>
+                            <td class="text-sm truncate" style="max-inline-size:28ch" dir="ltr"
+                                title="@attempt.UserAgent">
+                                @(attempt.UserAgent ?? "—")
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>
