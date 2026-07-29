@@ -16,6 +16,7 @@ public sealed class EntitlementAdminService : IEntitlementAdminService
     private readonly ISentinelDbContext _db;
     private readonly IAuditService _audit;
     private readonly INotificationService _notifications;
+    private readonly INotificationLocalizer _localizer;
     private readonly IClientContext _clientContext;
     private readonly TimeProvider _timeProvider;
 
@@ -23,12 +24,14 @@ public sealed class EntitlementAdminService : IEntitlementAdminService
         ISentinelDbContext db,
         IAuditService audit,
         INotificationService notifications,
+        INotificationLocalizer localizer,
         IClientContext clientContext,
         TimeProvider timeProvider)
     {
         _db = db;
         _audit = audit;
         _notifications = notifications;
+        _localizer = localizer;
         _clientContext = clientContext;
         _timeProvider = timeProvider;
     }
@@ -105,17 +108,30 @@ public sealed class EntitlementAdminService : IEntitlementAdminService
 
         // Staged on the same unit of work as the grant, so the member is never told about
         // access that then failed to save — nor left unaware of access that did.
-        var applicationName = await _db.PortalApplications
+        var application = await _db.PortalApplications
             .Where(a => a.Id == applicationId)
-            .Select(a => a.NameEn)
-            .FirstOrDefaultAsync(cancellationToken) ?? "an application";
+            .Select(a => new { a.NameFa, a.NameEn })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var recipientCulture = await _db.Users
+            .Where(u => u.Id == userId)
+            .Select(u => u.PreferredCulture)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // Written in the recipient's language, including which name of the application to use.
+        var isPersian = recipientCulture is null
+                        || recipientCulture.StartsWith("fa", StringComparison.OrdinalIgnoreCase);
+
+        var applicationName = (isPersian ? application?.NameFa : application?.NameEn)
+                              ?? application?.NameEn
+                              ?? "—";
 
         await _notifications.CreateAsync(
             userId,
             new NewNotification(
                 NotificationKind.Entitlement,
-                "Access granted",
-                $"You now have access to {applicationName}.",
+                _localizer.Get("notice.entitlementGranted.title", recipientCulture),
+                _localizer.Get("notice.entitlementGranted.body", recipientCulture, applicationName),
                 LinkPath: "/Apps"),
             cancellationToken);
 

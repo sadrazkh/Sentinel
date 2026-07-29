@@ -112,6 +112,11 @@ public static class DependencyInjection
         services.AddScoped<ISubscriptionAdminService, SubscriptionAdminService>();
         services.AddMemoryCache();
 
+        // Runs in every replica. Safe to do so: the stage marker it writes sits on a row with
+        // an optimistic concurrency token, so a simultaneous sweep elsewhere loses the write
+        // and sends nothing.
+        services.AddHostedService<ExpiryNoticeService>();
+
         return services;
     }
 

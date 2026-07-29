@@ -25,6 +25,7 @@ public sealed class TelegramLinkService : ITelegramLinkService
     private readonly ISentinelDbContext _db;
     private readonly IDbContextFactory<Persistence.SentinelDbContext> _dbFactory;
     private readonly IAuditService _audit;
+    private readonly INotificationLocalizer _localizer;
     private readonly TelegramOptions _options;
     private readonly TimeProvider _timeProvider;
 
@@ -32,12 +33,14 @@ public sealed class TelegramLinkService : ITelegramLinkService
         ISentinelDbContext db,
         IDbContextFactory<Persistence.SentinelDbContext> dbFactory,
         IAuditService audit,
+        INotificationLocalizer localizer,
         IOptions<TelegramOptions> options,
         TimeProvider timeProvider)
     {
         _db = db;
         _dbFactory = dbFactory;
         _audit = audit;
+        _localizer = localizer;
         _options = options.Value;
         _timeProvider = timeProvider;
     }
@@ -181,8 +184,8 @@ public sealed class TelegramLinkService : ITelegramLinkService
             Id = SequentialGuid.New(now),
             UserId = user.Id,
             Kind = NotificationKind.Security,
-            Title = "Telegram connected",
-            Body = "Your Telegram account is now linked to the portal. You will receive notifications here.",
+            Title = _localizer.Get("notice.telegramLinked.title", user.PreferredCulture),
+            Body = _localizer.Get("notice.telegramLinked.body", user.PreferredCulture),
             CreatedAt = now,
             DeliveryState = NotificationDeliveryState.Pending,
         });

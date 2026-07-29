@@ -1,5 +1,6 @@
 using Sentinel.Domain.Common;
 using Sentinel.Domain.Identity;
+using Sentinel.Domain.Notifications;
 
 namespace Sentinel.Domain.Subscriptions;
 
@@ -79,6 +80,15 @@ public class SubscriptionSource : IConcurrencyAware, ITimestamped
 
     /// <summary><c>null</c> means the provider reports no expiry.</summary>
     public DateTimeOffset? ExpiresAt { get; set; }
+
+    /// <summary>
+    /// The stage at which this source was last mentioned to its owner. Same purpose as the one
+    /// on a membership: a recurring sweep must not say the same thing twice, and a renewed
+    /// subscription must start warning again.
+    /// </summary>
+    public ExpiryNoticeStage LastNoticeStage { get; set; } = ExpiryNoticeStage.None;
+
+    public DateTimeOffset? LastNoticeAt { get; set; }
 
     public Guid ConcurrencyToken { get; set; }
 

@@ -17,6 +17,7 @@ public sealed class SubscriptionSourceConfiguration : IEntityTypeConfiguration<S
         builder.Property(s => s.Notes).HasMaxLength(SubscriptionSource.NotesMaxLength);
         builder.Property(s => s.LastFetchError).HasMaxLength(SubscriptionSource.ErrorMaxLength);
         builder.Property(s => s.LastFetchStatus).HasConversion<int>().IsRequired();
+        builder.Property(s => s.LastNoticeStage).HasConversion<int>().IsRequired();
 
         builder.Property(s => s.ConcurrencyToken).IsConcurrencyToken();
 

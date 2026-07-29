@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using Sentinel.Application.Abstractions;
+using Sentinel.Application.Notifications;
 using Sentinel.Application.Options;
 using Sentinel.Domain.Identity;
 using Sentinel.Infrastructure;
@@ -66,6 +67,11 @@ builder.Services.AddOptions<DatabaseOptions>()
 
 builder.Services.AddOptions<MediaStorageOptions>()
     .Bind(builder.Configuration.GetSection(MediaStorageOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddOptions<ExpiryNoticeOptions>()
+    .Bind(builder.Configuration.GetSection(ExpiryNoticeOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
@@ -261,6 +267,10 @@ builder.Services.Configure<WebEncoderOptions>(options =>
         UnicodeRanges.GeneralPunctuation));
 
 builder.Services.AddSingleton<LocalizationStore>();
+
+// Notification text is resolved against the recipient's own culture rather than the ambient
+// one, so a background sweep writes each member's message in their language.
+builder.Services.AddSingleton<INotificationLocalizer, NotificationLocalizer>();
 builder.Services.AddSingleton<IStringLocalizerFactory, JsonStringLocalizerFactory>();
 builder.Services.AddSingleton(typeof(IStringLocalizer<>), typeof(StringLocalizer<>));
 

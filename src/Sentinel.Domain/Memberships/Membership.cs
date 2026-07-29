@@ -1,5 +1,6 @@
 using Sentinel.Domain.Common;
 using Sentinel.Domain.Identity;
+using Sentinel.Domain.Notifications;
 
 namespace Sentinel.Domain.Memberships;
 
@@ -38,6 +39,16 @@ public class Membership : IConcurrencyAware, ITimestamped
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }
+
+    /// <summary>
+    /// How far along its expiry this membership was when its owner was last warned. The
+    /// recurring notifier only speaks when the current stage is higher, which is what keeps a
+    /// nightly sweep from repeating the same message. A renewal moves the stage back down and
+    /// re-arms the warnings for the next cycle.
+    /// </summary>
+    public ExpiryNoticeStage LastNoticeStage { get; set; } = ExpiryNoticeStage.None;
+
+    public DateTimeOffset? LastNoticeAt { get; set; }
 
     public Guid ConcurrencyToken { get; set; }
 }

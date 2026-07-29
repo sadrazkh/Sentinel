@@ -16,6 +16,7 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
         builder.Property(m => m.AdminState).HasConversion<int>().IsRequired();
         builder.Property(m => m.Notes).HasMaxLength(Membership.NotesMaxLength);
 
+        builder.Property(m => m.LastNoticeStage).HasConversion<int>().IsRequired();
         builder.Property(m => m.ConcurrencyToken).IsConcurrencyToken();
 
         // One membership per user: renewals mutate this row, history lives in the audit log.

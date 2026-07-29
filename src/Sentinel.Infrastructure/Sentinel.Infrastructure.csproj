@@ -5,6 +5,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- So the integration suite can drive one sweep of a background service directly rather
+         than waiting on its timer. Kept internal rather than made public: nothing in the
+         application should be calling it. -->
+    <InternalsVisibleTo Include="Sentinel.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
