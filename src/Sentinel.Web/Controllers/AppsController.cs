@@ -7,7 +7,7 @@ using Sentinel.Application.Auditing;
 using Sentinel.Application.Authorization;
 using Sentinel.Application.Catalog;
 using Sentinel.Domain.Auditing;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Web.Infrastructure;
 using Sentinel.Web.Models.Apps;
 
@@ -83,8 +83,8 @@ public sealed class AppsController : Controller
             await _audit.RecordAndSaveAsync(
                 AuditEntry.For(
                     AuditActions.ApplicationLaunchDenied,
-                    nameof(PortalApplication),
-                    resolution.ApplicationId) with
+                    nameof(Product),
+                    resolution.ProductId) with
                 {
                     Result = AuditResult.Denied,
                     Metadata = AuditMetadata.Create()
@@ -114,8 +114,8 @@ public sealed class AppsController : Controller
             await _audit.RecordAndSaveAsync(
                 AuditEntry.For(
                     AuditActions.ApplicationLaunchDenied,
-                    nameof(PortalApplication),
-                    resolution.ApplicationId) with
+                    nameof(Product),
+                    resolution.ProductId) with
                 {
                     Result = AuditResult.Failure,
                     Metadata = AuditMetadata.Create()
@@ -136,8 +136,8 @@ public sealed class AppsController : Controller
         await _audit.RecordAndSaveAsync(
             AuditEntry.For(
                 AuditActions.ApplicationLaunched,
-                nameof(PortalApplication),
-                resolution.ApplicationId) with
+                nameof(Product),
+                resolution.ProductId) with
             {
                 Metadata = AuditMetadata.Create().Set("applicationKey", resolution.ApplicationKey),
             },

@@ -1,5 +1,5 @@
 using Sentinel.Application.Access;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Memberships;
 
 namespace Sentinel.Web.Infrastructure;
@@ -59,12 +59,12 @@ public static class AccessPresentation
     /// <summary>The single most useful badge for a card, chosen in priority order.</summary>
     public static (string CssClass, string LabelKey) CardStatusBadge(ApplicationCard card)
     {
-        if (card.PublishStatus == ApplicationPublishStatus.ComingSoon)
+        if (card.ReleaseStatus == ProductReleaseStatus.ComingSoon)
         {
             return ("badge--info", "appBadge.comingSoon");
         }
 
-        if (card.PublishStatus == ApplicationPublishStatus.Retired)
+        if (card.ReleaseStatus == ProductReleaseStatus.Deprecated)
         {
             return ("badge--neutral", "appBadge.retired");
         }

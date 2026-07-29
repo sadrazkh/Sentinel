@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 using Sentinel.Application.Catalog;
 using Sentinel.Application.Entitlements;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Memberships;
 
 namespace Sentinel.Web.Areas.Admin.Models;
@@ -29,41 +29,68 @@ public sealed class ApplicationEditViewModel
     public string Key { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "validation.required")]
-    [StringLength(PortalApplication.NameMaxLength, ErrorMessage = "validation.tooLong")]
+    [StringLength(Product.NameMaxLength, ErrorMessage = "validation.tooLong")]
     [Display(Name = "admin.application.nameFa")]
     public string NameFa { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "validation.required")]
-    [StringLength(PortalApplication.NameMaxLength, ErrorMessage = "validation.tooLong")]
+    [StringLength(Product.NameMaxLength, ErrorMessage = "validation.tooLong")]
     [Display(Name = "admin.application.nameEn")]
     public string NameEn { get; set; } = string.Empty;
 
-    [StringLength(PortalApplication.DescriptionMaxLength, ErrorMessage = "validation.tooLong")]
+    [StringLength(Product.DescriptionMaxLength, ErrorMessage = "validation.tooLong")]
     [Display(Name = "admin.application.descriptionFa")]
     public string? DescriptionFa { get; set; }
 
-    [StringLength(PortalApplication.DescriptionMaxLength, ErrorMessage = "validation.tooLong")]
+    [StringLength(Product.DescriptionMaxLength, ErrorMessage = "validation.tooLong")]
     [Display(Name = "admin.application.descriptionEn")]
     public string? DescriptionEn { get; set; }
 
     /// <summary>
-    /// Length and presence only. The scheme and host rules live in
-    /// <see cref="ApplicationUrlPolicy"/>, which both this form and the launch endpoint use —
-    /// duplicating them in an attribute would create a second, drift-prone copy.
+    /// Optional, and length-checked only. A download-only tool or a subscription service has
+    /// nowhere to "open"; just the Launchable capability needs a destination.
+    /// <para>
+    /// The scheme and host rules live in <see cref="ApplicationUrlPolicy"/>, which both this
+    /// form and the launch endpoint use — duplicating them in an attribute would create a
+    /// second, drift-prone copy.
+    /// </para>
     /// </summary>
-    [Required(ErrorMessage = "validation.required")]
     [StringLength(ApplicationUrlPolicy.MaxLength, ErrorMessage = "validation.tooLong")]
     [Display(Name = "admin.application.launchUrl")]
-    public string LaunchUrl { get; set; } = string.Empty;
+    public string? LaunchUrl { get; set; }
 
-    [Display(Name = "admin.application.publishStatus")]
-    public ApplicationPublishStatus PublishStatus { get; set; } = ApplicationPublishStatus.Draft;
+    [Display(Name = "admin.product.type")]
+    public ProductType Type { get; set; } = ProductType.WebApplication;
+
+    /// <summary>
+    /// Bound as a list of checked flags and recombined on save, so the form stays a set of
+    /// plain checkboxes rather than asking an operator to reason about a bitmask.
+    /// </summary>
+    [Display(Name = "admin.product.capabilities")]
+    public List<ProductCapability> SelectedCapabilities { get; set; } = [];
+
+    public Guid? CategoryId { get; set; }
+
+    [StringLength(Product.SummaryMaxLength, ErrorMessage = "validation.tooLong")]
+    [Display(Name = "admin.product.summaryFa")]
+    public string? SummaryFa { get; set; }
+
+    [StringLength(Product.SummaryMaxLength, ErrorMessage = "validation.tooLong")]
+    [Display(Name = "admin.product.summaryEn")]
+    public string? SummaryEn { get; set; }
+
+    [StringLength(Product.VersionMaxLength, ErrorMessage = "validation.tooLong")]
+    [Display(Name = "admin.product.currentVersion")]
+    public string? CurrentVersion { get; set; }
+
+    [Display(Name = "admin.product.isFeatured")]
+    public bool IsFeatured { get; set; }
+
+    [Display(Name = "admin.application.releaseStatus")]
+    public ProductReleaseStatus ReleaseStatus { get; set; } = ProductReleaseStatus.Draft;
 
     [Display(Name = "admin.application.isEnabled")]
     public bool IsEnabled { get; set; } = true;
-
-    [Display(Name = "admin.application.isBeta")]
-    public bool IsBeta { get; set; }
 
     [Range(0, 10_000, ErrorMessage = "validation.range")]
     [Display(Name = "admin.application.displayOrder")]
@@ -82,18 +109,30 @@ public sealed class ApplicationEditViewModel
 
     public bool IsNew => Id == Guid.Empty;
 
+    /// <summary>Offered as checkboxes, in a fixed order so the form is stable.</summary>
+    public static readonly IReadOnlyList<ProductCapability> AllCapabilities =
+        Enum.GetValues<ProductCapability>()
+            .Where(capability => capability != ProductCapability.None)
+            .ToList();
+
     public static ApplicationEditViewModel From(ApplicationEditModel model) => new()
     {
         Id = model.Id,
         Key = model.Key,
         NameFa = model.NameFa,
         NameEn = model.NameEn,
+        SummaryFa = model.SummaryFa,
+        SummaryEn = model.SummaryEn,
         DescriptionFa = model.DescriptionFa,
         DescriptionEn = model.DescriptionEn,
         LaunchUrl = model.LaunchUrl,
-        PublishStatus = model.PublishStatus,
+        Type = model.Type,
+        SelectedCapabilities = AllCapabilities.Where(capability => model.Capabilities.Has(capability)).ToList(),
+        CategoryId = model.CategoryId,
+        CurrentVersion = model.CurrentVersion,
+        IsFeatured = model.IsFeatured,
+        ReleaseStatus = model.ReleaseStatus,
         IsEnabled = model.IsEnabled,
-        IsBeta = model.IsBeta,
         DisplayOrder = model.DisplayOrder,
         RequiresExplicitEntitlement = model.RequiresExplicitEntitlement,
         MinimumTier = model.MinimumTier,
@@ -105,12 +144,19 @@ public sealed class ApplicationEditViewModel
         Key,
         NameFa,
         NameEn,
+        SummaryFa,
+        SummaryEn,
         DescriptionFa,
         DescriptionEn,
         LaunchUrl,
-        PublishStatus,
+        Type,
+        // Recombined from the checked boxes into the single bitmask the domain stores.
+        SelectedCapabilities.Aggregate(ProductCapability.None, (all, one) => all | one),
+        CategoryId,
+        CurrentVersion,
+        IsFeatured,
+        ReleaseStatus,
         IsEnabled,
-        IsBeta,
         DisplayOrder,
         RequiresExplicitEntitlement,
         MinimumTier,
@@ -119,7 +165,7 @@ public sealed class ApplicationEditViewModel
 
 public sealed class UploadIconViewModel
 {
-    public Guid ApplicationId { get; set; }
+    public Guid ProductId { get; set; }
 
     [Display(Name = "admin.application.icon")]
     public IFormFile? Icon { get; set; }
@@ -129,7 +175,7 @@ public sealed class GrantEntitlementViewModel
 {
     public Guid UserId { get; set; }
 
-    public Guid ApplicationId { get; set; }
+    public Guid ProductId { get; set; }
 
     [DataType(DataType.Date)]
     [Display(Name = "admin.entitlement.starts")]

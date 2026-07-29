@@ -1,0 +1,138 @@
+@using Sentinel.Application.Products
+@using Sentinel.Web.Models.Products
+@model ProductLibraryViewModel
+@{
+    var isDiscover = Model.Scope == ProductLibraryScope.Discover;
+
+    ViewData["Title"] = isDiscover ? L["products.discover.title"].Value : L["products.mine.title"].Value;
+    ViewData["TimeZoneId"] = Model.TimeZoneId;
+
+    // Both tabs post to the same view, so the filter form must submit back to whichever one
+    // the member is on.
+    var currentAction = isDiscover ? "Index" : "Library";
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">
+            @(isDiscover ? L["products.discover.title"] : L["products.mine.title"])
+        </h1>
+        <p class="page-head__subtitle">
+            @(isDiscover ? L["products.discover.subtitle"] : L["products.mine.subtitle"])
+        </p>
+    </div>
+    <div class="cluster">
+        <span class="badge badge--success">@L["products.count.usable", Model.Library.UsableCount]</span>
+        @if (Model.Library.LockedCount > 0)
+        {
+            <span class="badge badge--neutral">@L["products.count.locked", Model.Library.LockedCount]</span>
+        }
+        @if (Model.Library.ComingSoonCount > 0)
+        {
+            <span class="badge badge--info">@L["products.count.comingSoon", Model.Library.ComingSoonCount]</span>
+        }
+    </div>
+</div>
+
+@if (Model.DiscoveryEnabled)
+{
+    <nav class="chip-group" aria-label="@L["products.scope.label"]" style="margin-block-end:var(--space-5)">
+        <a class="chip" aria-pressed="@((!isDiscover).ToString().ToLowerInvariant())"
+           asp-action="Library" asp-controller="Products">@L["products.scope.mine"]</a>
+        <a class="chip" aria-pressed="@(isDiscover.ToString().ToLowerInvariant())"
+           asp-action="Index" asp-controller="Products">@L["products.scope.discover"]</a>
+    </nav>
+}
+
+@if (Model.Library.Membership.IsRenewalDueSoon && Model.Library.Membership.DaysRemaining is { } daysLeft)
+{
+    <div class="alert alert--warning" role="status" style="margin-block-end:var(--space-6)">
+        <span>
+            @L["membership.renewalWarning", daysLeft]
+            <a asp-controller="Membership" asp-action="Index">@L["membership.viewDetails"]</a>
+        </span>
+    </div>
+}
+
+@* A plain GET form: filtering works without scripting, the state lives in the URL, and the
+   result is bookmarkable and shareable. No anti-forgery token because nothing changes. *@
+<form method="get" asp-action="@currentAction" asp-controller="Products" class="filter-bar">
+    <div class="field field--inline">
+        <label class="field__label" for="product-search">@L["products.search.label"]</label>
+        <input class="input" type="search" id="product-search" name="search"
+               value="@Model.Search" maxlength="80"
+               placeholder="@L["products.search.placeholder"]" />
+    </div>
+
+    @if (Model.Library.Categories.Count > 0)
+    {
+        <div class="field field--inline">
+            <label class="field__label" for="product-category">@L["products.category.label"]</label>
+            <select class="input" id="product-category" name="category">
+                <option value="">@L["products.category.all"]</option>
+                @foreach (var category in Model.Library.Categories)
+                {
+                    var label = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa"
+                        ? category.NameFa
+                        : category.NameEn;
+
+                    <option value="@category.Key"
+                            selected="@(string.Equals(category.Key, Model.Category, StringComparison.OrdinalIgnoreCase))">
+                        @label (@category.Count)
+                    </option>
+                }
+            </select>
+        </div>
+    }
+
+    <button class="btn btn--secondary btn--sm" type="submit">@L["products.search.submit"]</button>
+
+    @if (Model.IsFiltered)
+    {
+        <a class="btn btn--ghost btn--sm" asp-action="@currentAction" asp-controller="Products">
+            @L["products.clearFilters"]
+        </a>
+    }
+</form>
+
+@if (Model.Library.Products.Count == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3.5" y="3.5" width="7" height="7" rx="2" />
+                    <rect x="13.5" y="3.5" width="7" height="7" rx="2" />
+                    <rect x="3.5" y="13.5" width="7" height="7" rx="2" />
+                    <rect x="13.5" y="13.5" width="7" height="7" rx="2" />
+                </svg>
+            </div>
+
+            @if (Model.IsFiltered)
+            {
+                <p class="empty-state__title">@L["products.emptyFiltered.title"]</p>
+                <p class="empty-state__body">@L["products.emptyFiltered.body"]</p>
+            }
+            else if (isDiscover)
+            {
+                <p class="empty-state__title">@L["products.empty.title"]</p>
+                <p class="empty-state__body">@L["products.empty.body"]</p>
+            }
+            else
+            {
+                <p class="empty-state__title">@L["products.emptyMine.title"]</p>
+                <p class="empty-state__body">@L["products.emptyMine.body"]</p>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="grid grid--cards">
+        @foreach (var product in Model.Library.Products)
+        {
+            <partial name="_ProductCard" model="product" />
+        }
+    </div>
+}

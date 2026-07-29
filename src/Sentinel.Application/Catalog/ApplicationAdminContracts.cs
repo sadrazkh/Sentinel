@@ -1,8 +1,16 @@
 using Sentinel.Application.Common;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Memberships;
 
 namespace Sentinel.Application.Catalog;
+
+/// <summary>One choice in the category picker on the product form.</summary>
+public sealed record ProductCategoryOption(
+    Guid Id,
+    string Key,
+    string NameFa,
+    string NameEn,
+    bool IsVisible);
 
 public sealed record ApplicationListItem(
     Guid Id,
@@ -10,7 +18,9 @@ public sealed record ApplicationListItem(
     string NameFa,
     string NameEn,
     string? IconPath,
-    ApplicationPublishStatus PublishStatus,
+    ProductType Type,
+    ProductCapability Capabilities,
+    ProductReleaseStatus ReleaseStatus,
     bool IsEnabled,
     bool IsBeta,
     int DisplayOrder,
@@ -24,13 +34,19 @@ public sealed record ApplicationEditModel(
     string Key,
     string NameFa,
     string NameEn,
+    string? SummaryFa,
+    string? SummaryEn,
     string? DescriptionFa,
     string? DescriptionEn,
     string? IconPath,
-    string LaunchUrl,
-    ApplicationPublishStatus PublishStatus,
+    string? LaunchUrl,
+    ProductType Type,
+    ProductCapability Capabilities,
+    Guid? CategoryId,
+    string? CurrentVersion,
+    bool IsFeatured,
+    ProductReleaseStatus ReleaseStatus,
     bool IsEnabled,
-    bool IsBeta,
     int DisplayOrder,
     bool RequiresExplicitEntitlement,
     MembershipTier? MinimumTier,
@@ -40,12 +56,18 @@ public sealed record ApplicationSaveRequest(
     string Key,
     string NameFa,
     string NameEn,
+    string? SummaryFa,
+    string? SummaryEn,
     string? DescriptionFa,
     string? DescriptionEn,
-    string LaunchUrl,
-    ApplicationPublishStatus PublishStatus,
+    string? LaunchUrl,
+    ProductType Type,
+    ProductCapability Capabilities,
+    Guid? CategoryId,
+    string? CurrentVersion,
+    bool IsFeatured,
+    ProductReleaseStatus ReleaseStatus,
     bool IsEnabled,
-    bool IsBeta,
     int DisplayOrder,
     bool RequiresExplicitEntitlement,
     MembershipTier? MinimumTier,
@@ -57,6 +79,13 @@ public interface IApplicationAdminQuery
     Task<IReadOnlyList<ApplicationListItem>> ListAsync(CancellationToken cancellationToken = default);
 
     Task<ApplicationEditModel?> GetForEditAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The categories a product may be filed under, for the edit form. Includes hidden ones:
+    /// an operator preparing a category before revealing it still needs to file products in it.
+    /// </summary>
+    Task<IReadOnlyList<ProductCategoryOption>> ListCategoriesAsync(
+        CancellationToken cancellationToken = default);
 
     /// <summary>Resolves the stored icon name for an application key, for the media endpoint.</summary>
     Task<string?> GetIconNameAsync(string applicationKey, CancellationToken cancellationToken = default);
@@ -93,6 +122,8 @@ public static class CatalogErrors
     public const string InvalidKey = "admin.error.applicationKeyInvalid";
     public const string InvalidLaunchUrl = "admin.error.launchUrlInvalid";
     public const string InsecureLaunchUrl = "admin.error.launchUrlInsecure";
+    public const string LaunchUrlRequired = "admin.error.launchUrlRequired";
+    public const string CategoryNotFound = "admin.error.categoryNotFound";
     public const string IconTooLarge = "admin.error.iconTooLarge";
     public const string IconNotAnImage = "admin.error.iconNotAnImage";
     public const string IconEmpty = "admin.error.iconEmpty";

@@ -6,9 +6,11 @@ using Sentinel.Application.Accounts;
 using Sentinel.Application.Auditing;
 using Sentinel.Application.Catalog;
 using Sentinel.Application.Entitlements;
+using Sentinel.Application.Features;
 using Sentinel.Application.Media;
 using Sentinel.Application.Memberships;
 using Sentinel.Application.Notifications;
+using Sentinel.Application.Products;
 using Sentinel.Application.Security;
 using Sentinel.Application.Settings;
 using Sentinel.Application.Subscriptions;
@@ -18,9 +20,11 @@ using Sentinel.Infrastructure.Accounts;
 using Sentinel.Infrastructure.Auditing;
 using Sentinel.Infrastructure.Catalog;
 using Sentinel.Infrastructure.Entitlements;
+using Sentinel.Infrastructure.Features;
 using Sentinel.Infrastructure.Media;
 using Sentinel.Infrastructure.Memberships;
 using Sentinel.Infrastructure.Notifications;
+using Sentinel.Infrastructure.Products;
 using Sentinel.Infrastructure.Settings;
 using Sentinel.Infrastructure.Subscriptions;
 using Sentinel.Infrastructure.Users;
@@ -82,6 +86,11 @@ public static class DependencyInjection
         // Stateless apart from its options, so a singleton is enough.
         services.AddSingleton<IMembershipStatusResolver, MembershipStatusResolver>();
         services.AddScoped<IAccessDecisionService, AccessDecisionService>();
+
+        // Reads IOptionsMonitor, so a flag change in configuration takes effect without a
+        // restart — and without any component caching a stale answer.
+        services.AddSingleton<IFeatureGate, FeatureGate>();
+        services.AddScoped<IProductLibraryService, ProductLibraryService>();
 
         services.AddScoped<IUserAdminQuery, UserAdminQuery>();
         services.AddScoped<IUserAdminService, UserAdminService>();

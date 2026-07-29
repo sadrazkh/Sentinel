@@ -1,6 +1,6 @@
 using Sentinel.Application.Memberships;
 using Sentinel.Application.Security;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Identity;
 
 namespace Sentinel.Application.Access;
@@ -51,11 +51,11 @@ public static class AccessRuleEvaluator
             return AccessDecision.Denied(AccessDenialReason.ApplicationDisabled);
         }
 
-        var publishDenial = context.Application.PublishStatus switch
+        var publishDenial = context.Application.ReleaseStatus switch
         {
-            ApplicationPublishStatus.Draft => AccessDenialReason.ApplicationNotPublished,
-            ApplicationPublishStatus.ComingSoon => AccessDenialReason.ApplicationComingSoon,
-            ApplicationPublishStatus.Retired => AccessDenialReason.ApplicationRetired,
+            ProductReleaseStatus.Draft => AccessDenialReason.ApplicationNotPublished,
+            ProductReleaseStatus.ComingSoon => AccessDenialReason.ApplicationComingSoon,
+            ProductReleaseStatus.Deprecated => AccessDenialReason.ApplicationRetired,
             _ => AccessDenialReason.None,
         };
 

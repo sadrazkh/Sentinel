@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Domain.Auditing;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Entitlements;
 using Sentinel.Domain.Identity;
 using Sentinel.Domain.Memberships;
@@ -25,9 +25,11 @@ public interface ISentinelDbContext
 
     DbSet<Membership> Memberships { get; }
 
-    DbSet<PortalApplication> PortalApplications { get; }
+    DbSet<Product> Products { get; }
 
-    DbSet<UserEntitlement> UserEntitlements { get; }
+    DbSet<ProductCategory> ProductCategories { get; }
+
+    DbSet<ProductEntitlement> ProductEntitlements { get; }
 
     DbSet<AuditLog> AuditLogs { get; }
 

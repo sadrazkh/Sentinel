@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Sentinel.Application.Abstractions;
 using Sentinel.Application.Access;
 using Sentinel.Application.Memberships;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 
 namespace Sentinel.Infrastructure.Access;
 
@@ -30,7 +30,7 @@ public sealed class AccessDecisionService : IAccessDecisionService
 
     public async Task<AccessDecision> EvaluateAsync(
         Guid userId,
-        Guid applicationId,
+        Guid productId,
         CancellationToken cancellationToken = default)
     {
         var now = _timeProvider.GetUtcNow();
@@ -41,11 +41,11 @@ public sealed class AccessDecisionService : IAccessDecisionService
             return AccessDecision.Denied(AccessDenialReason.AccountDisabled);
         }
 
-        var application = await _db.PortalApplications
+        var application = await _db.Products
             .AsNoTracking()
-            .Where(a => a.Id == applicationId)
+            .Where(a => a.Id == productId)
             .Select(a => new ApplicationFacts(
-                a.Id, a.Key, a.IsEnabled, a.PublishStatus, a.RequiresExplicitEntitlement, a.MinimumTier))
+                a.Id, a.Key, a.IsEnabled, a.ReleaseStatus, a.RequiresExplicitEntitlement, a.MinimumTier))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (application is null)
@@ -53,7 +53,7 @@ public sealed class AccessDecisionService : IAccessDecisionService
             return AccessDecision.Denied(AccessDenialReason.ApplicationNotPublished);
         }
 
-        var entitlement = await LoadEntitlementAsync(userId, applicationId, cancellationToken);
+        var entitlement = await LoadEntitlementAsync(userId, productId, cancellationToken);
 
         return AccessRuleEvaluator.Evaluate(new AccessContext(
             subject.Account,
@@ -79,34 +79,34 @@ public sealed class AccessDecisionService : IAccessDecisionService
 
         // Draft applications are filtered out in SQL: they are an internal state and a member
         // has no business knowing they exist.
-        var applications = await _db.PortalApplications
+        var applications = await _db.Products
             .AsNoTracking()
-            .Where(a => a.PublishStatus != ApplicationPublishStatus.Draft)
+            .Where(a => a.ReleaseStatus != ProductReleaseStatus.Draft)
             .OrderBy(a => a.DisplayOrder)
             .ThenBy(a => a.NameEn)
             .Select(a => new CatalogRow(
                 new ApplicationFacts(
-                    a.Id, a.Key, a.IsEnabled, a.PublishStatus, a.RequiresExplicitEntitlement, a.MinimumTier),
+                    a.Id, a.Key, a.IsEnabled, a.ReleaseStatus, a.RequiresExplicitEntitlement, a.MinimumTier),
                 a.NameFa,
                 a.NameEn,
                 a.DescriptionFa,
                 a.DescriptionEn,
                 a.IconPath,
-                a.IsBeta,
+                a.ReleaseStatus == ProductReleaseStatus.Beta,
                 a.DisplayOrder))
             .ToListAsync(cancellationToken);
 
         // All of this member's grants in one query, then matched in memory. Fetching a grant
         // per application would be the classic N+1.
-        var entitlements = await _db.UserEntitlements
+        var entitlements = await _db.ProductEntitlements
             .AsNoTracking()
             .Where(e => e.UserId == userId)
             .Select(e => new EntitlementRow(
-                e.ApplicationId,
+                e.ProductId,
                 new EntitlementFacts(e.IsEnabled, e.StartsAt, e.ExpiresAt, e.RevokedAt)))
             .ToListAsync(cancellationToken);
 
-        var entitlementsByApplication = entitlements.ToDictionary(e => e.ApplicationId, e => e.Facts);
+        var entitlementsByApplication = entitlements.ToDictionary(e => e.ProductId, e => e.Facts);
 
         var cards = applications
             .Select(row =>
@@ -125,7 +125,7 @@ public sealed class AccessDecisionService : IAccessDecisionService
                     row.DescriptionEn,
                     row.IconPath,
                     row.IsBeta,
-                    row.Application.PublishStatus,
+                    row.Application.ReleaseStatus,
                     row.DisplayOrder,
                     row.Application.MinimumTier,
                     decision);
@@ -151,12 +151,12 @@ public sealed class AccessDecisionService : IAccessDecisionService
         var now = _timeProvider.GetUtcNow();
         var normalizedKey = applicationKey.Trim().ToLowerInvariant();
 
-        var application = await _db.PortalApplications
+        var application = await _db.Products
             .AsNoTracking()
             .Where(a => a.Key == normalizedKey)
             .Select(a => new LaunchRow(
                 new ApplicationFacts(
-                    a.Id, a.Key, a.IsEnabled, a.PublishStatus, a.RequiresExplicitEntitlement, a.MinimumTier),
+                    a.Id, a.Key, a.IsEnabled, a.ReleaseStatus, a.RequiresExplicitEntitlement, a.MinimumTier),
                 a.NameFa,
                 a.NameEn,
                 a.LaunchUrl))
@@ -215,11 +215,11 @@ public sealed class AccessDecisionService : IAccessDecisionService
 
     private Task<EntitlementFacts?> LoadEntitlementAsync(
         Guid userId,
-        Guid applicationId,
+        Guid productId,
         CancellationToken cancellationToken) =>
-        _db.UserEntitlements
+        _db.ProductEntitlements
             .AsNoTracking()
-            .Where(e => e.UserId == userId && e.ApplicationId == applicationId)
+            .Where(e => e.UserId == userId && e.ProductId == productId)
             .Select(e => new EntitlementFacts(e.IsEnabled, e.StartsAt, e.ExpiresAt, e.RevokedAt))
             .FirstOrDefaultAsync(cancellationToken)!;
 
@@ -239,7 +239,7 @@ public sealed class AccessDecisionService : IAccessDecisionService
         ApplicationFacts Application,
         string NameFa,
         string NameEn,
-        string LaunchUrl);
+        string? LaunchUrl);
 
-    private sealed record EntitlementRow(Guid ApplicationId, EntitlementFacts Facts);
+    private sealed record EntitlementRow(Guid ProductId, EntitlementFacts Facts);
 }

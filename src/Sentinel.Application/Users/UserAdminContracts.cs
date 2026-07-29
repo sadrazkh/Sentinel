@@ -57,7 +57,7 @@ public sealed record UserListItem(
     MembershipSnapshot Membership);
 
 public sealed record UserEntitlementSummary(
-    Guid ApplicationId,
+    Guid ProductId,
     string ApplicationKey,
     string ApplicationName,
     bool IsEnabled,

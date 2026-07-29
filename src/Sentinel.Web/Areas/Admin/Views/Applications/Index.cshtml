@@ -41,7 +41,7 @@ else
                 <thead>
                 <tr>
                     <th scope="col">@L["admin.application.name"]</th>
-                    <th scope="col">@L["admin.application.publishStatus"]</th>
+                    <th scope="col">@L["admin.application.releaseStatus"]</th>
                     <th scope="col">@L["admin.application.access"]</th>
                     <th scope="col">@L["admin.application.grants"]</th>
                     <th scope="col">@L["admin.application.displayOrder"]</th>
@@ -53,11 +53,11 @@ else
                 {
                     var iconUrl = MediaUrls.ApplicationIcon(application.Key, application.IconPath);
 
-                    var publishBadge = application.PublishStatus switch
+                    var publishBadge = application.ReleaseStatus switch
                     {
-                        ApplicationPublishStatus.Published => "badge--success",
-                        ApplicationPublishStatus.ComingSoon => "badge--info",
-                        ApplicationPublishStatus.Retired => "badge--neutral",
+                        ProductReleaseStatus.Stable => "badge--success",
+                        ProductReleaseStatus.ComingSoon => "badge--info",
+                        ProductReleaseStatus.Deprecated => "badge--neutral",
                         _ => "badge--warning",
                     };
 
@@ -84,7 +84,7 @@ else
                         <td>
                             <div class="cluster">
                                 <span class="badge @publishBadge">
-                                    @L[$"publishStatus.{application.PublishStatus.ToString().ToLowerInvariant()}"]
+                                    @L[$"releaseStatus.{application.ReleaseStatus.ToString().ToLowerInvariant()}"]
                                 </span>
                                 @if (!application.IsEnabled)
                                 {

@@ -1,6 +1,11 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Sentinel.Application.Access;
+using Sentinel.Domain.Entitlements;
+using Sentinel.Domain.Memberships;
+using Sentinel.Domain.Products;
 using Sentinel.IntegrationTests.Infrastructure;
+using Sentinel.Web.Infrastructure;
 
 namespace Sentinel.IntegrationTests;
 
@@ -81,6 +86,76 @@ public sealed partial class LocalizationTests
         Assert.True(
             missing.Count == 0,
             $"Views reference keys that are not in both catalogues: {string.Join(", ", missing)}");
+    }
+
+    /// <summary>
+    /// The keys the regex above deliberately skips: those built from an enum value at run time.
+    /// They are the ones most likely to be forgotten, because adding an enum member compiles
+    /// perfectly and only shows up as a raw key on the page.
+    /// </summary>
+    [Fact]
+    public void Every_key_computed_from_an_enum_exists_in_both_catalogues()
+    {
+        var persian = LoadCatalogue("fa");
+        var english = LoadCatalogue("en");
+
+        var expected = new List<string>();
+
+        foreach (var status in Enum.GetValues<ProductAccessStatus>())
+        {
+            expected.Add(ProductPresentation.StatusKey(status));
+        }
+
+        foreach (var status in Enum.GetValues<ProductReleaseStatus>())
+        {
+            expected.Add(ProductPresentation.ReleaseKey(status));
+        }
+
+        foreach (var type in Enum.GetValues<ProductType>())
+        {
+            expected.Add(ProductPresentation.TypeKey(type));
+        }
+
+        // Built inline by the admin product form, one checkbox per capability.
+        foreach (var capability in Enum.GetValues<ProductCapability>())
+        {
+            if (capability == ProductCapability.None)
+            {
+                continue;
+            }
+
+            expected.Add($"capability.{capability.ToString().ToLowerInvariant()}");
+        }
+
+        foreach (var source in Enum.GetValues<EntitlementSource>())
+        {
+            expected.Add(ProductPresentation.SourceKey(source));
+        }
+
+        foreach (var reason in Enum.GetValues<AccessDenialReason>())
+        {
+            expected.Add(AccessPresentation.DenialReasonKey(reason));
+        }
+
+        foreach (var status in Enum.GetValues<MembershipStatus>())
+        {
+            expected.Add(AccessPresentation.MembershipStatusKey(status));
+        }
+
+        foreach (var tier in Enum.GetValues<MembershipTier>())
+        {
+            expected.Add(AccessPresentation.TierKey(tier));
+        }
+
+        var missing = expected
+            .Distinct(StringComparer.Ordinal)
+            .Where(key => !persian.ContainsKey(key) || !english.ContainsKey(key))
+            .OrderBy(key => key, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(
+            missing.Count == 0,
+            $"Enum-derived keys missing from a catalogue: {string.Join(", ", missing)}");
     }
 
     [Fact]

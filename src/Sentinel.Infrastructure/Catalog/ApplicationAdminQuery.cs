@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Application.Abstractions;
 using Sentinel.Application.Catalog;
+using Sentinel.Domain.Products;
 
 namespace Sentinel.Infrastructure.Catalog;
 
@@ -22,7 +23,7 @@ public sealed class ApplicationAdminQuery : IApplicationAdminQuery
 
         // The catalogue is small and entirely operator-managed, so it is listed whole rather
         // than paged. The grant count is a correlated subquery, not a per-row lookup.
-        return await _db.PortalApplications
+        return await _db.Products
             .AsNoTracking()
             .OrderBy(a => a.DisplayOrder)
             .ThenBy(a => a.NameEn)
@@ -32,9 +33,11 @@ public sealed class ApplicationAdminQuery : IApplicationAdminQuery
                 a.NameFa,
                 a.NameEn,
                 a.IconPath,
-                a.PublishStatus,
+                a.Type,
+                a.Capabilities,
+                a.ReleaseStatus,
                 a.IsEnabled,
-                a.IsBeta,
+                a.ReleaseStatus == ProductReleaseStatus.Beta,
                 a.DisplayOrder,
                 a.RequiresExplicitEntitlement,
                 a.MinimumTier,
@@ -50,7 +53,7 @@ public sealed class ApplicationAdminQuery : IApplicationAdminQuery
     public Task<ApplicationEditModel?> GetForEditAsync(
         Guid id,
         CancellationToken cancellationToken = default) =>
-        _db.PortalApplications
+        _db.Products
             .AsNoTracking()
             .Where(a => a.Id == id)
             .Select(a => new ApplicationEditModel(
@@ -58,13 +61,19 @@ public sealed class ApplicationAdminQuery : IApplicationAdminQuery
                 a.Key,
                 a.NameFa,
                 a.NameEn,
+                a.SummaryFa,
+                a.SummaryEn,
                 a.DescriptionFa,
                 a.DescriptionEn,
                 a.IconPath,
                 a.LaunchUrl,
-                a.PublishStatus,
+                a.Type,
+                a.Capabilities,
+                a.CategoryId,
+                a.CurrentVersion,
+                a.IsFeatured,
+                a.ReleaseStatus,
                 a.IsEnabled,
-                a.IsBeta,
                 a.DisplayOrder,
                 a.RequiresExplicitEntitlement,
                 a.MinimumTier,
@@ -77,10 +86,19 @@ public sealed class ApplicationAdminQuery : IApplicationAdminQuery
     {
         var key = applicationKey.Trim().ToLowerInvariant();
 
-        return _db.PortalApplications
+        return _db.Products
             .AsNoTracking()
             .Where(a => a.Key == key)
             .Select(a => a.IconPath)
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<ProductCategoryOption>> ListCategoriesAsync(
+        CancellationToken cancellationToken = default) =>
+        await _db.ProductCategories
+            .AsNoTracking()
+            .OrderBy(c => c.DisplayOrder)
+            .ThenBy(c => c.NameEn)
+            .Select(c => new ProductCategoryOption(c.Id, c.Key, c.NameFa, c.NameEn, c.IsVisible))
+            .ToListAsync(cancellationToken);
 }

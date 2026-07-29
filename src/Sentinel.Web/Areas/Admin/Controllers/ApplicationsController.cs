@@ -51,9 +51,9 @@ public sealed class ApplicationsController : Controller
 
     [HttpGet]
     [Authorize(Policy = PolicyNames.BackOfficeWrite)]
-    public IActionResult Create()
+    public async Task<IActionResult> Create(CancellationToken cancellationToken)
     {
-        ViewData["MaxIconBytes"] = _mediaOptions.MaxIconBytes;
+        await PrepareFormAsync(cancellationToken);
         return View("Edit", new ApplicationEditViewModel());
     }
 
@@ -63,7 +63,7 @@ public sealed class ApplicationsController : Controller
         ApplicationEditViewModel model,
         CancellationToken cancellationToken)
     {
-        ViewData["MaxIconBytes"] = _mediaOptions.MaxIconBytes;
+        await PrepareFormAsync(cancellationToken);
 
         if (!ModelState.IsValid)
         {
@@ -92,7 +92,7 @@ public sealed class ApplicationsController : Controller
             return NotFound();
         }
 
-        ViewData["MaxIconBytes"] = _mediaOptions.MaxIconBytes;
+        await PrepareFormAsync(cancellationToken);
         return View(ApplicationEditViewModel.From(application));
     }
 
@@ -103,7 +103,7 @@ public sealed class ApplicationsController : Controller
         ApplicationEditViewModel model,
         CancellationToken cancellationToken)
     {
-        ViewData["MaxIconBytes"] = _mediaOptions.MaxIconBytes;
+        await PrepareFormAsync(cancellationToken);
         model.Id = id;
 
         if (!ModelState.IsValid)
@@ -144,19 +144,19 @@ public sealed class ApplicationsController : Controller
         if (model.Icon is null || model.Icon.Length == 0)
         {
             TempData["StatusMessage"] = _localizer[CatalogErrors.IconEmpty].Value;
-            return RedirectToAction(nameof(Edit), new { id = model.ApplicationId });
+            return RedirectToAction(nameof(Edit), new { id = model.ProductId });
         }
 
         await using var stream = model.Icon.OpenReadStream();
 
         var result = await _applications.ReplaceIconAsync(
-            model.ApplicationId, stream, model.Icon.Length, cancellationToken);
+            model.ProductId, stream, model.Icon.Length, cancellationToken);
 
         TempData["StatusMessage"] = result.Succeeded
             ? _localizer["admin.application.iconSaved"].Value
             : _localizer[result.ErrorKey ?? OperationErrors.IdentityRejected].Value;
 
-        return RedirectToAction(nameof(Edit), new { id = model.ApplicationId });
+        return RedirectToAction(nameof(Edit), new { id = model.ProductId });
     }
 
     [HttpPost]
@@ -174,6 +174,16 @@ public sealed class ApplicationsController : Controller
 
     private async Task<string?> CurrentIconAsync(Guid id, CancellationToken cancellationToken) =>
         (await _query.GetForEditAsync(id, cancellationToken))?.IconPath;
+
+    /// <summary>
+    /// Everything the form needs besides the model itself. Called on the redisplay paths too,
+    /// so a validation failure does not come back with an empty category picker.
+    /// </summary>
+    private async Task PrepareFormAsync(CancellationToken cancellationToken)
+    {
+        ViewData["MaxIconBytes"] = _mediaOptions.MaxIconBytes;
+        ViewData["Categories"] = await _query.ListCategoriesAsync(cancellationToken);
+    }
 
     private void AddError(OperationResult result) =>
         ModelState.AddModelError(

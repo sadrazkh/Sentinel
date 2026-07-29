@@ -1,4 +1,6 @@
 @using System.Globalization
+@using Sentinel.Application.Features
+@inject IFeatureGate Features
 @{
     var culture = CultureInfo.CurrentUICulture;
     var direction = PortalCultures.DirectionAttribute(culture);
@@ -9,6 +11,11 @@
     var otherCultureLabel = isPersian ? L["language.english"] : L["language.persian"];
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
     var canSeeBackOffice = RoleNames.BackOffice.Any(role => User.IsInRole(role));
+
+    // Asked here so a switched-off library does not leave a link that 404s. The endpoints
+    // refuse on their own regardless — this only keeps the navigation honest.
+    var showLibrary = Features.IsEnabled(FeatureNames.ProductLibrary);
+    var showDiscovery = showLibrary && Features.IsEnabled(FeatureNames.ProductDiscovery);
 }
 <!DOCTYPE html>
 <html lang="@culture.TwoLetterISOLanguageName" dir="@direction">
@@ -61,6 +68,14 @@
                 <a class="btn btn--ghost btn--sm" asp-controller="Apps" asp-action="Index">
                     @L["nav.myApps"]
                 </a>
+                @if (showLibrary)
+                {
+                    <a class="btn btn--ghost btn--sm"
+                       asp-controller="Products"
+                       asp-action="@(showDiscovery ? "Index" : "Library")">
+                        @L["nav.products"]
+                    </a>
+                }
                 <a class="btn btn--ghost btn--sm" asp-controller="Membership" asp-action="Index">
                     @L["nav.membership"]
                 </a>

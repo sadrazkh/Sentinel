@@ -54,14 +54,14 @@ public sealed class EntitlementAdminQuery : IEntitlementAdminQuery
 
         // Drafts are included here, unlike the member-facing catalogue: an operator needs to
         // be able to pre-grant access to something not yet published.
-        var applications = await _db.PortalApplications
+        var applications = await _db.Products
             .AsNoTracking()
             .OrderBy(a => a.DisplayOrder)
             .ThenBy(a => a.NameEn)
             .Select(a => new
             {
                 Facts = new ApplicationFacts(
-                    a.Id, a.Key, a.IsEnabled, a.PublishStatus,
+                    a.Id, a.Key, a.IsEnabled, a.ReleaseStatus,
                     a.RequiresExplicitEntitlement, a.MinimumTier),
                 a.NameFa,
                 a.NameEn,
@@ -70,12 +70,12 @@ public sealed class EntitlementAdminQuery : IEntitlementAdminQuery
 
         // One query for every grant this user holds, then matched in memory — a lookup per
         // application would be the classic N+1.
-        var grants = await _db.UserEntitlements
+        var grants = await _db.ProductEntitlements
             .AsNoTracking()
             .Where(e => e.UserId == userId)
             .Select(e => new
             {
-                e.ApplicationId,
+                e.ProductId,
                 e.IsEnabled,
                 e.StartsAt,
                 e.ExpiresAt,
@@ -85,7 +85,7 @@ public sealed class EntitlementAdminQuery : IEntitlementAdminQuery
             })
             .ToListAsync(cancellationToken);
 
-        var grantsByApplication = grants.ToDictionary(g => g.ApplicationId);
+        var grantsByApplication = grants.ToDictionary(g => g.ProductId);
 
         return applications
             .Select(application =>
@@ -106,7 +106,7 @@ public sealed class EntitlementAdminQuery : IEntitlementAdminQuery
                     application.Facts.Key,
                     application.NameFa,
                     application.NameEn,
-                    application.Facts.PublishStatus,
+                    application.Facts.ReleaseStatus,
                     application.Facts.IsEnabled,
                     application.Facts.RequiresExplicitEntitlement,
                     grant is not null,

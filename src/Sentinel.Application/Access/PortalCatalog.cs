@@ -1,5 +1,5 @@
 using Sentinel.Application.Memberships;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Memberships;
 
 namespace Sentinel.Application.Access;
@@ -22,7 +22,7 @@ public sealed record ApplicationCard(
     string? DescriptionEn,
     string? IconPath,
     bool IsBeta,
-    ApplicationPublishStatus PublishStatus,
+    ProductReleaseStatus ReleaseStatus,
     int DisplayOrder,
     MembershipTier? MinimumTier,
     AccessDecision Decision)
@@ -42,7 +42,7 @@ public sealed record PortalCatalog(
     public int BetaCount => Applications.Count(a => a.IsBeta && a.CanLaunch);
 
     public int ComingSoonCount =>
-        Applications.Count(a => a.PublishStatus == ApplicationPublishStatus.ComingSoon);
+        Applications.Count(a => a.ReleaseStatus == ProductReleaseStatus.ComingSoon);
 }
 
 /// <summary>
@@ -50,7 +50,7 @@ public sealed record PortalCatalog(
 /// <see cref="Decision"/> allows it, so a refused launch cannot leak the destination.
 /// </summary>
 public sealed record LaunchResolution(
-    Guid ApplicationId,
+    Guid ProductId,
     string ApplicationKey,
     string ApplicationName,
     AccessDecision Decision,

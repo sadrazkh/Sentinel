@@ -1,0 +1,167 @@
+@using Sentinel.Application.Products
+@using Sentinel.Domain.Products
+@using Sentinel.Web.Models.Products
+@model ProductDetailViewModel
+@{
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+
+    var card = Model.Detail.Card;
+    var name = isPersian ? card.NameFa : card.NameEn;
+    var summary = isPersian ? card.SummaryFa : card.SummaryEn;
+    var description = isPersian ? Model.Detail.DescriptionFa : Model.Detail.DescriptionEn;
+    var iconUrl = MediaUrls.ApplicationIcon(card.Key, card.IconPath);
+
+    ViewData["Title"] = name;
+    ViewData["TimeZoneId"] = Model.TimeZoneId;
+
+    var access = card.Access;
+
+    var launchUrl = access.PrimaryAction == ProductPrimaryAction.Open
+        ? Url.Action("Open", "Apps", new { key = card.Key })
+        : null;
+}
+
+<nav class="breadcrumb" aria-label="@L["nav.breadcrumb"]">
+    <a asp-action="Library" asp-controller="Products">@L["products.mine.title"]</a>
+    <span aria-hidden="true">/</span>
+    <span>@name</span>
+</nav>
+
+<div class="page-head">
+    <div class="cluster" style="gap:var(--space-4)">
+        <div class="app-card__icon" aria-hidden="true" style="inline-size:56px;block-size:56px">
+            @if (iconUrl is not null)
+            {
+                <img src="@iconUrl" alt="" width="56" height="56" />
+            }
+            else
+            {
+                @name.Trim().FirstOrDefault().ToString().ToUpperInvariant()
+            }
+        </div>
+        <div>
+            <h1 class="page-head__title">@name</h1>
+            @if (!string.IsNullOrWhiteSpace(summary))
+            {
+                <p class="page-head__subtitle">@summary</p>
+            }
+        </div>
+    </div>
+
+    <div class="cluster">
+        @if (launchUrl is not null)
+        {
+            <a class="btn btn--primary" href="@launchUrl"
+               target="_blank" rel="noopener noreferrer">@L["product.action.open"]</a>
+        }
+    </div>
+</div>
+
+<div class="stack">
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">@L["product.status.title"]</h2>
+            <span class="badge @ProductPresentation.StatusBadgeClass(access.Status)">
+                @L[ProductPresentation.StatusKey(access.Status)]
+            </span>
+        </div>
+
+        <dl class="detail-list">
+            <div>
+                <dt>@L["product.field.type"]</dt>
+                <dd>@L[ProductPresentation.TypeKey(card.Type)]</dd>
+            </div>
+            <div>
+                <dt>@L["product.field.release"]</dt>
+                <dd>@L[ProductPresentation.ReleaseKey(card.ReleaseStatus)]</dd>
+            </div>
+            @if (card.CategoryKey is not null)
+            {
+                <div>
+                    <dt>@L["product.field.category"]</dt>
+                    <dd>@(isPersian ? card.CategoryNameFa : card.CategoryNameEn)</dd>
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(card.CurrentVersion))
+            {
+                <div>
+                    <dt>@L["product.field.version"]</dt>
+                    <dd dir="ltr">@card.CurrentVersion</dd>
+                </div>
+            }
+            @if (card.MinimumTier is { } tier)
+            {
+                <div>
+                    <dt>@L["product.field.minimumTier"]</dt>
+                    <dd>@L[AccessPresentation.TierKey(tier)]</dd>
+                </div>
+            }
+            @if (card.AccessEndsAt is { } endsAt)
+            {
+                <div>
+                    <dt>@L["product.field.accessEnds"]</dt>
+                    <dd>
+                        <time datetime="@UserTime.ToIso8601(endsAt)">
+                            @UserTime.Format(endsAt, Model.TimeZoneId, "yyyy/MM/dd")
+                        </time>
+                    </dd>
+                </div>
+            }
+        </dl>
+
+        @if (access.IsVisibleButLocked && access.Status != ProductAccessStatus.ComingSoon)
+        {
+            <p class="alert alert--info" style="margin-block-start:var(--space-4)">
+                @L[AccessPresentation.DenialReasonKey(access.DenialReason)]
+            </p>
+        }
+    </section>
+
+    @if (Model.Detail.Grant is { } grant)
+    {
+        <section class="card">
+            <div class="card__header">
+                <h2 class="card__title">@L["product.grant.title"]</h2>
+                <span class="badge @(grant.IsUsable ? "badge--success" : "badge--neutral")">
+                    @L[ProductPresentation.SourceKey(grant.Source)]
+                </span>
+            </div>
+
+            <dl class="detail-list">
+                <div>
+                    <dt>@L["product.grant.startsAt"]</dt>
+                    <dd>
+                        <time datetime="@UserTime.ToIso8601(grant.StartsAt)">
+                            @UserTime.Format(grant.StartsAt, Model.TimeZoneId, "yyyy/MM/dd")
+                        </time>
+                    </dd>
+                </div>
+                <div>
+                    <dt>@L["product.grant.expiresAt"]</dt>
+                    <dd>
+                        @if (grant.ExpiresAt is { } expiresAt)
+                        {
+                            <time datetime="@UserTime.ToIso8601(expiresAt)">
+                                @UserTime.Format(expiresAt, Model.TimeZoneId, "yyyy/MM/dd")
+                            </time>
+                        }
+                        else
+                        {
+                            @L["product.grant.noExpiry"]
+                        }
+                    </dd>
+                </div>
+            </dl>
+        </section>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(description))
+    {
+        <section class="card">
+            <h2 class="card__title" style="margin-block-end:var(--space-3)">@L["product.about.title"]</h2>
+            @* Plain text, rendered through Razor's default encoding. Rich content arrives with
+               the documentation phase and will be sanitised before it is ever marked safe. *@
+            <p class="text-sm text-secondary" style="white-space:pre-line">@description</p>
+        </section>
+    }
+</div>

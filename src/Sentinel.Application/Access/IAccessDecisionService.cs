@@ -13,7 +13,7 @@ public interface IAccessDecisionService
 {
     Task<AccessDecision> EvaluateAsync(
         Guid userId,
-        Guid applicationId,
+        Guid productId,
         CancellationToken cancellationToken = default);
 
     /// <summary>

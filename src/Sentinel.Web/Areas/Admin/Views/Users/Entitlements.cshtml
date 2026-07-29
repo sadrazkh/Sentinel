@@ -100,32 +100,32 @@
                         <form method="post" asp-action="GrantEntitlement" class="grid"
                               style="grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:var(--space-3);align-items:end;grid-column:1/-1">
                             <input type="hidden" name="UserId" value="@Model.UserId" />
-                            <input type="hidden" name="ApplicationId" value="@row.ApplicationId" />
+                            <input type="hidden" name="ProductId" value="@row.ProductId" />
                             <input type="hidden" name="ConcurrencyToken" value="@row.ConcurrencyToken" />
 
                             <div class="field">
-                                <label class="field__label" for="starts-@row.ApplicationId">
+                                <label class="field__label" for="starts-@row.ProductId">
                                     @L["admin.entitlement.starts"]
                                 </label>
-                                <input id="starts-@row.ApplicationId" name="StartsAt" class="input"
+                                <input id="starts-@row.ProductId" name="StartsAt" class="input"
                                        type="date" dir="ltr"
                                        value="@(row.GrantStartsAt?.UtcDateTime.ToString("yyyy-MM-dd"))" />
                             </div>
 
                             <div class="field">
-                                <label class="field__label" for="expires-@row.ApplicationId">
+                                <label class="field__label" for="expires-@row.ProductId">
                                     @L["admin.entitlement.expires"]
                                 </label>
-                                <input id="expires-@row.ApplicationId" name="ExpiresAt" class="input"
+                                <input id="expires-@row.ProductId" name="ExpiresAt" class="input"
                                        type="date" dir="ltr"
                                        value="@(row.GrantExpiresAt?.UtcDateTime.ToString("yyyy-MM-dd"))" />
                             </div>
 
                             <div class="field">
-                                <label class="field__label" for="notes-@row.ApplicationId">
+                                <label class="field__label" for="notes-@row.ProductId">
                                     @L["admin.membership.notes"]
                                 </label>
-                                <input id="notes-@row.ApplicationId" name="Notes" class="input"
+                                <input id="notes-@row.ProductId" name="Notes" class="input"
                                        maxlength="512" value="@row.GrantNotes" />
                             </div>
 
@@ -142,7 +142,7 @@
                         {
                             <form method="post" asp-action="RevokeEntitlement" style="grid-column:1/-1">
                                 <input type="hidden" name="UserId" value="@Model.UserId" />
-                                <input type="hidden" name="ApplicationId" value="@row.ApplicationId" />
+                                <input type="hidden" name="ProductId" value="@row.ProductId" />
                                 <input type="hidden" name="ConcurrencyToken" value="@row.ConcurrencyToken" />
 
                                 <button type="submit" class="btn btn--danger btn--sm"

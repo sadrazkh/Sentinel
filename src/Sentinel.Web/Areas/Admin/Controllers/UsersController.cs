@@ -256,7 +256,7 @@ public sealed class UsersController : Controller
 
         var result = await _entitlements.GrantAsync(
             model.UserId,
-            model.ApplicationId,
+            model.ProductId,
             new GrantEntitlementRequest(
                 model.StartsAt is { } startsAt ? StartOfDayUtc(startsAt) : null,
                 model.ExpiresAt is { } expiresAt ? EndOfDayUtc(expiresAt) : null,
@@ -275,7 +275,7 @@ public sealed class UsersController : Controller
         CancellationToken cancellationToken)
     {
         var result = await _entitlements.RevokeAsync(
-            model.UserId, model.ApplicationId, model.Notes, model.ConcurrencyToken, cancellationToken);
+            model.UserId, model.ProductId, model.Notes, model.ConcurrencyToken, cancellationToken);
 
         return RedirectToEntitlements(
             model.UserId, result.Succeeded ? "admin.entitlement.revokedMessage" : result.ErrorKey);

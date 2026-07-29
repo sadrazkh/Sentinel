@@ -6,7 +6,7 @@ using Sentinel.Application.Catalog;
 using Sentinel.Application.Common;
 using Sentinel.Application.Media;
 using Sentinel.Domain.Auditing;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Common;
 using Sentinel.Infrastructure.Media;
 
@@ -45,32 +45,36 @@ public sealed class ApplicationAdminService : IApplicationAdminService
             return OperationResult<Guid>.Failure(CatalogErrors.InvalidKey);
         }
 
-        var urlFailure = ValidateLaunchUrl(request.LaunchUrl);
-        if (urlFailure is not null)
+        if (ValidateShape(request) is { } shapeFailure)
         {
-            return OperationResult<Guid>.Failure(urlFailure);
+            return OperationResult<Guid>.Failure(shapeFailure);
         }
 
-        if (await _db.PortalApplications.AnyAsync(a => a.Key == key, cancellationToken))
+        if (await ValidateCategoryAsync(request.CategoryId, cancellationToken) is { } categoryFailure)
+        {
+            return OperationResult<Guid>.Failure(categoryFailure);
+        }
+
+        if (await _db.Products.AnyAsync(a => a.Key == key, cancellationToken))
         {
             return OperationResult<Guid>.Failure(CatalogErrors.KeyTaken);
         }
 
-        var application = new PortalApplication
+        var application = new Product
         {
             Id = SequentialGuid.New(_timeProvider.GetUtcNow()),
             Key = key,
         };
 
         Apply(application, request);
-        _db.PortalApplications.Add(application);
+        _db.Products.Add(application);
 
         await _audit.RecordAsync(
-            AuditEntry.For(AuditActions.ApplicationCreated, nameof(PortalApplication), application.Id) with
+            AuditEntry.For(AuditActions.ApplicationCreated, nameof(Product), application.Id) with
             {
                 Metadata = AuditMetadata.Create()
                     .Set("key", key)
-                    .Set("publishStatus", request.PublishStatus)
+                    .Set("releaseStatus", request.ReleaseStatus)
                     .Set("requiresEntitlement", request.RequiresExplicitEntitlement),
             },
             cancellationToken);
@@ -85,13 +89,17 @@ public sealed class ApplicationAdminService : IApplicationAdminService
         ApplicationSaveRequest request,
         CancellationToken cancellationToken = default)
     {
-        var urlFailure = ValidateLaunchUrl(request.LaunchUrl);
-        if (urlFailure is not null)
+        if (ValidateShape(request) is { } shapeFailure)
         {
-            return OperationResult.Failure(urlFailure);
+            return OperationResult.Failure(shapeFailure);
         }
 
-        var application = await _db.PortalApplications
+        if (await ValidateCategoryAsync(request.CategoryId, cancellationToken) is { } categoryFailure)
+        {
+            return OperationResult.Failure(categoryFailure);
+        }
+
+        var application = await _db.Products
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (application is null)
@@ -108,9 +116,9 @@ public sealed class ApplicationAdminService : IApplicationAdminService
         // editable here — changing it would silently break every launch link already in use.
         var metadata = AuditMetadata.Create();
 
-        if (application.PublishStatus != request.PublishStatus)
+        if (application.ReleaseStatus != request.ReleaseStatus)
         {
-            metadata.SetChange("publishStatus", application.PublishStatus, request.PublishStatus);
+            metadata.SetChange("releaseStatus", application.ReleaseStatus, request.ReleaseStatus);
         }
 
         if (application.IsEnabled != request.IsEnabled)
@@ -139,7 +147,7 @@ public sealed class ApplicationAdminService : IApplicationAdminService
         Apply(application, request);
 
         await _audit.RecordAsync(
-            AuditEntry.For(AuditActions.ApplicationUpdated, nameof(PortalApplication), id) with
+            AuditEntry.For(AuditActions.ApplicationUpdated, nameof(Product), id) with
             {
                 Metadata = metadata,
             },
@@ -173,7 +181,7 @@ public sealed class ApplicationAdminService : IApplicationAdminService
             return OperationResult.Failure(CatalogErrors.IconTooLarge);
         }
 
-        var application = await _db.PortalApplications
+        var application = await _db.Products
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (application is null)
@@ -221,7 +229,7 @@ public sealed class ApplicationAdminService : IApplicationAdminService
         application.IconPath = stored.StoredName;
 
         await _audit.RecordAsync(
-            AuditEntry.For(AuditActions.ApplicationIconChanged, nameof(PortalApplication), id) with
+            AuditEntry.For(AuditActions.ApplicationIconChanged, nameof(Product), id) with
             {
                 Metadata = AuditMetadata.Create()
                     .Set("format", format)
@@ -245,7 +253,7 @@ public sealed class ApplicationAdminService : IApplicationAdminService
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var application = await _db.PortalApplications
+        var application = await _db.Products
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (application is null)
@@ -263,7 +271,7 @@ public sealed class ApplicationAdminService : IApplicationAdminService
         application.IconPath = null;
 
         await _audit.RecordAsync(
-            AuditEntry.For(AuditActions.ApplicationIconChanged, nameof(PortalApplication), id) with
+            AuditEntry.For(AuditActions.ApplicationIconChanged, nameof(Product), id) with
             {
                 Metadata = AuditMetadata.Create().Set("removed", true),
             },
@@ -275,26 +283,89 @@ public sealed class ApplicationAdminService : IApplicationAdminService
         return OperationResult.Success();
     }
 
-    private static void Apply(PortalApplication application, ApplicationSaveRequest request)
+    private static void Apply(Product application, ApplicationSaveRequest request)
     {
         application.NameFa = request.NameFa.Trim();
         application.NameEn = request.NameEn.Trim();
+        application.SummaryFa = Trim(request.SummaryFa);
+        application.SummaryEn = Trim(request.SummaryEn);
+        application.Type = request.Type;
+        application.Capabilities = request.Capabilities;
+        application.CategoryId = request.CategoryId;
+        application.CurrentVersion = Trim(request.CurrentVersion);
+        application.IsFeatured = request.IsFeatured;
         application.DescriptionFa = Trim(request.DescriptionFa);
         application.DescriptionEn = Trim(request.DescriptionEn);
-        application.LaunchUrl = request.LaunchUrl.Trim();
-        application.PublishStatus = request.PublishStatus;
+        application.LaunchUrl = string.IsNullOrWhiteSpace(request.LaunchUrl)
+            ? null
+            : request.LaunchUrl.Trim();
+        application.ReleaseStatus = request.ReleaseStatus;
         application.IsEnabled = request.IsEnabled;
-        application.IsBeta = request.IsBeta;
         application.DisplayOrder = request.DisplayOrder;
         application.RequiresExplicitEntitlement = request.RequiresExplicitEntitlement;
         application.MinimumTier = request.MinimumTier;
     }
 
     /// <summary>
+    /// Whether the product as described can actually work, independently of who is saving it.
+    /// <para>
+    /// Shared by create and update rather than duplicated, because a rule enforced on one path
+    /// and not the other is the same as no rule.
+    /// </para>
+    /// </summary>
+    private static string? ValidateShape(ApplicationSaveRequest request)
+    {
+        if (ValidateLaunchUrl(request.LaunchUrl) is { } urlFailure)
+        {
+            return urlFailure;
+        }
+
+        // A product that claims to be launchable but has nowhere to go would render a button
+        // that dead-ends. Caught here so the operator finds out, not the member.
+        if (request.Capabilities.Has(ProductCapability.Launchable)
+            && string.IsNullOrWhiteSpace(request.LaunchUrl))
+        {
+            return CatalogErrors.LaunchUrlRequired;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Rejects a category that does not exist rather than letting the foreign key fail at save
+    /// time — the operator gets a message instead of an error page.
+    /// </summary>
+    private async Task<string?> ValidateCategoryAsync(
+        Guid? categoryId,
+        CancellationToken cancellationToken)
+    {
+        if (categoryId is not { } id)
+        {
+            return null;
+        }
+
+        var exists = await _db.ProductCategories.AnyAsync(c => c.Id == id, cancellationToken);
+
+        return exists ? null : CatalogErrors.CategoryNotFound;
+    }
+
+    /// <summary>
     /// The same policy the launch endpoint enforces, applied here so a bad destination is
     /// rejected at the point it is typed rather than discovered by a member.
     /// </summary>
-    private static string? ValidateLaunchUrl(string launchUrl) =>
+    private static string? ValidateLaunchUrl(string? launchUrl)
+    {
+        // A product without a launch destination is legitimate — a download-only tool or a
+        // subscription service has nowhere to "open". Only a supplied URL is checked.
+        if (string.IsNullOrWhiteSpace(launchUrl))
+        {
+            return null;
+        }
+
+        return ValidateSuppliedLaunchUrl(launchUrl);
+    }
+
+    private static string? ValidateSuppliedLaunchUrl(string launchUrl) =>
         ApplicationUrlPolicy.Validate(launchUrl, out _) switch
         {
             ApplicationUrlRejection.None => null,

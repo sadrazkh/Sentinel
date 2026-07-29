@@ -177,11 +177,11 @@ public sealed class UserAdminQuery : IUserAdminQuery
                         u.Membership.Notes,
                         u.Membership.ConcurrencyToken),
                 u.Entitlements
-                    .OrderBy(e => e.Application!.DisplayOrder)
+                    .OrderBy(e => e.Product!.DisplayOrder)
                     .Select(e => new UserEntitlementSummary(
-                        e.ApplicationId,
-                        e.Application!.Key,
-                        e.Application.NameEn,
+                        e.ProductId,
+                        e.Product!.Key,
+                        e.Product.NameEn,
                         e.IsEnabled,
                         e.StartsAt,
                         e.ExpiresAt,

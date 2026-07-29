@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 using Sentinel.Application.Abstractions;
 using Sentinel.Application.Options;
 using Sentinel.Application.Settings;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Identity;
 using Sentinel.Domain.Memberships;
 
@@ -52,11 +52,11 @@ public sealed class SystemOverviewQuery : ISystemOverviewQuery
                  && m.EndsAt <= renewalHorizon,
             cancellationToken);
 
-        var totalApplications = await _db.PortalApplications.CountAsync(cancellationToken);
-        var publishedApplications = await _db.PortalApplications.CountAsync(
-            a => a.PublishStatus == ApplicationPublishStatus.Published && a.IsEnabled, cancellationToken);
+        var totalApplications = await _db.Products.CountAsync(cancellationToken);
+        var publishedApplications = await _db.Products.CountAsync(
+            a => a.ReleaseStatus == ProductReleaseStatus.Stable && a.IsEnabled, cancellationToken);
 
-        var activeEntitlements = await _db.UserEntitlements.CountAsync(
+        var activeEntitlements = await _db.ProductEntitlements.CountAsync(
             e => e.RevokedAt == null
                  && e.IsEnabled
                  && e.StartsAt <= now

@@ -187,89 +187,10 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                     b.ToTable("AuditLogs", (string)null);
                 });
 
-            modelBuilder.Entity("Sentinel.Domain.Catalog.PortalApplication", b =>
+            modelBuilder.Entity("Sentinel.Domain.Entitlements.ProductEntitlement", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DescriptionEn")
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
-
-                    b.Property<string>("DescriptionFa")
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("IconPath")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<bool>("IsBeta")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("LaunchUrl")
-                        .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
-
-                    b.Property<int?>("MinimumTier")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("NameEn")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("NameFa")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<int>("PublishStatus")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("RequiresExplicitEntitlement")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Key")
-                        .IsUnique();
-
-                    b.HasIndex("PublishStatus", "IsEnabled", "DisplayOrder");
-
-                    b.ToTable("PortalApplications", (string)null);
-                });
-
-            modelBuilder.Entity("Sentinel.Domain.Entitlements.UserEntitlement", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("ConcurrencyToken")
@@ -292,11 +213,17 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset?>("RevokedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("RevokedBy")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset>("StartsAt")
                         .HasColumnType("timestamp with time zone");
@@ -309,12 +236,12 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ApplicationId");
+                    b.HasIndex("ProductId");
 
-                    b.HasIndex("UserId", "ApplicationId")
+                    b.HasIndex("UserId", "ProductId")
                         .IsUnique();
 
-                    b.ToTable("UserEntitlements", (string)null);
+                    b.ToTable("ProductEntitlements", (string)null);
                 });
 
             modelBuilder.Entity("Sentinel.Domain.Identity.ApplicationRole", b =>
@@ -625,6 +552,153 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                     b.ToTable("TelegramLinkTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Sentinel.Domain.Products.Product", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Capabilities")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CoverPath")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CurrentVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("DescriptionEn")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("DescriptionFa")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("IconPath")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsFeatured")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("LaunchUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<int?>("MinimumTier")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("ReleaseStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("RequiresExplicitEntitlement")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SummaryEn")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("SummaryFa")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.HasIndex("ReleaseStatus", "IsEnabled", "DisplayOrder");
+
+                    b.ToTable("Products", (string)null);
+                });
+
+            modelBuilder.Entity("Sentinel.Domain.Products.ProductCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("IconName")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("IsVisible")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("ProductCategories", (string)null);
+                });
+
             modelBuilder.Entity("Sentinel.Domain.Security.LoginAttempt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -853,11 +927,11 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                     b.Navigation("ActorUser");
                 });
 
-            modelBuilder.Entity("Sentinel.Domain.Entitlements.UserEntitlement", b =>
+            modelBuilder.Entity("Sentinel.Domain.Entitlements.ProductEntitlement", b =>
                 {
-                    b.HasOne("Sentinel.Domain.Catalog.PortalApplication", "Application")
+                    b.HasOne("Sentinel.Domain.Products.Product", "Product")
                         .WithMany("Entitlements")
-                        .HasForeignKey("ApplicationId")
+                        .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -867,7 +941,7 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Application");
+                    b.Navigation("Product");
 
                     b.Navigation("User");
                 });
@@ -905,6 +979,16 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Sentinel.Domain.Products.Product", b =>
+                {
+                    b.HasOne("Sentinel.Domain.Products.ProductCategory", "Category")
+                        .WithMany("Products")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Category");
+                });
+
             modelBuilder.Entity("Sentinel.Domain.Security.LoginAttempt", b =>
                 {
                     b.HasOne("Sentinel.Domain.Identity.ApplicationUser", "User")
@@ -937,11 +1021,6 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Sentinel.Domain.Catalog.PortalApplication", b =>
-                {
-                    b.Navigation("Entitlements");
-                });
-
             modelBuilder.Entity("Sentinel.Domain.Identity.ApplicationUser", b =>
                 {
                     b.Navigation("ActedAuditLogs");
@@ -955,6 +1034,16 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                     b.Navigation("Notifications");
 
                     b.Navigation("Sessions");
+                });
+
+            modelBuilder.Entity("Sentinel.Domain.Products.Product", b =>
+                {
+                    b.Navigation("Entitlements");
+                });
+
+            modelBuilder.Entity("Sentinel.Domain.Products.ProductCategory", b =>
+                {
+                    b.Navigation("Products");
                 });
 #pragma warning restore 612, 618
         }

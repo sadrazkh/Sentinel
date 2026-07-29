@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using Sentinel.Application.Abstractions;
+using Sentinel.Application.Features;
 using Sentinel.Application.Notifications;
 using Sentinel.Application.Options;
 using Sentinel.Domain.Identity;
@@ -79,6 +80,12 @@ builder.Services.AddOptions<SubscriptionFetchOptions>()
     .Bind(builder.Configuration.GetSection(SubscriptionFetchOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+
+// Bound without ValidateOnStart so that flipping a flag in configuration takes effect through
+// IOptionsMonitor without a restart. There is nothing to validate: every member is a bool, and
+// an absent section leaves the safe defaults in place.
+builder.Services.AddOptions<FeatureFlags>()
+    .Bind(builder.Configuration.GetSection(FeatureFlags.SectionName));
 
 builder.Services.AddOptions<TelegramOptions>()
     .Bind(builder.Configuration.GetSection(TelegramOptions.SectionName))

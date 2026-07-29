@@ -1,6 +1,6 @@
 using Sentinel.Application.Access;
 using Sentinel.Application.Memberships;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Identity;
 using Sentinel.Domain.Memberships;
 
@@ -21,10 +21,10 @@ public sealed class AccessRuleEvaluatorTests
 
     private static ApplicationFacts App(
         bool isEnabled = true,
-        ApplicationPublishStatus publishStatus = ApplicationPublishStatus.Published,
+        ProductReleaseStatus releaseStatus = ProductReleaseStatus.Stable,
         bool requiresEntitlement = false,
         MembershipTier? minimumTier = null) =>
-        new(Guid.NewGuid(), "demo", isEnabled, publishStatus, requiresEntitlement, minimumTier);
+        new(Guid.NewGuid(), "demo", isEnabled, releaseStatus, requiresEntitlement, minimumTier);
 
     private static EntitlementFacts Grant(
         bool isEnabled = true,
@@ -85,7 +85,7 @@ public sealed class AccessRuleEvaluatorTests
     {
         // Both would fail; the account reason must be the one reported.
         var decision = Evaluate(
-            App(publishStatus: ApplicationPublishStatus.ComingSoon),
+            App(releaseStatus: ProductReleaseStatus.ComingSoon),
             account: new(UserAccountStatus.Disabled, null));
 
         Assert.Equal(AccessDenialReason.AccountDisabled, decision.Reason);
@@ -104,14 +104,14 @@ public sealed class AccessRuleEvaluatorTests
     }
 
     [Theory]
-    [InlineData(ApplicationPublishStatus.Draft, AccessDenialReason.ApplicationNotPublished)]
-    [InlineData(ApplicationPublishStatus.ComingSoon, AccessDenialReason.ApplicationComingSoon)]
-    [InlineData(ApplicationPublishStatus.Retired, AccessDenialReason.ApplicationRetired)]
+    [InlineData(ProductReleaseStatus.Draft, AccessDenialReason.ApplicationNotPublished)]
+    [InlineData(ProductReleaseStatus.ComingSoon, AccessDenialReason.ApplicationComingSoon)]
+    [InlineData(ProductReleaseStatus.Deprecated, AccessDenialReason.ApplicationRetired)]
     public void Publish_status_governs_launchability(
-        ApplicationPublishStatus status,
+        ProductReleaseStatus status,
         AccessDenialReason expected)
     {
-        var decision = Evaluate(App(publishStatus: status), entitlement: Grant());
+        var decision = Evaluate(App(releaseStatus: status), entitlement: Grant());
 
         Assert.Equal(expected, decision.Reason);
     }

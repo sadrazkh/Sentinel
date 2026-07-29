@@ -38,7 +38,7 @@ public sealed class EntitlementAdminService : IEntitlementAdminService
 
     public async Task<OperationResult> GrantAsync(
         Guid userId,
-        Guid applicationId,
+        Guid productId,
         GrantEntitlementRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -55,26 +55,26 @@ public sealed class EntitlementAdminService : IEntitlementAdminService
             return OperationResult.Failure(OperationErrors.NotFound);
         }
 
-        if (!await _db.PortalApplications.AnyAsync(a => a.Id == applicationId, cancellationToken))
+        if (!await _db.Products.AnyAsync(a => a.Id == productId, cancellationToken))
         {
             return OperationResult.Failure(OperationErrors.NotFound);
         }
 
-        var entitlement = await _db.UserEntitlements
-            .FirstOrDefaultAsync(e => e.UserId == userId && e.ApplicationId == applicationId, cancellationToken);
+        var entitlement = await _db.ProductEntitlements
+            .FirstOrDefaultAsync(e => e.UserId == userId && e.ProductId == productId, cancellationToken);
 
         var isNew = entitlement is null;
 
         if (isNew)
         {
-            entitlement = new UserEntitlement
+            entitlement = new ProductEntitlement
             {
                 Id = SequentialGuid.New(now),
                 UserId = userId,
-                ApplicationId = applicationId,
+                ProductId = productId,
             };
 
-            _db.UserEntitlements.Add(entitlement);
+            _db.ProductEntitlements.Add(entitlement);
         }
         else if (request.ConcurrencyToken is { } token && entitlement!.ConcurrencyToken != token)
         {
@@ -96,10 +96,10 @@ public sealed class EntitlementAdminService : IEntitlementAdminService
         entitlement.RevokedBy = null;
 
         await _audit.RecordAsync(
-            AuditEntry.For(AuditActions.EntitlementGranted, nameof(UserEntitlement), userId) with
+            AuditEntry.For(AuditActions.EntitlementGranted, nameof(ProductEntitlement), userId) with
             {
                 Metadata = AuditMetadata.Create()
-                    .Set("applicationId", applicationId)
+                    .Set("productId", productId)
                     .Set("startsAt", startsAt)
                     .Set("expiresAt", request.ExpiresAt)
                     .Set("reinstated", wasRevoked),
@@ -108,8 +108,8 @@ public sealed class EntitlementAdminService : IEntitlementAdminService
 
         // Staged on the same unit of work as the grant, so the member is never told about
         // access that then failed to save — nor left unaware of access that did.
-        var application = await _db.PortalApplications
-            .Where(a => a.Id == applicationId)
+        var application = await _db.Products
+            .Where(a => a.Id == productId)
             .Select(a => new { a.NameFa, a.NameEn })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -149,13 +149,13 @@ public sealed class EntitlementAdminService : IEntitlementAdminService
 
     public async Task<OperationResult> RevokeAsync(
         Guid userId,
-        Guid applicationId,
+        Guid productId,
         string? notes,
         Guid? concurrencyToken,
         CancellationToken cancellationToken = default)
     {
-        var entitlement = await _db.UserEntitlements
-            .FirstOrDefaultAsync(e => e.UserId == userId && e.ApplicationId == applicationId, cancellationToken);
+        var entitlement = await _db.ProductEntitlements
+            .FirstOrDefaultAsync(e => e.UserId == userId && e.ProductId == productId, cancellationToken);
 
         if (entitlement is null)
         {
@@ -183,10 +183,10 @@ public sealed class EntitlementAdminService : IEntitlementAdminService
         }
 
         await _audit.RecordAsync(
-            AuditEntry.For(AuditActions.EntitlementRevoked, nameof(UserEntitlement), userId) with
+            AuditEntry.For(AuditActions.EntitlementRevoked, nameof(ProductEntitlement), userId) with
             {
                 Metadata = AuditMetadata.Create()
-                    .Set("applicationId", applicationId)
+                    .Set("productId", productId)
                     .Set("notes", entitlement.Notes),
             },
             cancellationToken);

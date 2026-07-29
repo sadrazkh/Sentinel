@@ -2,7 +2,7 @@ using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Sentinel.Application.Abstractions;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Entitlements;
 using Sentinel.Domain.Identity;
 using Sentinel.IntegrationTests.Infrastructure;
@@ -271,7 +271,7 @@ public sealed class AdminEntitlementTests : IClassFixture<SentinelWebApplication
     private static async Task<HttpResponseMessage> GrantAsync(
         HttpClient client,
         Guid userId,
-        Guid applicationId,
+        Guid productId,
         DateTime? startsAt = null,
         DateTime? expiresAt = null,
         string? notes = null,
@@ -283,7 +283,7 @@ public sealed class AdminEntitlementTests : IClassFixture<SentinelWebApplication
         {
             ["__RequestVerificationToken"] = antiForgery,
             ["UserId"] = userId.ToString(),
-            ["ApplicationId"] = applicationId.ToString(),
+            ["ProductId"] = productId.ToString(),
         };
 
         if (startsAt is { } starts)
@@ -312,7 +312,7 @@ public sealed class AdminEntitlementTests : IClassFixture<SentinelWebApplication
     private static async Task<HttpResponseMessage> RevokeAsync(
         HttpClient client,
         Guid userId,
-        Guid applicationId,
+        Guid productId,
         Guid? token)
     {
         var antiForgery = await client.GetAntiForgeryTokenAsync($"/Admin/Users/Details/{userId}");
@@ -321,7 +321,7 @@ public sealed class AdminEntitlementTests : IClassFixture<SentinelWebApplication
         {
             ["__RequestVerificationToken"] = antiForgery,
             ["UserId"] = userId.ToString(),
-            ["ApplicationId"] = applicationId.ToString(),
+            ["ProductId"] = productId.ToString(),
         };
 
         if (token is { } concurrencyToken)
@@ -335,28 +335,28 @@ public sealed class AdminEntitlementTests : IClassFixture<SentinelWebApplication
 
 internal static class EntitlementTestQueries
 {
-    public static Task<UserEntitlement?> FindEntitlementAsync(
+    public static Task<ProductEntitlement?> FindEntitlementAsync(
         this SentinelWebApplicationFactory factory,
         Guid userId,
-        Guid applicationId) =>
+        Guid productId) =>
         factory.WithScopeAsync(async services =>
         {
             var db = services.GetRequiredService<ISentinelDbContext>();
 
-            return await db.UserEntitlements
+            return await db.ProductEntitlements
                 .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.UserId == userId && e.ApplicationId == applicationId);
+                .FirstOrDefaultAsync(e => e.UserId == userId && e.ProductId == productId);
         });
 
     public static Task<int> CountEntitlementsAsync(
         this SentinelWebApplicationFactory factory,
         Guid userId,
-        Guid applicationId) =>
+        Guid productId) =>
         factory.WithScopeAsync(async services =>
         {
             var db = services.GetRequiredService<ISentinelDbContext>();
 
-            return await db.UserEntitlements
-                .CountAsync(e => e.UserId == userId && e.ApplicationId == applicationId);
+            return await db.ProductEntitlements
+                .CountAsync(e => e.UserId == userId && e.ProductId == productId);
         });
 }

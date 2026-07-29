@@ -1,0 +1,98 @@
+@using Sentinel.Application.Products
+@using Sentinel.Domain.Products
+@model ProductCard
+@{
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+
+    var name = isPersian ? Model.NameFa : Model.NameEn;
+    var summary = isPersian ? Model.SummaryFa : Model.SummaryEn;
+    var iconUrl = MediaUrls.ApplicationIcon(Model.Key, Model.IconPath);
+
+    // The action is decided on the server by ProductAccessRules and merely rendered here, so a
+    // card can never offer something the endpoint behind it would refuse.
+    var action = ProductPresentation.Describe(
+        Model.Access.PrimaryAction,
+        Model.Key,
+        key => Url.Action("Open", "Apps", new { key })!,
+        key => Url.Action("Details", "Products", new { key })!);
+
+    var lockReasonKey = ProductPresentation.LockReasonKey(Model);
+    var detailsUrl = Url.Action("Details", "Products", new { key = Model.Key })!;
+    var timeZoneId = ViewData["TimeZoneId"] as string;
+}
+
+<article class="app-card @(Model.Access.IsUsable ? "app-card--available" : "app-card--locked")">
+    <div class="app-card__head">
+        <div class="app-card__icon" aria-hidden="true">
+            @if (iconUrl is not null)
+            {
+                <img src="@iconUrl" alt="" loading="lazy" width="44" height="44" />
+            }
+            else
+            {
+                @name.Trim().FirstOrDefault().ToString().ToUpperInvariant()
+            }
+        </div>
+
+        <div class="app-card__titles">
+            <h3 class="app-card__name">
+                <a href="@detailsUrl" class="link-plain">@name</a>
+            </h3>
+            <p class="app-card__subtitle">@L[ProductPresentation.TypeKey(Model.Type)]</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(summary))
+    {
+        <p class="app-card__description">@summary</p>
+    }
+
+    <div class="app-card__badges">
+        <span class="badge @ProductPresentation.StatusBadgeClass(Model.Access.Status)">
+            @L[ProductPresentation.StatusKey(Model.Access.Status)]
+        </span>
+
+        @if (Model.ReleaseStatus is ProductReleaseStatus.Beta or ProductReleaseStatus.Alpha
+            or ProductReleaseStatus.PrivatePreview or ProductReleaseStatus.Deprecated)
+        {
+            <span class="badge badge--neutral badge--plain">
+                @L[ProductPresentation.ReleaseKey(Model.ReleaseStatus)]
+            </span>
+        }
+
+        @if (Model.MinimumTier is { } tier)
+        {
+            <span class="badge badge--neutral badge--plain">@L[AccessPresentation.TierKey(tier)]</span>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.CurrentVersion))
+        {
+            <span class="badge badge--neutral badge--plain" dir="ltr">v@(Model.CurrentVersion)</span>
+        }
+    </div>
+
+    @if (lockReasonKey is not null)
+    {
+        <p class="app-card__reason">@L[lockReasonKey]</p>
+    }
+    else if (Model.AccessEndsAt is { } endsAt)
+    {
+        <p class="app-card__reason">
+            @L["product.accessUntil", UserTime.Format(endsAt, timeZoneId, "yyyy/MM/dd")]
+        </p>
+    }
+
+    <div class="app-card__footer">
+        @if (Model.Access.PrimaryAction == ProductPrimaryAction.Open)
+        {
+            @* Opens off-site, so noopener/noreferrer: the destination must not get a handle
+               on this window or a referrer naming the portal. *@
+            <a class="@action.CssClass" href="@action.Url"
+               target="_blank" rel="noopener noreferrer">@L[action.LabelKey]</a>
+        }
+        else
+        {
+            <a class="@action.CssClass" href="@action.Url">@L[action.LabelKey]</a>
+        }
+    </div>
+</article>

@@ -4,7 +4,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Sentinel.Application.Abstractions;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Identity;
 using Sentinel.IntegrationTests.Infrastructure;
 
@@ -145,6 +145,105 @@ public sealed class AdminApplicationTests : IClassFixture<SentinelWebApplication
 
         var count = await _factory.CountApplicationsAsync("duplicate-key-app");
         Assert.Equal(1, count);
+    }
+
+    // ------------------------------------------------------------------ product shape ----
+
+    [Fact]
+    public async Task A_product_that_claims_to_be_launchable_needs_somewhere_to_go()
+    {
+        // Otherwise the library renders an "Open" button that dead-ends, and the operator only
+        // finds out when a member complains.
+        using var admin = await AdminClientAsync("app-shape-nourl");
+
+        var response = await CreateProductAsync(
+            admin,
+            "shape-nourl",
+            capabilities: [ProductCapability.Launchable],
+            launchUrl: string.Empty);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(await _factory.FindApplicationAsync("shape-nourl"));
+    }
+
+    [Fact]
+    public async Task A_product_with_no_launch_capability_is_accepted_without_a_url()
+    {
+        // A download-only tool or a subscription service has nowhere to open.
+        using var admin = await AdminClientAsync("app-shape-nolaunch");
+
+        var response = await CreateProductAsync(
+            admin,
+            "shape-nolaunch",
+            capabilities: [ProductCapability.HasDocumentation],
+            launchUrl: string.Empty,
+            type: ProductType.DigitalTool);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+
+        var stored = await _factory.FindApplicationAsync("shape-nolaunch");
+
+        Assert.NotNull(stored);
+        Assert.Null(stored!.LaunchUrl);
+        Assert.Equal(ProductType.DigitalTool, stored.Type);
+        Assert.Equal(ProductCapability.HasDocumentation, stored.Capabilities);
+    }
+
+    [Fact]
+    public async Task Ticked_capabilities_are_stored_as_one_bitmask()
+    {
+        using var admin = await AdminClientAsync("app-shape-caps");
+
+        var response = await CreateProductAsync(
+            admin,
+            "shape-caps",
+            capabilities:
+            [
+                ProductCapability.Launchable,
+                ProductCapability.HasDocumentation,
+                ProductCapability.Downloadable,
+            ]);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+
+        var stored = await _factory.FindApplicationAsync("shape-caps");
+
+        Assert.NotNull(stored);
+        Assert.True(stored!.Capabilities.Has(ProductCapability.Launchable));
+        Assert.True(stored.Capabilities.Has(ProductCapability.HasDocumentation));
+        Assert.True(stored.Capabilities.Has(ProductCapability.Downloadable));
+        Assert.False(stored.Capabilities.Has(ProductCapability.Purchasable));
+    }
+
+    [Fact]
+    public async Task A_category_that_does_not_exist_is_refused_rather_than_erroring()
+    {
+        using var admin = await AdminClientAsync("app-shape-category");
+
+        var response = await CreateProductAsync(
+            admin, "shape-category", categoryId: Guid.NewGuid());
+
+        // Redisplayed with a message, not a 500 from a foreign-key violation.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(await _factory.FindApplicationAsync("shape-category"));
+    }
+
+    [Fact]
+    public async Task A_product_can_be_filed_under_a_real_category()
+    {
+        var categoryId = await _factory.CreateProductCategoryAsync("admin-cat");
+
+        using var admin = await AdminClientAsync("app-shape-realcategory");
+
+        var response = await CreateProductAsync(
+            admin, "shape-realcategory", categoryId: categoryId);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+
+        var stored = await _factory.FindApplicationAsync("shape-realcategory");
+
+        Assert.NotNull(stored);
+        Assert.Equal(categoryId, stored!.CategoryId);
     }
 
     // -------------------------------------------------------------------- icon upload ----
@@ -290,25 +389,65 @@ public sealed class AdminApplicationTests : IClassFixture<SentinelWebApplication
                 ["NameFa"] = $"برنامهٔ {key}",
                 ["NameEn"] = $"Application {key}",
                 ["LaunchUrl"] = launchUrl,
-                ["PublishStatus"] = nameof(ApplicationPublishStatus.Published),
+                ["ReleaseStatus"] = nameof(ProductReleaseStatus.Stable),
                 ["IsEnabled"] = "true",
                 ["DisplayOrder"] = "100",
             }));
     }
 
+    /// <summary>
+    /// The same form, driven through the fields the product model added. Posted as a real
+    /// browser would — one repeated key per ticked capability checkbox.
+    /// </summary>
+    private static async Task<HttpResponseMessage> CreateProductAsync(
+        HttpClient client,
+        string key,
+        IReadOnlyList<ProductCapability>? capabilities = null,
+        string? launchUrl = "https://apps.example.com/target",
+        ProductType type = ProductType.WebApplication,
+        Guid? categoryId = null)
+    {
+        var token = await client.GetAntiForgeryTokenAsync("/Admin/Applications/Create");
+
+        var fields = new List<KeyValuePair<string, string>>
+        {
+            new("__RequestVerificationToken", token),
+            new("Key", key),
+            new("NameFa", $"محصول {key}"),
+            new("NameEn", $"Product {key}"),
+            new("LaunchUrl", launchUrl ?? string.Empty),
+            new("Type", type.ToString()),
+            new("ReleaseStatus", nameof(ProductReleaseStatus.Stable)),
+            new("IsEnabled", "true"),
+            new("DisplayOrder", "100"),
+        };
+
+        if (categoryId is { } id)
+        {
+            fields.Add(new KeyValuePair<string, string>("CategoryId", id.ToString()));
+        }
+
+        foreach (var capability in capabilities ?? [ProductCapability.Launchable])
+        {
+            fields.Add(new KeyValuePair<string, string>("SelectedCapabilities", capability.ToString()));
+        }
+
+        return await client.PostAsync("/Admin/Applications/Create", new FormUrlEncodedContent(fields));
+    }
+
     private static async Task<HttpResponseMessage> UploadIconAsync(
         HttpClient client,
-        Guid applicationId,
+        Guid productId,
         byte[] content,
         string fileName,
         string contentType)
     {
-        var token = await client.GetAntiForgeryTokenAsync($"/Admin/Applications/Edit/{applicationId}");
+        var token = await client.GetAntiForgeryTokenAsync($"/Admin/Applications/Edit/{productId}");
 
         using var form = new MultipartFormDataContent
         {
             { new StringContent(token), "__RequestVerificationToken" },
-            { new StringContent(applicationId.ToString()), "ApplicationId" },
+            { new StringContent(productId.ToString()), "ProductId" },
         };
 
         var file = new ByteArrayContent(content);
@@ -321,14 +460,14 @@ public sealed class AdminApplicationTests : IClassFixture<SentinelWebApplication
 
 internal static class ApplicationTestQueries
 {
-    public static Task<PortalApplication?> FindApplicationAsync(
+    public static Task<Product?> FindApplicationAsync(
         this SentinelWebApplicationFactory factory,
         string key) =>
         factory.WithScopeAsync(async services =>
         {
             var db = services.GetRequiredService<ISentinelDbContext>();
 
-            return await db.PortalApplications
+            return await db.Products
                 .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Key == key);
         });
@@ -339,6 +478,6 @@ internal static class ApplicationTestQueries
         factory.WithScopeAsync(async services =>
         {
             var db = services.GetRequiredService<ISentinelDbContext>();
-            return await db.PortalApplications.CountAsync(a => a.Key == key);
+            return await db.Products.CountAsync(a => a.Key == key);
         });
 }

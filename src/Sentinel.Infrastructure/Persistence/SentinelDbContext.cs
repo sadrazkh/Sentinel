@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Sentinel.Application.Abstractions;
 using Sentinel.Domain.Auditing;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Common;
 using Sentinel.Domain.Entitlements;
 using Sentinel.Domain.Identity;
@@ -28,9 +28,11 @@ public class SentinelDbContext
 
     public DbSet<Membership> Memberships => Set<Membership>();
 
-    public DbSet<PortalApplication> PortalApplications => Set<PortalApplication>();
+    public DbSet<Product> Products => Set<Product>();
 
-    public DbSet<UserEntitlement> UserEntitlements => Set<UserEntitlement>();
+    public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>();
+
+    public DbSet<ProductEntitlement> ProductEntitlements => Set<ProductEntitlement>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 

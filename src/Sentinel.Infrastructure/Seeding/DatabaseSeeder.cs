@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sentinel.Application.Identity;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Common;
 using Sentinel.Domain.Identity;
 using Sentinel.Domain.Memberships;
@@ -277,29 +277,101 @@ public sealed class DatabaseSeeder
             seed.UserName);
     }
 
+    /// <summary>
+    /// The category set is seeded whenever it is empty, independently of the sample products:
+    /// categories are structure an operator organises a real catalogue with, not fixture data.
+    /// </summary>
+    private async Task<Dictionary<string, Guid>> SeedProductCategoriesAsync(
+        CancellationToken cancellationToken)
+    {
+        var existing = await _db.ProductCategories
+            .AsNoTracking()
+            .ToDictionaryAsync(c => c.Key, c => c.Id, cancellationToken);
+
+        var now = _timeProvider.GetUtcNow();
+
+        var defaults = new (string Key, string NameFa, string NameEn, int Order)[]
+        {
+            ("connectivity", "اتصال و شبکه", "Connectivity", 10),
+            ("productivity", "بهره‌وری", "Productivity", 20),
+            ("tools", "ابزارها", "Tools", 30),
+            ("entertainment", "سرگرمی", "Entertainment", 40),
+        };
+
+        var created = new List<ProductCategory>();
+
+        foreach (var (key, nameFa, nameEn, order) in defaults)
+        {
+            if (existing.ContainsKey(key))
+            {
+                continue;
+            }
+
+            var category = new ProductCategory
+            {
+                Id = SequentialGuid.New(now),
+                Key = key,
+                NameFa = nameFa,
+                NameEn = nameEn,
+                DisplayOrder = order,
+                IsVisible = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+
+            created.Add(category);
+            existing[key] = category.Id;
+        }
+
+        if (created.Count > 0)
+        {
+            _db.ProductCategories.AddRange(created);
+            await _db.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Seeded {Count} product categories.", created.Count);
+        }
+
+        return existing;
+    }
+
     private async Task SeedSampleApplicationsAsync(CancellationToken cancellationToken)
     {
-        if (await _db.PortalApplications.AnyAsync(cancellationToken))
+        var categories = await SeedProductCategoriesAsync(cancellationToken);
+
+        if (await _db.Products.AnyAsync(cancellationToken))
         {
             return;
         }
 
         var now = _timeProvider.GetUtcNow();
 
+        // Capabilities are set explicitly rather than defaulted, because they are what the
+        // library reads to decide which button a card leads with. Only Launchable is used here:
+        // downloads and plans arrive with their own phases, and a capability without the
+        // machinery behind it would produce a button that goes nowhere.
+        var launchable = ProductCapability.Launchable | ProductCapability.HasDocumentation;
+
         // example.com is the IANA-reserved documentation domain: these rows are obviously
         // placeholders and cannot accidentally point at somebody's live service.
-        var samples = new List<PortalApplication>
+        var samples = new List<Product>
         {
             new()
             {
                 Key = "vault",
                 NameFa = "والت اسناد",
                 NameEn = "Document Vault",
+                SummaryFa = "نگهداری امن اسناد سازمانی.",
+                SummaryEn = "Secure storage for organisational documents.",
                 DescriptionFa = "نگهداری و اشتراک امن فایل‌ها و اسناد سازمانی.",
                 DescriptionEn = "Store and share organisational files and documents securely.",
                 LaunchUrl = "https://example.com/vault",
-                PublishStatus = ApplicationPublishStatus.Published,
+                Type = ProductType.WebApplication,
+                Capabilities = launchable,
+                CategoryId = categories.GetValueOrDefault("productivity"),
+                CurrentVersion = "1.4.0",
+                ReleaseStatus = ProductReleaseStatus.Stable,
                 IsEnabled = true,
+                IsFeatured = true,
                 DisplayOrder = 10,
                 RequiresExplicitEntitlement = false,
             },
@@ -308,12 +380,17 @@ public sealed class DatabaseSeeder
                 Key = "analytics",
                 NameFa = "تحلیل داده",
                 NameEn = "Analytics",
+                SummaryFa = "داشبوردهای تحلیلی زنده.",
+                SummaryEn = "Live analytics dashboards.",
                 DescriptionFa = "گزارش‌های زنده و داشبوردهای تحلیلی سرویس شما.",
                 DescriptionEn = "Live reports and analytics dashboards for your service.",
                 LaunchUrl = "https://example.com/analytics",
-                PublishStatus = ApplicationPublishStatus.Published,
+                Type = ProductType.WebApplication,
+                Capabilities = launchable,
+                CategoryId = categories.GetValueOrDefault("productivity"),
+                CurrentVersion = "2.0.1",
+                ReleaseStatus = ProductReleaseStatus.Stable,
                 IsEnabled = true,
-                IsBeta = true,
                 DisplayOrder = 20,
                 RequiresExplicitEntitlement = false,
                 MinimumTier = MembershipTier.Pro,
@@ -323,10 +400,15 @@ public sealed class DatabaseSeeder
                 Key = "automation",
                 NameFa = "اتوماسیون",
                 NameEn = "Automation Studio",
+                SummaryFa = "ساخت جریان کاری بدون کدنویسی.",
+                SummaryEn = "Build workflows without code.",
                 DescriptionFa = "ساخت جریان‌های کاری خودکار بدون نیاز به کدنویسی.",
                 DescriptionEn = "Build automated workflows without writing code.",
                 LaunchUrl = "https://example.com/automation",
-                PublishStatus = ApplicationPublishStatus.Published,
+                Type = ProductType.WebApplication,
+                Capabilities = launchable,
+                CategoryId = categories.GetValueOrDefault("tools"),
+                ReleaseStatus = ProductReleaseStatus.Stable,
                 IsEnabled = true,
                 DisplayOrder = 30,
                 RequiresExplicitEntitlement = true,
@@ -336,10 +418,15 @@ public sealed class DatabaseSeeder
                 Key = "insights",
                 NameFa = "دستیار هوشمند",
                 NameEn = "Insights Assistant",
+                SummaryFa = "به‌زودی در دسترس قرار می‌گیرد.",
+                SummaryEn = "Arriving soon.",
                 DescriptionFa = "به‌زودی: دستیار هوشمند برای تحلیل و پیشنهاد.",
                 DescriptionEn = "Coming soon: an assistant for analysis and recommendations.",
                 LaunchUrl = "https://example.com/insights",
-                PublishStatus = ApplicationPublishStatus.ComingSoon,
+                Type = ProductType.WebApplication,
+                Capabilities = launchable,
+                CategoryId = categories.GetValueOrDefault("tools"),
+                ReleaseStatus = ProductReleaseStatus.ComingSoon,
                 IsEnabled = true,
                 DisplayOrder = 40,
                 RequiresExplicitEntitlement = false,
@@ -353,10 +440,10 @@ public sealed class DatabaseSeeder
             sample.UpdatedAt = now;
         }
 
-        _db.PortalApplications.AddRange(samples);
+        _db.Products.AddRange(samples);
         await _db.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Seeded {Count} sample applications.", samples.Count);
+        _logger.LogInformation("Seeded {Count} sample products.", samples.Count);
     }
 
     private static string Describe(IdentityResult result) =>

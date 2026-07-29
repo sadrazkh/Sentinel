@@ -1,5 +1,5 @@
 using System.Net;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Identity;
 using Sentinel.Domain.Memberships;
 using Sentinel.IntegrationTests.Infrastructure;
@@ -134,16 +134,16 @@ public sealed class ApplicationAccessTests : IClassFixture<SentinelWebApplicatio
     }
 
     [Theory]
-    [InlineData(ApplicationPublishStatus.Draft)]
-    [InlineData(ApplicationPublishStatus.ComingSoon)]
-    [InlineData(ApplicationPublishStatus.Retired)]
+    [InlineData(ProductReleaseStatus.Draft)]
+    [InlineData(ProductReleaseStatus.ComingSoon)]
+    [InlineData(ProductReleaseStatus.Deprecated)]
     public async Task An_application_that_is_not_published_cannot_be_launched(
-        ApplicationPublishStatus status)
+        ProductReleaseStatus status)
     {
         var key = $"launch-status-{status}".ToLowerInvariant();
 
         await _factory.CreateMemberAsync($"launch-status-{status}");
-        await _factory.CreateApplicationAsync(key, publishStatus: status);
+        await _factory.CreateApplicationAsync(key, releaseStatus: status);
 
         using var client = await SignedInAsync($"launch-status-{status}");
         var response = await client.GetAsync($"/apps/{key}/open");
@@ -274,7 +274,7 @@ public sealed class ApplicationAccessTests : IClassFixture<SentinelWebApplicatio
     {
         await _factory.CreateMemberAsync("catalog-draft-viewer");
         await _factory.CreateApplicationAsync(
-            "catalog-draft-app", publishStatus: ApplicationPublishStatus.Draft);
+            "catalog-draft-app", releaseStatus: ProductReleaseStatus.Draft);
 
         using var client = await SignedInAsync("catalog-draft-viewer");
         var page = await client.GetStringAsync("/Apps");
@@ -302,7 +302,7 @@ public sealed class ApplicationAccessTests : IClassFixture<SentinelWebApplicatio
     {
         await _factory.CreateMemberAsync("catalog-soon-viewer");
         await _factory.CreateApplicationAsync(
-            "catalog-soon-app", publishStatus: ApplicationPublishStatus.ComingSoon);
+            "catalog-soon-app", releaseStatus: ProductReleaseStatus.ComingSoon);
 
         using var client = await SignedInAsync("catalog-soon-viewer");
         var page = await client.GetStringAsync("/Apps");

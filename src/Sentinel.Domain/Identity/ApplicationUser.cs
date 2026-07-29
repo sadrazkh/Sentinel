@@ -74,7 +74,7 @@ public class ApplicationUser : IdentityUser<Guid>, ITimestamped
 
     public Membership? Membership { get; set; }
 
-    public ICollection<UserEntitlement> Entitlements { get; set; } = new List<UserEntitlement>();
+    public ICollection<ProductEntitlement> Entitlements { get; set; } = new List<ProductEntitlement>();
 
     public ICollection<UserSession> Sessions { get; set; } = new List<UserSession>();
 

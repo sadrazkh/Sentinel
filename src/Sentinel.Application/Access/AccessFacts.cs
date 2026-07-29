@@ -1,4 +1,4 @@
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Entitlements;
 using Sentinel.Domain.Identity;
 using Sentinel.Domain.Memberships;
@@ -10,7 +10,7 @@ public sealed record ApplicationFacts(
     Guid Id,
     string Key,
     bool IsEnabled,
-    ApplicationPublishStatus PublishStatus,
+    ProductReleaseStatus ReleaseStatus,
     bool RequiresExplicitEntitlement,
     MembershipTier? MinimumTier);
 
@@ -21,7 +21,7 @@ public sealed record EntitlementFacts(
     DateTimeOffset? ExpiresAt,
     DateTimeOffset? RevokedAt)
 {
-    public static EntitlementFacts From(UserEntitlement entitlement) => new(
+    public static EntitlementFacts From(ProductEntitlement entitlement) => new(
         entitlement.IsEnabled,
         entitlement.StartsAt,
         entitlement.ExpiresAt,

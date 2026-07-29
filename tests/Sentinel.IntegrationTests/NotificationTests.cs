@@ -281,7 +281,7 @@ public sealed class NotificationTests : IClassFixture<SentinelWebApplicationFact
             {
                 ["__RequestVerificationToken"] = token,
                 ["UserId"] = memberId.ToString(),
-                ["ApplicationId"] = appId.ToString(),
+                ["ProductId"] = appId.ToString(),
             }));
 
         var notifications = await _factory.ListNotificationsAsync(memberId);

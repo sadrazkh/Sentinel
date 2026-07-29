@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Sentinel.Application.Abstractions;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 using Sentinel.Domain.Common;
 using Sentinel.Domain.Entitlements;
 using Sentinel.Domain.Identity;
@@ -81,15 +81,14 @@ public static class PortalTestData
         string key,
         bool requiresExplicitEntitlement = false,
         MembershipTier? minimumTier = null,
-        ApplicationPublishStatus publishStatus = ApplicationPublishStatus.Published,
+        ProductReleaseStatus releaseStatus = ProductReleaseStatus.Stable,
         bool isEnabled = true,
-        bool isBeta = false,
         string launchUrl = "https://apps.example.com/target") =>
         factory.WithScopeAsync(async services =>
         {
             var db = services.GetRequiredService<ISentinelDbContext>();
 
-            var application = new PortalApplication
+            var application = new Product
             {
                 Id = SequentialGuid.New(),
                 Key = key,
@@ -98,38 +97,113 @@ public static class PortalTestData
                 DescriptionFa = "توضیح آزمایشی.",
                 DescriptionEn = "Test description.",
                 LaunchUrl = launchUrl,
-                PublishStatus = publishStatus,
+                ReleaseStatus = releaseStatus,
                 IsEnabled = isEnabled,
-                IsBeta = isBeta,
                 DisplayOrder = 10,
                 RequiresExplicitEntitlement = requiresExplicitEntitlement,
                 MinimumTier = minimumTier,
             };
 
-            db.PortalApplications.Add(application);
+            db.Products.Add(application);
             await db.SaveChangesAsync();
 
             return application.Id;
         });
 
+    /// <summary>
+    /// A product with the library-specific fields set. Separate from
+    /// <see cref="CreateApplicationAsync"/> so the launch-endpoint suite keeps its short,
+    /// stable signature while the library suite can shape capabilities and categories.
+    /// </summary>
+    public static Task<Guid> CreateProductAsync(
+        this SentinelWebApplicationFactory factory,
+        string key,
+        ProductCapability capabilities = ProductCapability.Launchable,
+        ProductType type = ProductType.WebApplication,
+        ProductReleaseStatus releaseStatus = ProductReleaseStatus.Stable,
+        bool isEnabled = true,
+        bool requiresExplicitEntitlement = false,
+        MembershipTier? minimumTier = null,
+        Guid? categoryId = null,
+        string? summaryEn = null,
+        string? launchUrl = "https://apps.example.com/target") =>
+        factory.WithScopeAsync(async services =>
+        {
+            var db = services.GetRequiredService<ISentinelDbContext>();
+
+            var product = new Product
+            {
+                Id = SequentialGuid.New(),
+                Key = key,
+                NameFa = $"محصول {key}",
+                NameEn = $"Product {key}",
+                SummaryEn = summaryEn,
+                DescriptionEn = "Test description.",
+                LaunchUrl = launchUrl,
+                Type = type,
+                Capabilities = capabilities,
+                CategoryId = categoryId,
+                ReleaseStatus = releaseStatus,
+                IsEnabled = isEnabled,
+                DisplayOrder = 10,
+                RequiresExplicitEntitlement = requiresExplicitEntitlement,
+                MinimumTier = minimumTier,
+            };
+
+            db.Products.Add(product);
+            await db.SaveChangesAsync();
+
+            return product.Id;
+        });
+
+    public static Task<Guid> CreateProductCategoryAsync(
+        this SentinelWebApplicationFactory factory,
+        string key,
+        bool isVisible = true) =>
+        factory.WithScopeAsync(async services =>
+        {
+            var db = services.GetRequiredService<ISentinelDbContext>();
+
+            if (await db.ProductCategories.FirstOrDefaultAsync(c => c.Key == key) is { } existing)
+            {
+                return existing.Id;
+            }
+
+            var category = new ProductCategory
+            {
+                Id = SequentialGuid.New(),
+                Key = key,
+                NameFa = $"دستهٔ {key}",
+                NameEn = $"Category {key}",
+                IsVisible = isVisible,
+            };
+
+            db.ProductCategories.Add(category);
+            await db.SaveChangesAsync();
+
+            return category.Id;
+        });
+
     public static Task GrantAsync(
         this SentinelWebApplicationFactory factory,
         Guid userId,
-        Guid applicationId,
+        Guid productId,
         bool isEnabled = true,
         DateTimeOffset? startsAt = null,
         DateTimeOffset? expiresAt = null,
-        DateTimeOffset? revokedAt = null) =>
+        DateTimeOffset? revokedAt = null,
+        EntitlementSource source = EntitlementSource.AdminGrant) =>
         factory.WithScopeAsync(async services =>
         {
             var db = services.GetRequiredService<ISentinelDbContext>();
             var now = services.GetRequiredService<TimeProvider>().GetUtcNow();
 
-            db.UserEntitlements.Add(new UserEntitlement
+            db.ProductEntitlements.Add(new ProductEntitlement
             {
                 Id = SequentialGuid.New(),
                 UserId = userId,
-                ApplicationId = applicationId,
+                ProductId = productId,
+                Source = source,
                 IsEnabled = isEnabled,
                 StartsAt = startsAt ?? now.AddDays(-1),
                 ExpiresAt = expiresAt,

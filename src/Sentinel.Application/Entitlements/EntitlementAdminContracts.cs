@@ -1,6 +1,6 @@
 using Sentinel.Application.Access;
 using Sentinel.Application.Common;
-using Sentinel.Domain.Catalog;
+using Sentinel.Domain.Products;
 
 namespace Sentinel.Application.Entitlements;
 
@@ -9,11 +9,11 @@ namespace Sentinel.Application.Entitlements;
 /// this user's grant says, and what the access rules currently conclude.
 /// </summary>
 public sealed record UserApplicationGrantRow(
-    Guid ApplicationId,
+    Guid ProductId,
     string ApplicationKey,
     string ApplicationNameFa,
     string ApplicationNameEn,
-    ApplicationPublishStatus PublishStatus,
+    ProductReleaseStatus ReleaseStatus,
     bool ApplicationIsEnabled,
     bool RequiresExplicitEntitlement,
     bool HasGrant,
@@ -46,13 +46,13 @@ public interface IEntitlementAdminService
 {
     Task<OperationResult> GrantAsync(
         Guid userId,
-        Guid applicationId,
+        Guid productId,
         GrantEntitlementRequest request,
         CancellationToken cancellationToken = default);
 
     Task<OperationResult> RevokeAsync(
         Guid userId,
-        Guid applicationId,
+        Guid productId,
         string? notes,
         Guid? concurrencyToken,
         CancellationToken cancellationToken = default);
