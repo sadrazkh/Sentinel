@@ -1,0 +1,51 @@
+@using Sentinel.Web.Areas.Vpn.Models
+@using Sentinel.Web.Models.Configs
+@model VpnProductViewModel
+@{
+    var labels = IslandPayload.Serialize(ConfigGridLabels.From(L));
+}
+
+@*
+    Reuses the configs island rather than reimplementing it: same component, same copy-to-clipboard
+    behaviour, same payload contract. The URIs carry the member's own proxy credentials, which is
+    why the page exists — they go only to their owner, and are never logged or audited.
+*@
+<div class="stack" style="gap:var(--space-6)">
+    @foreach (var service in Model.Services)
+    {
+        if (service.Configs.Count == 0)
+        {
+            continue;
+        }
+
+        var payload = IslandPayload.Serialize(service.Configs.Select(ConfigPayload.From).ToList());
+
+        <section class="card">
+            <div class="card__header">
+                <div>
+                    <h2 class="card__title">@service.Title</h2>
+                    <p class="card__hint">@L["configs.count", service.Configs.Count]</p>
+                </div>
+            </div>
+
+            <div data-config-island data-configs="@payload" data-labels="@labels"></div>
+
+            <noscript>
+                @* Without scripting there is no clipboard, so the list is rendered plainly and the
+                   member can select the text themselves. *@
+                <ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+                    @foreach (var config in service.Configs)
+                    {
+                        <li class="config-card">
+                            <strong>@config.DisplayName</strong>
+                            <code class="text-xs checksum">@config.RawUri</code>
+                        </li>
+                    }
+                </ul>
+            </noscript>
+        </section>
+    }
+</div>
+
+@* The island's bundle is loaded by the parent view's Scripts section — a partial cannot define
+   one, and putting it here would silently render nothing. *@

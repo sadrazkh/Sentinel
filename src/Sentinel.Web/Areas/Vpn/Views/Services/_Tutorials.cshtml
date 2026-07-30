@@ -1,0 +1,55 @@
+@using Sentinel.Domain.Products
+@using Sentinel.Web.Areas.Vpn.Models
+@model VpnProductViewModel
+@{
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+}
+
+<div class="stack" style="gap:var(--space-6)">
+    <section class="card">
+        <div class="card__header">
+            <div>
+                <h2 class="card__title">@L["product.docs.title"]</h2>
+                <p class="card__hint">@L["product.docs.count", Model.Content.TotalArticleCount]</p>
+            </div>
+
+            @* The full index lives on the product's own documentation page — categories, search and
+               previous/next. This tab previews it rather than reimplementing it. *@
+            <a class="btn btn--ghost btn--sm"
+               asp-area="" asp-controller="Products" asp-action="Docs"
+               asp-route-key="@Model.ProductKey">
+                @L["product.docs.viewAll"]
+            </a>
+        </div>
+
+        <ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+            @foreach (var article in Model.Content.FeaturedArticles)
+            {
+                var summary = isPersian ? article.SummaryFa : article.SummaryEn;
+
+                <li>
+                    <a class="doc-link"
+                       asp-area="" asp-controller="Products" asp-action="Article"
+                       asp-route-key="@Model.ProductKey" asp-route-slug="@article.Slug">
+                        <span class="doc-link__body">
+                            <span class="doc-link__title">
+                                @(isPersian ? article.TitleFa : article.TitleEn)
+                            </span>
+                            @if (!string.IsNullOrWhiteSpace(summary))
+                            {
+                                <span class="doc-link__summary">@summary</span>
+                            }
+                        </span>
+
+                        @if (article.Platform is { } platform && platform != DownloadPlatform.Any)
+                        {
+                            <span class="badge badge--neutral badge--plain">
+                                @L[ProductPresentation.PlatformKey(platform)]
+                            </span>
+                        }
+                    </a>
+                </li>
+            }
+        </ul>
+    </section>
+</div>

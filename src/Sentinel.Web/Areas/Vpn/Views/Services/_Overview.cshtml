@@ -1,0 +1,142 @@
+@using Sentinel.Web.Areas.Vpn.Models
+@model VpnProductViewModel
+@{
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+    var description = isPersian ? Model.Detail.DescriptionFa : Model.Detail.DescriptionEn;
+
+    var unlimited = L["plan.unlimited"].Value;
+    var free = L["plan.free"].Value;
+}
+
+<div class="stack" style="gap:var(--space-6)">
+
+    @if (Model.Plans.HasPlans)
+    {
+        <section>
+            <div class="card__header">
+                <div>
+                    <h2 class="card__title">@L["plan.title"]</h2>
+                    <p class="card__hint">
+                        @* Says plainly that this is a price list, not a shop. Better than a Buy
+                           button that does nothing. *@
+                        @(Model.Plans.PurchasingEnabled ? L["plan.subtitle"] : L["plan.readOnly"])
+                    </p>
+                </div>
+            </div>
+
+            <div class="grid grid--cards" style="margin-block-start:var(--space-4)">
+                @foreach (var plan in Model.Plans.Plans)
+                {
+                    <article class="plan @(plan.IsFeatured ? "plan--featured" : null)">
+                        @if (plan.IsFeatured)
+                        {
+                            <span class="badge badge--accent plan__flag">@L["plan.recommended"]</span>
+                        }
+
+                        <h3 class="plan__name">@(isPersian ? plan.NameFa : plan.NameEn)</h3>
+
+                        <p class="plan__price">
+                            @PlanPresentation.DescribePrice(plan.PriceMinorUnits, plan.Currency, free)
+                        </p>
+
+                        <dl class="plan__terms">
+                            <div>
+                                <dt>@L["plan.traffic"]</dt>
+                                <dd>@PlanPresentation.DescribeTraffic(plan.TrafficBytes, unlimited)</dd>
+                            </div>
+                            <div>
+                                <dt>@L["plan.duration"]</dt>
+                                <dd>@L["plan.days", plan.DurationDays]</dd>
+                            </div>
+                            <div>
+                                <dt>@L["plan.devices"]</dt>
+                                <dd>
+                                    @(plan.IsUnlimitedDevices
+                                        ? unlimited
+                                        : L["plan.deviceCount", plan.DeviceLimit].Value)
+                                </dd>
+                            </div>
+                            @if (plan.CountryCode is { } country)
+                            {
+                                <div>
+                                    <dt>@L["plan.location"]</dt>
+                                    <dd dir="ltr">@country</dd>
+                                </div>
+                            }
+                        </dl>
+
+                        @{
+                            var planDescription = isPersian ? plan.DescriptionFa : plan.DescriptionEn;
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(planDescription))
+                        {
+                            <p class="plan__note">@planDescription</p>
+                        }
+
+                        @* No order button while purchasing is off. A disabled control that never
+                           becomes enabled is worse than the sentence below it. *@
+                        @if (plan.CanOrder)
+                        {
+                            <button type="button" class="btn btn--primary btn--sm" disabled>
+                                @L["plan.order"]
+                            </button>
+                        }
+                    </article>
+                }
+            </div>
+
+            @if (Model.Plans.AvailableCountries.Count > 0)
+            {
+                <p class="text-xs text-muted" style="margin-block-start:var(--space-4)">
+                    @L["plan.availableIn", string.Join(", ", Model.Plans.AvailableCountries)]
+                </p>
+            }
+            else
+            {
+                @* Honest about it: the plans exist but nothing could be delivered right now. *@
+                <div class="alert alert--warning" role="status" style="margin-block-start:var(--space-4)">
+                    <span>@L["plan.noCapacity"]</span>
+                </div>
+            }
+        </section>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(description))
+    {
+        <section class="card">
+            <h2 class="card__title" style="margin-block-end:var(--space-3)">@L["product.about.title"]</h2>
+            <p class="text-sm text-secondary" style="white-space:pre-line">@description</p>
+        </section>
+    }
+
+    @foreach (var section in Model.Content.Sections)
+    {
+        var sectionTitle = isPersian ? section.TitleFa : section.TitleEn;
+        var sectionBody = isPersian ? section.BodyHtmlFa : section.BodyHtmlEn;
+
+        if (string.IsNullOrWhiteSpace(sectionBody))
+        {
+            continue;
+        }
+
+        <section class="card">
+            @if (!string.IsNullOrWhiteSpace(sectionTitle))
+            {
+                <h2 class="card__title" style="margin-block-end:var(--space-3)">@sectionTitle</h2>
+            }
+
+            <partial name="_RenderedContent" model="sectionBody" />
+        </section>
+    }
+
+    @if (!Model.Plans.HasPlans && Model.Content.Sections.Count == 0 && string.IsNullOrWhiteSpace(description))
+    {
+        <div class="card">
+            <div class="empty-state">
+                <p class="empty-state__title">@L["vpn.empty.title"]</p>
+                <p class="empty-state__body">@L["vpn.empty.body"]</p>
+            </div>
+        </div>
+    }
+</div>

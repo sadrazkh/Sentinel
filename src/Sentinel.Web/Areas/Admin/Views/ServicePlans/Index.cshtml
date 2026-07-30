@@ -1,0 +1,123 @@
+@model ServicePlanListViewModel
+@{
+    ViewData["Title"] = L["admin.plan.title"].Value;
+
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+    var unlimited = L["plan.unlimited"].Value;
+    var free = L["plan.free"].Value;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.plan.title"]</h1>
+        <p class="page-head__subtitle">@L["admin.plan.subtitle"]</p>
+    </div>
+    @if (Model.CanWrite)
+    {
+        <a class="btn btn--primary btn--sm" asp-action="Create">@L["admin.plan.add"]</a>
+    }
+</div>
+
+@if (Model.Plans.Count == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3.5" y="5" width="17" height="14" rx="2" />
+                    <path d="M3.5 10h17M7.5 14.5h4" />
+                </svg>
+            </div>
+            <p class="empty-state__title">@L["admin.plan.empty.title"]</p>
+            <p class="empty-state__body">@L["admin.plan.empty.body"]</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack stack--tight">
+        @foreach (var group in Model.Plans.GroupBy(plan => plan.ProductId))
+        {
+            var first = group.First();
+
+            <section class="card">
+                <div class="card__header">
+                    <div>
+                        <h2 class="card__title">@(isPersian ? first.ProductNameFa : first.ProductNameEn)</h2>
+                        <p class="card__hint">@group.Count()</p>
+                    </div>
+                </div>
+
+                <ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+                    @foreach (var plan in group)
+                    {
+                        <li class="download-row">
+                            <div class="download-row__main">
+                                <div class="cluster">
+                                    <strong>@(isPersian ? plan.NameFa : plan.NameEn)</strong>
+                                    <code class="text-xs" dir="ltr">@plan.Key</code>
+
+                                    @if (plan.IsFeatured)
+                                    {
+                                        <span class="badge badge--accent">@L["plan.recommended"]</span>
+                                    }
+                                    @if (!plan.IsVisible)
+                                    {
+                                        <span class="badge badge--warning">@L["admin.application.hidden"]</span>
+                                    }
+                                    @if (plan.IsPurchasable)
+                                    {
+                                        <span class="badge badge--info">@L["admin.plan.purchasable"]</span>
+                                    }
+                                    @if (plan.CountryCode is { } country)
+                                    {
+                                        <span class="badge badge--neutral badge--plain" dir="ltr">@country</span>
+                                    }
+                                </div>
+
+                                <p class="text-xs text-muted" dir="ltr">
+                                    @PlanPresentation.DescribeTraffic(plan.TrafficBytes, unlimited)
+                                    ·
+                                    @L["plan.days", plan.DurationDays]
+                                    ·
+                                    @(plan.DeviceLimit <= 0 ? unlimited : L["plan.deviceCount", plan.DeviceLimit].Value)
+                                    ·
+                                    @PlanPresentation.DescribePrice(plan.PriceMinorUnits, plan.Currency, free)
+                                </p>
+
+                                @if (plan.HasAudience)
+                                {
+                                    <p class="text-xs text-muted">
+                                        @L["admin.plan.rules", plan.AllowRuleCount, plan.DenyRuleCount]
+                                    </p>
+                                }
+                                else
+                                {
+                                    <p class="text-xs text-muted">@L["admin.plan.audience.open"]</p>
+                                }
+                            </div>
+
+                            @if (Model.CanWrite)
+                            {
+                                <div class="cluster">
+                                    <a class="btn btn--ghost btn--sm"
+                                       asp-action="Edit" asp-route-id="@plan.Id">@L["admin.edit"]</a>
+
+                                    <form method="post" asp-action="Delete" asp-route-id="@plan.Id">
+                                        <button type="submit" class="btn btn--danger btn--sm"
+                                                data-confirm="@L["admin.plan.deleteConfirm"]"
+                                                data-confirm-yes="@L["common.confirm"]"
+                                                data-confirm-no="@L["common.cancel"]">
+                                            @L["admin.delete"]
+                                        </button>
+                                    </form>
+                                </div>
+                            }
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+    </div>
+}

@@ -505,4 +505,10 @@ public static class VpnAuditActions
     public const string InboundAllowlisted = "vpn.inbound.allowlisted";
     public const string InboundToggled = "vpn.inbound.toggled";
     public const string InboundRemoved = "vpn.inbound.removed";
+
+    public const string PlanCreated = "vpn.plan.created";
+    public const string PlanUpdated = "vpn.plan.updated";
+    public const string PlanDeleted = "vpn.plan.deleted";
+    public const string PlanRuleAdded = "vpn.plan.rule.added";
+    public const string PlanRuleRemoved = "vpn.plan.rule.removed";
 }

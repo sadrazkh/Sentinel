@@ -1,0 +1,94 @@
+@using Sentinel.Vpn.Plans
+@using Sentinel.Web.Areas.Vpn.Models
+@model VpnProductViewModel
+@{
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+
+    var card = Model.Detail.Card;
+    var name = isPersian ? card.NameFa : card.NameEn;
+    var summary = isPersian ? card.SummaryFa : card.SummaryEn;
+
+    ViewData["Title"] = name;
+    ViewData["TimeZoneId"] = Model.TimeZoneId;
+
+    var unlimited = L["plan.unlimited"].Value;
+    var free = L["plan.free"].Value;
+}
+
+<nav class="breadcrumb" aria-label="@L["nav.breadcrumb"]">
+    <a asp-area="" asp-controller="Products" asp-action="Library">@L["products.mine.title"]</a>
+    <span aria-hidden="true">/</span>
+    <span>@name</span>
+</nav>
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@name</h1>
+        @if (!string.IsNullOrWhiteSpace(summary))
+        {
+            <p class="page-head__subtitle">@summary</p>
+        }
+    </div>
+
+    <div class="cluster">
+        <span class="badge @ProductPresentation.StatusBadgeClass(card.Access.Status)">
+            @L[ProductPresentation.StatusKey(card.Access.Status)]
+        </span>
+    </div>
+</div>
+
+@* Real links, one per tab, so each section is bookmarkable and works without scripting. *@
+<nav class="chip-group" aria-label="@L["vpnTab.label"]" style="margin-block-end:var(--space-6)">
+    @foreach (var tab in Enum.GetValues<VpnProductTab>())
+    {
+        if (!Model.Tabs.IsAvailable(tab))
+        {
+            continue;
+        }
+
+        var count = Model.Tabs.CountFor(tab);
+
+        <a class="chip"
+           aria-pressed="@((Model.ActiveTab == tab).ToString().ToLowerInvariant())"
+           asp-action="Index"
+           asp-route-key="@Model.ProductKey"
+           asp-route-tab="@(tab == VpnProductTab.Overview ? null : tab.ToString().ToLowerInvariant())">
+            <span>@L[PlanPresentation.TabKey(tab)]</span>
+            @if (count > 0)
+            {
+                <span class="chip__count">@count</span>
+            }
+        </a>
+    }
+</nav>
+
+@switch (Model.ActiveTab)
+{
+    case VpnProductTab.Overview:
+        <partial name="_Overview" model="Model" />
+        break;
+
+    case VpnProductTab.Services:
+        <partial name="_Services" model="Model" />
+        break;
+
+    case VpnProductTab.Configurations:
+        <partial name="_Configurations" model="Model" />
+        break;
+
+    case VpnProductTab.Downloads:
+        <partial name="_Downloads" model="Model" />
+        break;
+
+    case VpnProductTab.Tutorials:
+        <partial name="_Tutorials" model="Model" />
+        break;
+}
+
+@section Scripts {
+    @* Only the configurations tab mounts an island, so only it pays for the bundle. *@
+    @if (Model.ActiveTab == VpnProductTab.Configurations)
+    {
+        <script type="module" src="~/js/dist/page-configs.js" asp-append-version="true"></script>
+    }
+}

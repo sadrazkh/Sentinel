@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sentinel.Application.Identity;
 using Sentinel.Application.Products;
+using Sentinel.Vpn.Plans;
 using Sentinel.Domain.Products;
 using Sentinel.Domain.Common;
 using Sentinel.Domain.Identity;
@@ -22,6 +23,7 @@ public sealed class DatabaseSeeder
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<ApplicationRole> _roleManager;
     private readonly IProductContentAdminService _content;
+    private readonly IServicePlanAdminService _plans;
     private readonly SeedOptions _options;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<DatabaseSeeder> _logger;
@@ -39,6 +41,7 @@ public sealed class DatabaseSeeder
         UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager,
         IProductContentAdminService content,
+        IServicePlanAdminService plans,
         IOptions<SeedOptions> options,
         TimeProvider timeProvider,
         ILogger<DatabaseSeeder> logger)
@@ -47,6 +50,7 @@ public sealed class DatabaseSeeder
         _userManager = userManager;
         _roleManager = roleManager;
         _content = content;
+        _plans = plans;
         _options = options.Value;
         _timeProvider = timeProvider;
         _logger = logger;
@@ -61,6 +65,7 @@ public sealed class DatabaseSeeder
         {
             await SeedSampleApplicationsAsync(cancellationToken);
             await SeedSampleContentAsync(cancellationToken);
+            await SeedSampleVpnAsync(cancellationToken);
             await SeedSampleMembersAsync(cancellationToken);
             await SeedSampleMembershipsAsync(cancellationToken);
         }
@@ -561,6 +566,110 @@ public sealed class DatabaseSeeder
         }
 
         _logger.LogInformation("Seeded sample product content for 'vault'.");
+    }
+
+    /// <summary>
+    /// A VPN product with three plans, so the plan catalogue and the tabbed service page are
+    /// visible in a browser on a fresh database rather than only in tests.
+    /// <para>
+    /// No server is seeded: a fake panel address would fail every probe and leave an operator
+    /// chasing a health error that is not real. Servers are added by hand, which is the actual
+    /// workflow.
+    /// </para>
+    /// </summary>
+    private async Task SeedSampleVpnAsync(CancellationToken cancellationToken)
+    {
+        if (await _db.ServicePlans.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        var now = _timeProvider.GetUtcNow();
+
+        var product = await _db.Products
+            .FirstOrDefaultAsync(candidate => candidate.Key == "secure-net", cancellationToken);
+
+        if (product is null)
+        {
+            product = new Product
+            {
+                Id = SequentialGuid.New(now),
+                Key = "secure-net",
+                NameFa = "شبکهٔ امن",
+                NameEn = "Secure Net",
+                SummaryFa = "دسترسی خصوصی و رمزنگاری‌شده به اینترنت.",
+                SummaryEn = "Private, encrypted access to the internet.",
+                DescriptionFa = "سرویسی برای اتصال امن، با انتخاب موقعیت و سهمیهٔ ترافیک مشخص.",
+                DescriptionEn = "A secure connection with a location of your choice and a defined traffic allowance.",
+                Type = ProductType.SubscriptionService,
+
+                // The capability set is what makes this a manageable service rather than a
+                // launchable application: no launch URL, a service page instead.
+                Capabilities = ProductCapability.HasConfigurations
+                               | ProductCapability.HasPlans
+                               | ProductCapability.HasUsageTracking
+                               | ProductCapability.HasDocumentation
+                               | ProductCapability.Downloadable
+                               | ProductCapability.Renewable,
+
+                ReleaseStatus = ProductReleaseStatus.Stable,
+                IsEnabled = true,
+                DisplayOrder = 5,
+                IsFeatured = true,
+                LaunchUrl = null,
+                RequiresExplicitEntitlement = false,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+
+            _db.Products.Add(product);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        // Prices are placeholders in rials; traffic is in bytes, matching the panel's own unit.
+        var plans = new[]
+        {
+            ("secure-net-30gb", "۳۰ گیگابایت ماهانه", "30 GB monthly", 30L * 1024 * 1024 * 1024, 30, 2, 1_800_000L, false),
+            ("secure-net-100gb", "۱۰۰ گیگابایت ماهانه", "100 GB monthly", 100L * 1024 * 1024 * 1024, 30, 3, 3_500_000L, true),
+            ("secure-net-unlimited", "نامحدود سه‌ماهه", "Unlimited quarterly", 0L, 90, 5, 9_000_000L, false),
+        };
+
+        var order = 10;
+
+        foreach (var (key, nameFa, nameEn, traffic, days, devices, price, featured) in plans)
+        {
+            var result = await _plans.SaveAsync(null, new ServicePlanSaveRequest(
+                key,
+                product.Id,
+                nameFa,
+                nameEn,
+                DescriptionFa: null,
+                DescriptionEn: null,
+                TrafficBytes: traffic,
+                DurationDays: days,
+                DeviceLimit: devices,
+                PriceMinorUnits: price,
+                Currency: "IRR",
+                IsVisible: true,
+
+                // Marked orderable so the flag combination is realistic — but ordering also needs
+                // the Purchases feature, which is off, so nothing can actually be bought.
+                IsPurchasable: true,
+                CountryCode: null,
+                DisplayOrder: order,
+                IsFeatured: featured,
+                ConcurrencyToken: null),
+                cancellationToken);
+
+            if (!result.Succeeded)
+            {
+                _logger.LogWarning("Could not seed the sample plan {Key}: {Error}", key, result.ErrorKey);
+            }
+
+            order += 10;
+        }
+
+        _logger.LogInformation("Seeded the sample VPN product and {Count} plans.", plans.Length);
     }
 
     private static string Describe(IdentityResult result) =>

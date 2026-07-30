@@ -1,0 +1,73 @@
+@using Sentinel.Domain.Products
+@using Sentinel.Web.Areas.Vpn.Models
+@model VpnProductViewModel
+@{
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+
+    // Grouped by platform: somebody on Android has no use for scanning past the Windows builds.
+    var byPlatform = Model.Content.Downloads
+        .GroupBy(download => download.Platform)
+        .OrderBy(group => group.Key)
+        .ToList();
+}
+
+<div class="stack" style="gap:var(--space-6)">
+    @foreach (var group in byPlatform)
+    {
+        <section class="card">
+            <div class="card__header">
+                <h2 class="card__title">@L[ProductPresentation.PlatformKey(group.Key)]</h2>
+                <span class="badge badge--neutral">@group.Count()</span>
+            </div>
+
+            <ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+                @foreach (var download in group)
+                {
+                    var title = isPersian ? download.TitleFa : download.TitleEn;
+                    var note = isPersian ? download.NoteFa : download.NoteEn;
+
+                    <li class="download-row">
+                        <div class="download-row__main">
+                            <div class="cluster">
+                                <strong>@title</strong>
+                                @if (!string.IsNullOrWhiteSpace(download.Version))
+                                {
+                                    <span class="badge badge--neutral badge--plain" dir="ltr">
+                                        v@(download.Version)
+                                    </span>
+                                }
+                                @if (download.SizeBytes is { } size)
+                                {
+                                    <span class="text-xs text-muted" dir="ltr">@ByteSize.Describe(size)</span>
+                                }
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(note))
+                            {
+                                <p class="text-xs text-secondary">@note</p>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(download.Checksum))
+                            {
+                                <p class="text-xs text-muted checksum" dir="ltr"
+                                   title="@L["product.downloads.checksum"]">@download.Checksum</p>
+                            }
+                        </div>
+
+                        @* Through the portal, which re-checks access and re-validates the address
+                           before it redirects — never a direct link to the file. *@
+                        <a class="btn btn--secondary btn--sm"
+                           asp-area=""
+                           asp-controller="Products"
+                           asp-action="Download"
+                           asp-route-key="@Model.ProductKey"
+                           asp-route-id="@download.Id"
+                           rel="noopener noreferrer">
+                            @L["product.downloads.get"]
+                        </a>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+</div>

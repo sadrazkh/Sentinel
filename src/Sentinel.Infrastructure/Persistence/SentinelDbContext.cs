@@ -65,6 +65,10 @@ public class SentinelDbContext
 
     public DbSet<ServerInboundProfile> ServerInboundProfiles => Set<ServerInboundProfile>();
 
+    public DbSet<ServicePlan> ServicePlans => Set<ServicePlan>();
+
+    public DbSet<PlanAudienceRule> PlanAudienceRules => Set<PlanAudienceRule>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

@@ -112,6 +112,7 @@ public static class DependencyInjection
         services.AddScoped<IAuditLogQuery, AuditLogQuery>();
         services.AddScoped<ISystemOverviewQuery, SystemOverviewQuery>();
         services.AddScoped<IRoleSummaryQuery, RoleSummaryQuery>();
+        services.AddScoped<IMemberRoleQuery, MemberRoleQuery>();
 
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<ITelegramLinkService, TelegramLinkService>();

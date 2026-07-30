@@ -71,7 +71,8 @@ public static class ProductPresentation
         ProductPrimaryAction action,
         string productKey,
         Func<string, string> launchUrlFor,
-        Func<string, string> detailsUrlFor)
+        Func<string, string> detailsUrlFor,
+        Func<string, string>? manageUrlFor = null)
     {
         var details = detailsUrlFor(productKey);
 
@@ -80,10 +81,17 @@ public static class ProductPresentation
             ProductPrimaryAction.Open =>
                 new ProductAction("product.action.open", launchUrlFor(productKey), "btn btn--primary btn--sm"),
 
+            // A manageable product has a page of its own — the VPN service page. Offered only when
+            // the caller supplied a destination, so a product carrying the capability without such a
+            // page still falls through to its details rather than promising a screen that is not
+            // there.
+            ProductPrimaryAction.Manage when manageUrlFor is not null =>
+                new ProductAction("product.action.manage", manageUrlFor(productKey), "btn btn--primary btn--sm"),
+
             // Everything else leads to the details page. "Coming soon" is already said by the
             // badge, so repeating it on a dead button would be noise where a live link to what
-            // the product will be is useful. Manage, Download, Buy and Renew arrive with their
-            // own phases; until then nothing promises a screen that does not exist.
+            // the product will be is useful. Download, Buy and Renew arrive with their own
+            // phases; until then nothing promises a screen that does not exist.
             _ => new ProductAction("product.action.details", details, "btn btn--secondary btn--sm"),
         };
     }

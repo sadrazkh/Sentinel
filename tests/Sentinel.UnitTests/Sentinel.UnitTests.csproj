@@ -8,6 +8,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Sentinel.Application\Sentinel.Application.csproj" />
     <ProjectReference Include="..\..\src\Sentinel.Vpn\Sentinel.Vpn.csproj" />
+    <!-- For the presentation helpers, which are pure formatting and worth unit-testing directly. -->
+    <ProjectReference Include="..\..\src\Sentinel.Web\Sentinel.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -21,5 +21,9 @@ public interface IVpnDbContext
 
     DbSet<ServerInboundProfile> ServerInboundProfiles { get; }
 
+    DbSet<ServicePlan> ServicePlans { get; }
+
+    DbSet<PlanAudienceRule> PlanAudienceRules { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

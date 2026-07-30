@@ -1,0 +1,108 @@
+@using Sentinel.Domain.Subscriptions
+@using Sentinel.Web.Areas.Vpn.Models
+@model VpnProductViewModel
+@{
+    var now = DateTimeOffset.UtcNow;
+
+    static string Bytes(long? value) => value is null ? "—" : ByteSize.Describe(value.Value);
+}
+
+<div class="stack stack--tight">
+    @foreach (var service in Model.Services)
+    {
+        var expired = service.IsExpiredAt(now);
+        var exhausted = service.IsQuotaExhausted;
+        var failed = service.LastFetchStatus is SubscriptionFetchStatus.Failed
+            or SubscriptionFetchStatus.Blocked;
+
+        <section class="card">
+            <div class="card__header">
+                <div style="min-inline-size:0">
+                    <h2 class="card__title">@service.Title</h2>
+                    <p class="card__hint">@L["vpn.service.external"]</p>
+                </div>
+
+                <div class="cluster">
+                    @if (!service.IsEnabled)
+                    {
+                        <span class="badge badge--neutral">@L["admin.application.hidden"]</span>
+                    }
+                    else if (expired)
+                    {
+                        <span class="badge badge--danger">@L["appBadge.expired"]</span>
+                    }
+                    else if (exhausted)
+                    {
+                        <span class="badge badge--danger">@L["vpn.service.exhausted"]</span>
+                    }
+                    else if (failed)
+                    {
+                        <span class="badge badge--warning">@L["vpn.service.unreachable"]</span>
+                    }
+                    else
+                    {
+                        <span class="badge badge--success">@L["appBadge.active"]</span>
+                    }
+                </div>
+            </div>
+
+            <dl class="detail-list">
+                <div>
+                    <dt>@L["vpn.service.used"]</dt>
+                    <dd dir="ltr">@Bytes(service.UsedBytes)</dd>
+                </div>
+                <div>
+                    <dt>@L["vpn.service.allowance"]</dt>
+                    <dd dir="ltr">
+                        @(service.TotalBytes is null or 0 ? L["plan.unlimited"].Value : Bytes(service.TotalBytes))
+                    </dd>
+                </div>
+                <div>
+                    <dt>@L["vpn.service.remaining"]</dt>
+                    <dd dir="ltr">
+                        @(service.TotalBytes is null or 0 ? "—" : Bytes(service.RemainingBytes))
+                    </dd>
+                </div>
+                <div>
+                    <dt>@L["vpn.service.expires"]</dt>
+                    <dd>
+                        @if (service.ExpiresAt is { } expires)
+                        {
+                            <time datetime="@UserTime.ToIso8601(expires)">
+                                @UserTime.Format(expires, Model.TimeZoneId, "yyyy/MM/dd")
+                            </time>
+                        }
+                        else
+                        {
+                            <span class="text-muted">@L["vpn.service.noExpiry"]</span>
+                        }
+                    </dd>
+                </div>
+                <div>
+                    <dt>@L["vpn.service.configs"]</dt>
+                    <dd dir="ltr">@service.Configs.Count</dd>
+                </div>
+            </dl>
+
+            @if (service.UsedPercent is { } percent && service.TotalBytes is > 0)
+            {
+                <div class="meter" style="margin-block-start:var(--space-4)"
+                     role="progressbar"
+                     aria-valuenow="@percent" aria-valuemin="0" aria-valuemax="100"
+                     aria-label="@L["vpn.service.used"]">
+                    <div class="meter__fill @(percent >= 90 ? "meter__fill--danger" : percent >= 75 ? "meter__fill--warning" : null)"
+                         style="inline-size:@(percent)%"></div>
+                </div>
+            }
+
+            @if (failed && !string.IsNullOrWhiteSpace(service.LastFetchError))
+            {
+                @* The stored message is already redacted by the fetcher — it never contains the
+                   subscription URL, which is the credential. *@
+                <p class="text-xs text-muted" style="margin-block-start:var(--space-3)">
+                    @service.LastFetchError
+                </p>
+            }
+        </section>
+    }
+</div>

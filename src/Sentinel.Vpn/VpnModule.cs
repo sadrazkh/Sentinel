@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Sentinel.Vpn.Panel;
+using Sentinel.Vpn.Plans;
 using Sentinel.Vpn.Servers;
 
 namespace Sentinel.Vpn;
@@ -24,6 +25,10 @@ public static class VpnModule
 
         services.AddScoped<IVpnServerAdminService, VpnServerAdminService>();
         services.AddScoped<IVpnServerAdminQuery, VpnServerAdminQuery>();
+
+        services.AddScoped<IServicePlanCatalog, ServicePlanCatalogService>();
+        services.AddScoped<IServicePlanAdminService, ServicePlanAdminService>();
+        services.AddScoped<IServicePlanAdminQuery, ServicePlanAdminQuery>();
 
         // Moves a dead panel out of selection before a customer's provisioning meets it.
         services.AddHostedService<ServerHealthService>();

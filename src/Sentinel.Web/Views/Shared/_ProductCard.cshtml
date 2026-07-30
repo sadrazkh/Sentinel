@@ -14,7 +14,9 @@
         Model.Access.PrimaryAction,
         Model.Key,
         key => Url.Action("Open", "Apps", new { key })!,
-        key => Url.Action("Details", "Products", new { key })!);
+        key => Url.Action("Details", "Products", new { key })!,
+        @* A product the member manages goes to its own service page in the VPN area. *@
+        key => Url.Action("Index", "Services", new { area = "Vpn", key })!);
 
     var lockReasonKey = ProductPresentation.LockReasonKey(Model);
     var detailsUrl = Url.Action("Details", "Products", new { key = Model.Key })!;
