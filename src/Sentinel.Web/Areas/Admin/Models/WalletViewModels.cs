@@ -4,6 +4,15 @@ using Sentinel.Domain.Billing;
 
 namespace Sentinel.Web.Areas.Admin.Models;
 
+public sealed class WalletListViewModel
+{
+    public required IReadOnlyList<WalletHolderView> Holders { get; init; }
+
+    public required string? Search { get; init; }
+
+    public required bool CanWrite { get; init; }
+}
+
 public sealed class WalletDetailViewModel
 {
     public required Guid UserId { get; init; }

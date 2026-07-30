@@ -63,10 +63,10 @@
                 <label class="field__label" asp-for="PhoneNumber">@L["profile.phone"]</label>
                 <input class="input" asp-for="PhoneNumber" type="tel" dir="ltr" maxlength="32"
                        placeholder="09121234567" autocomplete="tel" />
-                <p class="text-xs text-muted">@L["profile.phone.hint"]</p>
+                <p class="field__hint">@L["profile.phone.hint"]</p>
             </div>
 
-            <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="form-row form-row--2">
                 <div class="field">
                     <label class="field__label" asp-for="PreferredCulture">@L["profile.language"]</label>
                     <select class="input" asp-for="PreferredCulture">
@@ -83,7 +83,7 @@
                             <option value="@zone" selected="@(Model.TimeZoneId == zone)">@zone</option>
                         }
                     </select>
-                    <p class="text-xs text-muted">@L["profile.timeZone.hint"]</p>
+                    <p class="field__hint">@L["profile.timeZone.hint"]</p>
                 </div>
             </div>
 

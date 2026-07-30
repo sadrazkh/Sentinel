@@ -71,7 +71,7 @@
                 {
                     <input class="input" asp-for="Key" dir="ltr" required maxlength="64"
                            autocomplete="off" spellcheck="false" placeholder="vault" />
-                    <p class="text-xs text-muted">@L["admin.application.key.hint"]</p>
+                    <p class="field__hint">@L["admin.application.key.hint"]</p>
                 }
                 else
                 {
@@ -79,11 +79,11 @@
                        so changing it would silently break bookmarks and integrations. *@
                     <input class="input" value="@Model.Key" dir="ltr" disabled />
                     <input type="hidden" asp-for="Key" />
-                    <p class="text-xs text-muted">@L["admin.application.key.immutable"]</p>
+                    <p class="field__hint">@L["admin.application.key.immutable"]</p>
                 }
             </div>
 
-            <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="form-row form-row--2">
                 <div class="field">
                     <label class="field__label" asp-for="NameFa">@L["admin.application.nameFa"]</label>
                     <input class="input" asp-for="NameFa" required maxlength="128" />
@@ -94,7 +94,7 @@
                 </div>
             </div>
 
-            <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="form-row form-row--2">
                 <div class="field">
                     <label class="field__label" asp-for="SummaryFa">@L["admin.product.summaryFa"]</label>
                     <input class="input" asp-for="SummaryFa" maxlength="300" />
@@ -103,24 +103,24 @@
                     <label class="field__label" asp-for="SummaryEn">@L["admin.product.summaryEn"]</label>
                     <input class="input" asp-for="SummaryEn" dir="ltr" maxlength="300" />
                 </div>
+                <p class="form-row__note">@L["admin.product.summary.hint"]</p>
             </div>
-            <p class="text-xs text-muted">@L["admin.product.summary.hint"]</p>
 
             <div class="field">
                 <label class="field__label" asp-for="DescriptionFa">@L["admin.application.descriptionFa"]</label>
                 <textarea class="input" asp-for="DescriptionFa" rows="2" maxlength="1024"
-                          style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+                         ></textarea>
             </div>
 
             <div class="field">
                 <label class="field__label" asp-for="DescriptionEn">@L["admin.application.descriptionEn"]</label>
                 <textarea class="input" asp-for="DescriptionEn" rows="2" maxlength="1024" dir="ltr"
-                          style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+                         ></textarea>
             </div>
 
             <div class="divider"></div>
 
-            <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))">
+            <div class="form-row form-row--3">
                 <div class="field">
                     <label class="field__label" asp-for="Type">@L["admin.product.type"]</label>
                     <select class="input" asp-for="Type">
@@ -131,7 +131,7 @@
                             </option>
                         }
                     </select>
-                    <p class="text-xs text-muted">@L["admin.product.type.hint"]</p>
+                    <p class="field__hint">@L["admin.product.type.hint"]</p>
                 </div>
 
                 <div class="field">
@@ -157,7 +157,7 @@
                does, not compose an integer. They are recombined on save. *@
             <fieldset class="field">
                 <legend class="field__label">@L["admin.product.capabilities"]</legend>
-                <p class="text-xs text-muted" style="margin-block-end:var(--space-3)">
+                <p class="field__hint" style="margin-block-end:var(--space-3)">
                     @L["admin.product.capabilities.hint"]
                 </p>
 
@@ -180,12 +180,12 @@
                    is what enforces that. *@
                 <input class="input" asp-for="LaunchUrl" type="url" dir="ltr" maxlength="2048"
                        placeholder="https://apps.example.com/vault" />
-                <p class="text-xs text-muted">@L["admin.application.launchUrl.hint"]</p>
+                <p class="field__hint">@L["admin.application.launchUrl.hint"]</p>
             </div>
 
             <div class="divider"></div>
 
-            <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))">
+            <div class="form-row form-row--3">
                 <div class="field">
                     <label class="field__label" asp-for="ReleaseStatus">@L["admin.application.releaseStatus"]</label>
                     <select class="input" asp-for="ReleaseStatus">
@@ -217,27 +217,33 @@
                 </div>
             </div>
 
-            <div class="stack stack--tight">
-                <label class="checkbox">
-                    <input type="checkbox" asp-for="IsEnabled" />
-                    <span>@L["admin.application.isEnabled"]</span>
-                </label>
-                <p class="text-xs text-muted">@L["admin.application.isEnabled.hint"]</p>
+            <div class="checkbox-group">
+                <div class="checkbox-field">
+                    <label class="checkbox">
+                        <input type="checkbox" asp-for="IsEnabled" />
+                        <span>@L["admin.application.isEnabled"]</span>
+                    </label>
+                    <p class="field__hint">@L["admin.application.isEnabled.hint"]</p>
+                </div>
 
-                <label class="checkbox">
-                    <input type="checkbox" asp-for="RequiresExplicitEntitlement" />
-                    <span>@L["admin.application.requiresEntitlement"]</span>
-                </label>
-                <p class="text-xs text-muted">@L["admin.application.requiresEntitlement.hint"]</p>
+                <div class="checkbox-field">
+                    <label class="checkbox">
+                        <input type="checkbox" asp-for="RequiresExplicitEntitlement" />
+                        <span>@L["admin.application.requiresEntitlement"]</span>
+                    </label>
+                    <p class="field__hint">@L["admin.application.requiresEntitlement.hint"]</p>
+                </div>
 
-                <label class="checkbox">
-                    <input type="checkbox" asp-for="IsFeatured" />
-                    <span>@L["admin.product.isFeatured"]</span>
-                </label>
-                <p class="text-xs text-muted">@L["admin.product.isFeatured.hint"]</p>
+                <div class="checkbox-field">
+                    <label class="checkbox">
+                        <input type="checkbox" asp-for="IsFeatured" />
+                        <span>@L["admin.product.isFeatured"]</span>
+                    </label>
+                    <p class="field__hint">@L["admin.product.isFeatured.hint"]</p>
+                </div>
             </div>
 
-            <div class="cluster">
+            <div class="form-actions">
                 <button type="submit" class="btn btn--primary">
                     @(Model.IsNew ? L["admin.applications.create"].Value : L["admin.save"].Value)
                 </button>
@@ -296,7 +302,7 @@
                         <input id="Icon" name="Icon" class="input" type="file"
                                accept="@ImageSignature.AcceptAttribute" required
                                style="padding-block:var(--space-3)" />
-                        <p class="text-xs text-muted">@L["admin.application.icon.formats"]</p>
+                        <p class="field__hint">@L["admin.application.icon.formats"]</p>
                     </div>
 
                     <div>
@@ -304,7 +310,7 @@
                     </div>
                 </form>
 
-                <p class="text-xs text-muted">@L["admin.application.icon.svgNote"]</p>
+                <p class="field__hint">@L["admin.application.icon.svgNote"]</p>
             </div>
         </section>
     }

@@ -19,7 +19,7 @@
     <input type="hidden" asp-for="ConcurrencyToken" />
 
     <div class="stack">
-        <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="form-row form-row--2">
             <div class="field">
                 <label class="field__label" asp-for="TitleFa">@L["admin.application.nameFa"]</label>
                 <input class="input" asp-for="TitleFa" required maxlength="200" />
@@ -30,12 +30,12 @@
             </div>
         </div>
 
-        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))">
+        <div class="form-row form-row--2">
             <div class="field">
                 <label class="field__label" asp-for="Slug">@L["admin.content.slug"]</label>
                 <input class="input" asp-for="Slug" dir="ltr" maxlength="120"
                        autocomplete="off" spellcheck="false" />
-                <p class="text-xs text-muted">@L["admin.content.slug.hint"]</p>
+                <p class="field__hint">@L["admin.content.slug.hint"]</p>
             </div>
 
             <div class="field">
@@ -51,6 +51,9 @@
                 </select>
             </div>
 
+        </div>
+
+        <div class="form-row form-row--3">
             <div class="field">
                 <label class="field__label" asp-for="Visibility">@L["admin.content.visibility"]</label>
                 <select class="input" asp-for="Visibility">
@@ -87,7 +90,7 @@
             </div>
         </div>
 
-        <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="form-row form-row--2">
             <div class="field">
                 <label class="field__label" asp-for="SummaryFa">@L["admin.content.summaryFa"]</label>
                 <input class="input" asp-for="SummaryFa" maxlength="400" />
@@ -132,10 +135,10 @@
                 <div class="grid" style="grid-template-columns:1fr 1fr">
                     <textarea class="input" asp-for="Steps[index].BodyFa" rows="3" maxlength="4000"
                               placeholder="@L["admin.content.markupFa"]"
-                              style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+                             ></textarea>
                     <textarea class="input" asp-for="Steps[index].BodyEn" rows="3" maxlength="4000" dir="ltr"
                               placeholder="@L["admin.content.markupEn"]"
-                              style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+                             ></textarea>
                 </div>
 
                 @if (!string.IsNullOrWhiteSpace(Model.Steps[index].MediaPath))
@@ -148,13 +151,15 @@
             </fieldset>
         }
 
-        <label class="checkbox">
-            <input type="checkbox" asp-for="IsPublished" />
-            <span>@L["admin.content.published"]</span>
-        </label>
-        <p class="text-xs text-muted">@L["admin.content.published.hint"]</p>
+        <div class="checkbox-field">
+            <label class="checkbox">
+                <input type="checkbox" asp-for="IsPublished" />
+                <span>@L["admin.content.published"]</span>
+            </label>
+            <p class="field__hint">@L["admin.content.published.hint"]</p>
+        </div>
 
-        <div class="cluster">
+        <div class="form-actions">
             <button type="submit" class="btn btn--primary">@L["admin.save"]</button>
             <a class="btn btn--ghost" asp-action="Index" asp-route-productId="@Model.ProductId">
                 @L["common.cancel"]

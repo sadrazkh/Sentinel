@@ -1135,12 +1135,157 @@ a.chip { text-decoration: none; }
 
 /* ---------------------------------------------------------------------------- forms ---- */
 
-.field { display: grid; gap: var(--space-2); }
+/*
+  A form is a stack of sections; a section is a stack of rows; a row is one or more fields.
+
+  The rule that makes it hold together: a field is always the same three bands — label, control,
+  hint — and a row aligns those bands across its fields with `subgrid`. That is what stops the
+  familiar mess where one field carries a two-line hint, the row grows, and the field beside it
+  stretches its input to fill the space. Aligning by hand with fixed heights breaks the moment a
+  label wraps in Persian but not in English, which on a bilingual portal is most of them.
+*/
+
+.form {
+  display: grid;
+  gap: var(--space-7);
+}
+
+/* A titled group. Sections are what turn a long form into something scannable. */
+.form-section {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.form-section__head {
+  display: grid;
+  gap: var(--space-1);
+  padding-block-end: var(--space-3);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.form-section__title {
+  font-size: var(--text-sm);
+  font-weight: 640;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+}
+
+.form-section__note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  max-inline-size: 68ch;
+}
+
+/*
+  One row of fields, on one line. The three named rows are the bands every field lines up to;
+  `auto` on each means an empty band collapses, so a row where nothing has a hint costs nothing.
+
+  The column count is fixed rather than `auto-fit`, and that is load-bearing. An auto-fitting row
+  wraps when the container narrows, and a wrapped field lands back in the same three tracks as the
+  first line — so instead of a second line it collides with the first. A row either fits on one
+  line or becomes a single column; there is no in-between that subgrid can describe.
+*/
+.form-row {
+  display: grid;
+  gap: var(--space-2) var(--space-5);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto auto auto;
+  align-items: start;
+}
+
+.form-row--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.form-row--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.form-row--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/*
+  A filter bar is not a form row and must not be one.
+
+  Its fields are independent — a search box, two selects, a date — and there are as many as the
+  screen will take. It wants to wrap, and wrapping is exactly what the band alignment above cannot
+  express: a field pushed to a second line would land back in the first line's three tracks. So
+  these fields keep their own rows and simply flow.
+*/
+.filter-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  gap: var(--space-3) var(--space-4);
+  align-items: end;
+}
+
+/* Buttons sit on the control line, not the label line. */
+.filter-bar .cluster { padding-block-end: 1px; }
+
+/* A wide field beside a narrow one — a price and its currency, a URL and its port. */
+.form-row--lead { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+
+/* The mirror: a short label in front of something long, such as a name and a subscription URL. */
+.form-row--trail { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+
+/* Below this a column is narrower than the content it holds, so the row becomes a stack. */
+@media (max-width: 720px) {
+  .form-row,
+  .form-row--2,
+  .form-row--3,
+  .form-row--lead,
+  .form-row--trail {
+    grid-template-columns: minmax(0, 1fr);
+
+    /*
+      Subgrid is what aligns bands across a line, and one field per line has nothing to align
+      against — but the row's three tracks would still be shared by every stacked field, putting
+      one field's hint above the next field's label. Each field goes back to owning its own rows.
+    */
+    grid-template-rows: none;
+    gap: var(--space-5);
+  }
+
+  .form-row > .field {
+    grid-row: auto;
+    grid-template-rows: none;
+  }
+}
+
+.form-row > .field {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  gap: var(--space-2);
+}
+
+/*
+  A field on its own, outside a row. `align-content: start` is the same protection in miniature:
+  without it a field stretched by a tall neighbour hands the extra height to its input.
+*/
+.field {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
 
 .field__label {
   font-size: var(--text-sm);
   font-weight: 560;
   color: var(--text-secondary);
+}
+
+/*
+  Guidance under a control. Was written as `.text-xs.text-muted` in most places and as an
+  undefined `.field__hint` in the rest, so half the forms had unstyled body text where a hint
+  should be. One class now, and it is part of the field's grid rather than a paragraph after it.
+*/
+.field__hint {
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Spans every column of its row: a note about the row as a whole, not about one field. */
+.form-row__note {
+  grid-column: 1 / -1;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0;
 }
 
 .field__control {
@@ -1151,7 +1296,10 @@ a.chip { text-decoration: none; }
 
 .input {
   inline-size: 100%;
-  min-block-size: 44px;
+
+  /* Fixed, not a minimum: a stretched grid row must never make one control taller than its
+     neighbours. Height belongs to the type scale, not to whatever is beside it. */
+  block-size: 44px;
   padding-inline: var(--space-4);
   font-family: inherit;
   font-size: var(--text-base);
@@ -1162,6 +1310,39 @@ a.chip { text-decoration: none; }
   transition: border-color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out),
     background-color var(--duration-fast) var(--ease-out);
+}
+
+/* Multi-line controls set their own height from `rows`. */
+textarea.input {
+  block-size: auto;
+  min-block-size: 44px;
+  padding-block: var(--space-3);
+  line-height: 1.6;
+  resize: vertical;
+}
+
+/*
+  Amounts are typed, not stepped: bytes, prices in minor units, day counts. The spinner is a
+  target the size of a fingernail that changes a number by one, and it appears on some of a row's
+  fields and not others depending on focus — which reads as an inconsistency in the form itself.
+*/
+.input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+  font-variant-numeric: tabular-nums;
+}
+
+.input[type='number']::-webkit-outer-spin-button,
+.input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* A disabled control is a fact on display, not something to try to type in. */
+.input:disabled {
+  color: var(--text-muted);
+  background-color: var(--surface-sunken);
+  cursor: not-allowed;
 }
 
 .input::placeholder { color: var(--text-muted); }
@@ -1211,18 +1392,46 @@ a.chip { text-decoration: none; }
 
 .checkbox {
   display: inline-flex;
-  align-items: center;
+
+  /* Start, not centre: a label that wraps to two lines should sit against the box, not float
+     halfway down it. */
+  align-items: start;
   gap: var(--space-2);
   font-size: var(--text-sm);
+  line-height: 1.45;
   color: var(--text-secondary);
   cursor: pointer;
 }
 
 .checkbox input {
+  flex: none;
   inline-size: 17px;
   block-size: 17px;
+
+  /* Nudged onto the label's first-line baseline rather than its box top. */
+  margin-block-start: 1px;
   accent-color: var(--accent);
   cursor: pointer;
+}
+
+/*
+  A checkbox and the sentence that explains it. The hint is indented to the label's text edge, so
+  it reads as belonging to that option rather than to the form — which is what a loose paragraph
+  after the label looked like.
+*/
+.checkbox-field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.checkbox-field .field__hint {
+  padding-inline-start: calc(17px + var(--space-2));
+}
+
+/* Several options as one group, spaced closer to each other than to what surrounds them. */
+.checkbox-group {
+  display: grid;
+  gap: var(--space-4);
 }
 
 /* --------------------------------------------------------------------------- badges ---- */
@@ -1522,6 +1731,60 @@ a.chip { text-decoration: none; }
 }
 
 .divider { block-size: 1px; background-color: var(--border-subtle); }
+
+/*
+  Where a form ends. Separated by a rule and given more space above than the gap between fields,
+  so the primary action reads as the end of the task rather than as one more control in the list.
+*/
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+/* Pushes a destructive or tertiary action away from the primary pair. */
+.form-actions__spacer { margin-inline-start: auto; }
+
+/*
+  One switch and what it does: an explanation on one side, the controls on the other.
+
+  A row rather than a card each. These are read as a list — an operator scans for the one that is
+  off — and a page of identical cards makes that scan slower, not faster.
+*/
+.switch-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-block-end: var(--space-5);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+/* The last row closes the list; a rule under it would read as a missing entry. */
+.switch-row:last-child {
+  padding-block-end: 0;
+  border-block-end: 0;
+}
+
+.switch-row__text {
+  display: grid;
+  gap: var(--space-1);
+
+  /* Holds the description to a readable measure and lets the controls keep their width. */
+  flex: 1 1 24rem;
+  max-inline-size: 70ch;
+}
+
+.switch-row__title {
+  font-size: var(--text-base);
+  font-weight: 580;
+  color: var(--text-primary);
+  margin: 0;
+}
 
 /* ------------------------------------------------------------------------ responsive ---- */
 

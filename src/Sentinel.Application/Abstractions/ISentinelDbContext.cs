@@ -7,6 +7,7 @@ using Sentinel.Domain.Identity;
 using Sentinel.Domain.Memberships;
 using Sentinel.Domain.Notifications;
 using Sentinel.Domain.Security;
+using Sentinel.Domain.Settings;
 using Sentinel.Domain.Subscriptions;
 
 namespace Sentinel.Application.Abstractions;
@@ -53,6 +54,8 @@ public interface ISentinelDbContext
     DbSet<TelegramLinkToken> TelegramLinkTokens { get; }
 
     DbSet<SubscriptionSource> SubscriptionSources { get; }
+
+    DbSet<FeatureOverride> FeatureOverrides { get; }
 
     DbSet<Wallet> Wallets { get; }
 

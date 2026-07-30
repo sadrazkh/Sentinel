@@ -42,7 +42,7 @@
     <input type="hidden" asp-for="ConcurrencyToken" />
 
     <div class="stack">
-        <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="form-row form-row--2">
             <div class="field">
                 <label class="field__label" asp-for="NameFa">@L["admin.application.nameFa"]</label>
                 <input class="input" asp-for="NameFa" required maxlength="128" />
@@ -53,7 +53,7 @@
             </div>
         </div>
 
-        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))">
+        <div class="form-row form-row--3">
             <div class="field">
                 <label class="field__label" asp-for="Key">@L["admin.vpn.key"]</label>
                 @if (Model.IsNew)
@@ -74,7 +74,7 @@
                 <input class="input" asp-for="CountryCode" dir="ltr" required
                        maxlength="2" minlength="2" autocapitalize="characters"
                        spellcheck="false" placeholder="DE" />
-                <p class="text-xs text-muted">@L["admin.vpn.country.hint"]</p>
+                <p class="field__hint">@L["admin.vpn.country.hint"]</p>
             </div>
 
             <div class="field">
@@ -95,7 +95,7 @@
             <input class="input" asp-for="BaseUrl" type="url" dir="ltr" required maxlength="512"
                    autocomplete="off" spellcheck="false"
                    placeholder="https://panel.example.com:2053/mypath" />
-            <p class="text-xs text-muted">@L["admin.vpn.baseUrl.hint"]</p>
+            <p class="field__hint">@L["admin.vpn.baseUrl.hint"]</p>
         </div>
 
         <div class="field">
@@ -133,11 +133,11 @@
 
             @if (Model.IsNew)
             {
-                <p class="text-xs text-muted">@L["admin.vpn.apiToken.hint"]</p>
+                <p class="field__hint">@L["admin.vpn.apiToken.hint"]</p>
             }
             else
             {
-                <p class="text-xs text-muted">
+                <p class="field__hint">
                     @L["admin.vpn.apiToken.stored", Model.ApiTokenHint ?? "—"]
                 </p>
             }
@@ -145,27 +145,27 @@
 
         <div class="divider"></div>
 
-        <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="form-row form-row--2">
             <div class="field">
                 <label class="field__label" asp-for="MaxClients">@L["admin.vpn.maxClients"]</label>
                 <input class="input" asp-for="MaxClients" type="number" min="0" max="100000" dir="ltr" />
-                <p class="text-xs text-muted">@L["admin.vpn.maxClients.hint"]</p>
+                <p class="field__hint">@L["admin.vpn.maxClients.hint"]</p>
             </div>
 
             <div class="field">
                 <label class="field__label" asp-for="SelectionPriority">@L["admin.vpn.priority"]</label>
                 <input class="input" asp-for="SelectionPriority" type="number" min="0" max="10000" dir="ltr" />
-                <p class="text-xs text-muted">@L["admin.vpn.priority.hint"]</p>
+                <p class="field__hint">@L["admin.vpn.priority.hint"]</p>
             </div>
         </div>
 
         <div class="field">
             <label class="field__label" asp-for="Notes">@L["admin.membership.notes"]</label>
             <textarea class="input" asp-for="Notes" rows="2" maxlength="1000"
-                      style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+                     ></textarea>
         </div>
 
-        <div class="cluster">
+        <div class="form-actions">
             <button type="submit" class="btn btn--primary">@L["admin.save"]</button>
             <a class="btn btn--ghost" asp-action="Index">@L["common.cancel"]</a>
         </div>

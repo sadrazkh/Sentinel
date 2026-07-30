@@ -1,0 +1,85 @@
+@using Sentinel.Application.Features
+@using Sentinel.Web.Areas.Admin.Models
+@model FeatureListViewModel
+@{
+    ViewData["Title"] = L["admin.feature.title"].Value;
+
+    var statusMessage = TempData["StatusMessage"] as string;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.feature.title"]</h1>
+        <p class="page-head__subtitle">@L["admin.feature.subtitle"]</p>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert alert--info" role="status">@statusMessage</div>
+}
+
+@*
+    The one-button path. The three switches behind it are useless apart — credit nobody can spend,
+    or an order button with nothing behind it — so opening them together is the action an operator
+    actually wants. Each stays independently switchable below.
+*@
+<section class="card">
+    <div class="card__header">
+        <div>
+            <h2 class="card__title">@L["admin.feature.vpn.title"]</h2>
+            <p class="card__hint">@L["admin.feature.vpn.hint"]</p>
+        </div>
+
+        <span class="badge @(Model.VpnFlowOpen ? "badge--success" : "badge--neutral")">
+            @L[Model.VpnFlowOpen ? "admin.feature.vpn.open" : "admin.feature.vpn.closed"]
+        </span>
+    </div>
+
+    @if (!Model.VpnFlowOpen)
+    {
+        <form method="post" asp-action="OpenVpn" style="margin-block-start:var(--space-4)">
+            <button type="submit"
+                    class="btn btn--primary"
+                    data-confirm="@L["admin.feature.vpn.confirm"]"
+                    data-confirm-title="@L["admin.feature.vpn.action"]"
+                    data-confirm-yes="@L["admin.feature.vpn.action"]"
+                    data-confirm-no="@L["action.cancel"]">
+                @L["admin.feature.vpn.action"]
+            </button>
+        </form>
+    }
+    else
+    {
+        <p class="field__hint" style="margin-block-start:var(--space-4)">
+            @L["admin.feature.vpn.openHint"]
+        </p>
+    }
+</section>
+
+<h2 class="section-title" style="margin-block-start:var(--space-8)">@L["admin.feature.portal"]</h2>
+
+<div class="card">
+    <div class="stack">
+        @foreach (var feature in Model.Portal)
+        {
+            <partial name="_FeatureSwitch" model="feature" />
+        }
+    </div>
+</div>
+
+<h2 class="section-title" style="margin-block-start:var(--space-8)">@L["admin.feature.money"]</h2>
+
+@* Said once, above the group, rather than repeated on each row. *@
+<div class="alert alert--warning" role="status">
+    @L["admin.feature.money.warning"]
+</div>
+
+<div class="card">
+    <div class="stack">
+        @foreach (var feature in Model.Money)
+        {
+            <partial name="_FeatureSwitch" model="feature" />
+        }
+    </div>
+</div>

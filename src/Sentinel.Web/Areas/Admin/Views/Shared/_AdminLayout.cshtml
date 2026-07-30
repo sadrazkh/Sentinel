@@ -1,4 +1,6 @@
 @using System.Globalization
+@using Sentinel.Application.Features
+@inject IFeatureGate Features
 @{
     var culture = CultureInfo.CurrentUICulture;
     var direction = PortalCultures.DirectionAttribute(culture);
@@ -67,6 +69,12 @@
             <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="CustomerServices" asp-action="Index">
                 @L["admin.nav.services"]
             </a>
+            @if (Features.IsEnabled(FeatureNames.Wallet))
+            {
+                <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="Wallets" asp-action="Index">
+                    @L["admin.nav.wallets"]
+                </a>
+            }
             <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="Audit" asp-action="Index">
                 @L["admin.nav.audit"]
             </a>
@@ -79,6 +87,9 @@
             @if (User.IsInRole(RoleNames.SuperAdmin))
             {
                 @* Shown by role for convenience; the controller's policy is what enforces it. *@
+                <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="Features" asp-action="Index">
+                    @L["admin.nav.features"]
+                </a>
                 <a class="btn btn--ghost btn--sm" asp-area="Admin" asp-controller="System" asp-action="Index">
                     @L["admin.nav.system"]
                 </a>

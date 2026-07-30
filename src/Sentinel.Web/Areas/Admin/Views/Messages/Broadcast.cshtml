@@ -49,20 +49,22 @@
         <div class="field">
             <label class="field__label" asp-for="Body">@L["admin.messages.body"]</label>
             <textarea class="input" asp-for="Body" rows="6" required maxlength="2000"
-                      style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+                     ></textarea>
         </div>
 
         <div class="field">
             <label class="field__label" asp-for="LinkPath">@L["admin.messages.link"]</label>
             <input class="input" asp-for="LinkPath" dir="ltr" maxlength="512" placeholder="/Apps" />
-            <p class="text-xs text-muted">@L["admin.messages.link.hint"]</p>
+            <p class="field__hint">@L["admin.messages.link.hint"]</p>
         </div>
 
-        <label class="checkbox">
-            <input type="checkbox" asp-for="DeliverToTelegram" />
-            <span>@L["admin.messages.deliverToTelegram"]</span>
-        </label>
-        <p class="text-xs text-muted">@L["admin.messages.deliverToTelegram.hint"]</p>
+        <div class="checkbox-field">
+            <label class="checkbox">
+                <input type="checkbox" asp-for="DeliverToTelegram" />
+                <span>@L["admin.messages.deliverToTelegram"]</span>
+            </label>
+            <p class="field__hint">@L["admin.messages.deliverToTelegram.hint"]</p>
+        </div>
 
         <div class="divider"></div>
 

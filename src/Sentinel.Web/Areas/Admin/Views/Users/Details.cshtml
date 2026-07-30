@@ -137,10 +137,10 @@
                     <input id="PhoneNumber" name="PhoneNumber" class="input" maxlength="32"
                            dir="ltr" value="@user.PhoneNumber" disabled="@readOnly"
                            placeholder="09121234567" />
-                    <p class="text-xs text-muted">@L["admin.user.phone.hint"]</p>
+                    <p class="field__hint">@L["admin.user.phone.hint"]</p>
                 </div>
 
-                <div class="grid" style="grid-template-columns:1fr 1fr">
+                <div class="form-row form-row--2">
                     <div class="field">
                         <label class="field__label" for="PreferredCulture">@L["admin.user.culture"]</label>
                         <select id="PreferredCulture" name="PreferredCulture" class="input" disabled="@readOnly">
@@ -191,15 +191,15 @@
                     <input id="SuspendedUntil" name="SuspendedUntil" class="input" type="date"
                            dir="ltr" disabled="@(readOnly || Model.IsSelf)"
                            value="@(user.SuspendedUntil?.UtcDateTime.ToString("yyyy-MM-dd"))" />
-                    <p class="text-xs text-muted">@L["admin.user.suspendedUntil.hint"]</p>
+                    <p class="field__hint">@L["admin.user.suspendedUntil.hint"]</p>
                 </div>
 
                 <div class="field">
                     <label class="field__label" for="Note">@L["admin.user.statusNote"]</label>
                     <textarea id="Note" name="Note" class="input" rows="2" maxlength="512"
-                              style="min-block-size:auto;padding-block:var(--space-3)"
+                             
                               disabled="@(readOnly || Model.IsSelf)">@user.StatusNote</textarea>
-                    <p class="text-xs text-muted">@L["admin.user.statusNote.hint"]</p>
+                    <p class="field__hint">@L["admin.user.statusNote.hint"]</p>
                 </div>
 
                 @if (Model.IsSelf)
@@ -239,7 +239,7 @@
             <input type="hidden" name="UserId" value="@user.Id" />
             <input type="hidden" name="ConcurrencyToken" value="@membershipEdit?.ConcurrencyToken" />
 
-            <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))">
+            <div class="form-row form-row--2">
                 <div class="field">
                     <label class="field__label" for="Tier">@L["admin.membership.tier"]</label>
                     <select id="Tier" name="Tier" class="input" disabled="@readOnly">
@@ -264,6 +264,9 @@
                     </select>
                 </div>
 
+            </div>
+
+            <div class="form-row form-row--3">
                 <div class="field">
                     <label class="field__label" for="StartsAt">@L["admin.membership.startsAt"]</label>
                     <input id="StartsAt" name="StartsAt" class="input" type="date" dir="ltr" required
@@ -276,7 +279,7 @@
                     <input id="EndsAt" name="EndsAt" class="input" type="date" dir="ltr"
                            disabled="@readOnly"
                            value="@(membershipEdit?.EndsAt?.UtcDateTime.ToString("yyyy-MM-dd"))" />
-                    <p class="text-xs text-muted">@L["admin.membership.endsAt.hint"]</p>
+                    <p class="field__hint">@L["admin.membership.endsAt.hint"]</p>
                 </div>
 
                 <div class="field">
@@ -286,14 +289,14 @@
                     <input id="GracePeriodDaysOverride" name="GracePeriodDaysOverride" class="input"
                            type="number" min="0" max="90" dir="ltr" disabled="@readOnly"
                            value="@membershipEdit?.GracePeriodDaysOverride" />
-                    <p class="text-xs text-muted">@L["admin.membership.graceOverride.hint"]</p>
+                    <p class="field__hint">@L["admin.membership.graceOverride.hint"]</p>
                 </div>
             </div>
 
             <div class="field">
                 <label class="field__label" for="Notes">@L["admin.membership.notes"]</label>
                 <textarea id="Notes" name="Notes" class="input" rows="2" maxlength="1024"
-                          style="min-block-size:auto;padding-block:var(--space-3)"
+                         
                           disabled="@readOnly">@membershipEdit?.Notes</textarea>
             </div>
 
@@ -388,7 +391,7 @@
                   class="stack">
                 <input type="hidden" name="UserId" value="@user.Id" />
 
-                <div class="grid" style="grid-template-columns:1fr 2fr;gap:var(--space-3)">
+                <div class="form-row form-row--trail">
                     <div class="field">
                         <label class="field__label" for="sub-title">@L["configs.add.label"]</label>
                         <input id="sub-title" name="Title" class="input" maxlength="120"
@@ -433,7 +436,7 @@
                     <label class="field__label" for="message-body">@L["admin.messages.body"]</label>
                     <textarea id="message-body" name="Body" class="input" rows="4" required
                               maxlength="2000"
-                              style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+                             ></textarea>
                 </div>
 
                 <label class="checkbox">

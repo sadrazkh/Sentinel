@@ -36,19 +36,22 @@
 
 <form method="post" class="card" style="max-inline-size:720px">
     <div class="stack">
-        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))">
+        @* Two pairs rather than one row of four: who the account is, then how to reach them. *@
+        <div class="form-row form-row--2">
             <div class="field">
                 <label class="field__label" asp-for="UserName">@L["admin.user.userName"]</label>
                 <input class="input" asp-for="UserName" dir="ltr" required maxlength="64"
                        autocomplete="off" autocapitalize="none" spellcheck="false" />
-                <p class="text-xs text-muted">@L["admin.user.userName.hint"]</p>
+                <p class="field__hint">@L["admin.user.userName.hint"]</p>
             </div>
 
             <div class="field">
                 <label class="field__label" asp-for="DisplayName">@L["admin.user.displayName"]</label>
                 <input class="input" asp-for="DisplayName" required maxlength="128" />
             </div>
+        </div>
 
+        <div class="form-row form-row--2">
             <div class="field">
                 <label class="field__label" asp-for="Email">@L["admin.user.email"]</label>
                 <input class="input" asp-for="Email" type="email" dir="ltr" required maxlength="256"
@@ -59,18 +62,18 @@
                 <label class="field__label" asp-for="PhoneNumber">@L["admin.user.phone"]</label>
                 <input class="input" asp-for="PhoneNumber" dir="ltr" maxlength="32"
                        autocomplete="off" placeholder="09121234567" />
-                <p class="text-xs text-muted">@L["admin.user.phone.hint"]</p>
+                <p class="field__hint">@L["admin.user.phone.hint"]</p>
             </div>
         </div>
 
         <div class="divider"></div>
 
-        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))">
+        <div class="form-row">
             <div class="field">
                 <label class="field__label" asp-for="Password">@L["admin.user.password"]</label>
                 <input class="input" asp-for="Password" type="password" dir="ltr" required
                        maxlength="256" autocomplete="new-password" />
-                <p class="text-xs text-muted">@L["admin.user.password.hint"]</p>
+                <p class="field__hint">@L["admin.user.password.hint"]</p>
             </div>
 
             <div class="field">
@@ -94,10 +97,10 @@
                     </label>
                 }
             </div>
-            <p class="text-xs text-muted">@L["admin.user.roles.createHint"]</p>
+            <p class="field__hint">@L["admin.user.roles.createHint"]</p>
         </div>
 
-        <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="form-row form-row--2">
             <div class="field">
                 <label class="field__label" asp-for="PreferredCulture">@L["admin.user.culture"]</label>
                 <select class="input" asp-for="PreferredCulture">
@@ -112,7 +115,7 @@
             </div>
         </div>
 
-        <div class="cluster">
+        <div class="form-actions">
             <button type="submit" class="btn btn--primary">@L["admin.users.create"]</button>
             <a class="btn btn--ghost" asp-action="Index">@L["common.cancel"]</a>
         </div>

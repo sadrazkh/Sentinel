@@ -11,6 +11,7 @@ using Sentinel.Domain.Identity;
 using Sentinel.Domain.Memberships;
 using Sentinel.Domain.Notifications;
 using Sentinel.Domain.Security;
+using Sentinel.Domain.Settings;
 using Sentinel.Domain.Subscriptions;
 using Sentinel.Infrastructure.Persistence.Converters;
 
@@ -59,6 +60,9 @@ public class SentinelDbContext
     public DbSet<TelegramLinkToken> TelegramLinkTokens => Set<TelegramLinkToken>();
 
     public DbSet<SubscriptionSource> SubscriptionSources => Set<SubscriptionSource>();
+
+    // Feature switches an operator has set, layered over configuration by the gate.
+    public DbSet<FeatureOverride> FeatureOverrides => Set<FeatureOverride>();
 
     // Credit. Deliberately in the shared context rather than a module's: a balance is a portal-wide
     // idea, and it has to commit in the same transaction as whatever it paid for.

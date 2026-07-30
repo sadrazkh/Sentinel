@@ -35,6 +35,17 @@ public sealed record WalletView(
     string? FrozenReason,
     DateTimeOffset UpdatedAt);
 
+/// <summary>A member and their balance, for the back office's list.</summary>
+public sealed record WalletHolderView(
+    Guid UserId,
+    string UserName,
+    string DisplayName,
+    long BalanceMinorUnits,
+    string Currency,
+    bool IsFrozen,
+    bool HasWallet,
+    DateTimeOffset? LastMovementAt);
+
 /// <summary>One ledger entry, in the order it happened.</summary>
 public sealed record WalletEntryView(
     Guid Id,
@@ -107,6 +118,19 @@ public interface IWalletService
     /// <summary>Reads a member's wallet, creating an empty one on first look.</summary>
     Task<OperationResult<WalletView>> GetOrCreateAsync(
         Guid userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every member and what they hold, for the back office.
+    /// <para>
+    /// Includes members with no wallet row yet, shown as a zero balance. An operator looking for
+    /// somebody to credit should find them whether or not the portal has happened to create a row
+    /// for them — "no wallet" is not a state they should have to resolve first.
+    /// </para>
+    /// </summary>
+    Task<IReadOnlyList<WalletHolderView>> ListHoldersAsync(
+        string? search = null,
+        int take = 50,
         CancellationToken cancellationToken = default);
 
     Task<WalletLedger?> GetLedgerAsync(

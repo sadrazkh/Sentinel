@@ -83,6 +83,77 @@ public sealed class WalletService : IWalletService
         return OperationResult<WalletView>.Success(ToView(wallet));
     }
 
+    public async Task<IReadOnlyList<WalletHolderView>> ListHoldersAsync(
+        string? search = null,
+        int take = 50,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Enabled)
+        {
+            return [];
+        }
+
+        take = Math.Clamp(take, 1, 200);
+        search = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+
+        // Driven from the member list rather than the wallet table, so somebody who has never been
+        // credited is still findable — which is exactly who an operator is usually looking for.
+        var members = _db.Users.AsNoTracking();
+
+        if (search is not null)
+        {
+            members = members.Where(user =>
+                user.UserName!.Contains(search)
+                || user.DisplayName.Contains(search)
+                || (user.Email != null && user.Email.Contains(search)));
+        }
+
+        var rows = await members
+            .OrderBy(user => user.UserName)
+            .Take(take)
+            .Select(user => new { user.Id, user.UserName, user.DisplayName })
+            .ToListAsync(cancellationToken);
+
+        if (rows.Count == 0)
+        {
+            return [];
+        }
+
+        var ids = rows.Select(row => row.Id).ToList();
+
+        var wallets = await _db.Wallets
+            .AsNoTracking()
+            .Where(wallet => ids.Contains(wallet.UserId))
+            .Select(wallet => new
+            {
+                wallet.UserId,
+                wallet.BalanceMinorUnits,
+                wallet.Currency,
+                wallet.IsFrozen,
+                wallet.UpdatedAt,
+            })
+            .ToListAsync(cancellationToken);
+
+        var byUser = wallets.ToDictionary(wallet => wallet.UserId);
+
+        return rows
+            .Select(row =>
+            {
+                byUser.TryGetValue(row.Id, out var wallet);
+
+                return new WalletHolderView(
+                    row.Id,
+                    row.UserName ?? "—",
+                    row.DisplayName,
+                    wallet?.BalanceMinorUnits ?? 0,
+                    wallet?.Currency ?? "IRR",
+                    wallet?.IsFrozen ?? false,
+                    wallet is not null,
+                    wallet?.UpdatedAt);
+            })
+            .ToList();
+    }
+
     public async Task<WalletLedger?> GetLedgerAsync(
         Guid userId,
         int take = 100,

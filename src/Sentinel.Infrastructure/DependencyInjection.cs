@@ -89,9 +89,14 @@ public static class DependencyInjection
         services.AddSingleton<IMembershipStatusResolver, MembershipStatusResolver>();
         services.AddScoped<IAccessDecisionService, AccessDecisionService>();
 
-        // Reads IOptionsMonitor, so a flag change in configuration takes effect without a
-        // restart — and without any component caching a stale answer.
+        // The gate layers an operator's switches over configuration. Both are singletons: a
+        // feature check sits on request paths and must answer from memory, never from a query.
+        services.AddSingleton<IFeatureOverrideStore, FeatureOverrideStore>();
         services.AddSingleton<IFeatureGate, FeatureGate>();
+
+        // Writing a switch is rare and needs a unit of work, so it is scoped and kept apart from
+        // the gate — nothing on a hot path can then acquire a database dependency by accident.
+        services.AddScoped<IFeatureAdminService, FeatureAdminService>();
         services.AddScoped<IProductLibraryService, ProductLibraryService>();
         services.AddScoped<IProductContentService, ProductContentService>();
         services.AddScoped<IProductContentAdminService, ProductContentAdminService>();

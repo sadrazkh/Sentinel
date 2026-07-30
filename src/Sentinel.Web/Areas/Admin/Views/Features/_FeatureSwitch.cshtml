@@ -1,0 +1,47 @@
+@using Sentinel.Application.Features
+@model FeatureState
+@{
+    // The description keys follow the property name, so adding a flag to FeatureFlags and two
+    // resource strings is the whole cost of putting it on this page.
+    var titleKey = $"feature.{char.ToLowerInvariant(Model.Name[0])}{Model.Name[1..]}";
+    var hintKey = titleKey + ".hint";
+}
+
+<div class="switch-row">
+    <div class="switch-row__text">
+        <p class="switch-row__title">@L[titleKey]</p>
+        <p class="field__hint">@L[hintKey]</p>
+
+        @if (Model.DivergesFromConfiguration)
+        {
+            @* Worth saying out loud: this is somebody's decision, not how the portal ships. *@
+            <p class="field__hint">
+                @L["admin.feature.overridden", L[Model.ConfiguredValue ? "common.on" : "common.off"].Value]
+            </p>
+        }
+    </div>
+
+    <div class="cluster">
+        @if (Model.Source == FeatureSource.Override)
+        {
+            <form method="post" asp-action="Reset" asp-route-name="@Model.Name">
+                <button type="submit" class="btn btn--ghost btn--sm">
+                    @L["admin.feature.follow"]
+                </button>
+            </form>
+        }
+
+        <form method="post" asp-action="Set" asp-route-name="@Model.Name">
+            <input type="hidden" name="enabled" value="@((!Model.IsEnabled).ToString().ToLowerInvariant())" />
+
+            <button type="submit"
+                    class="btn btn--sm @(Model.IsEnabled ? "btn--secondary" : "btn--primary")">
+                @L[Model.IsEnabled ? "admin.feature.turnOff" : "admin.feature.turnOn"]
+            </button>
+        </form>
+
+        <span class="badge @(Model.IsEnabled ? "badge--success" : "badge--neutral")">
+            @L[Model.IsEnabled ? "common.on" : "common.off"]
+        </span>
+    </div>
+</div>

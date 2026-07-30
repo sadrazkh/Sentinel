@@ -51,126 +51,160 @@
       class="card">
     <input type="hidden" asp-for="ConcurrencyToken" />
 
-    <div class="stack">
-        <div class="field">
-            <label class="field__label" asp-for="ProductId">@L["admin.plan.product"]</label>
-            <select class="input" asp-for="ProductId" required>
-                <option value="">—</option>
-                @foreach (var product in products)
-                {
-                    <option value="@product.Id" selected="@(Model.ProductId == product.Id)">
-                        @(isPersian ? product.NameFa : product.NameEn)
-                    </option>
-                }
-            </select>
-        </div>
-
-        <div class="grid" style="grid-template-columns:1fr 1fr">
-            <div class="field">
-                <label class="field__label" asp-for="NameFa">@L["admin.application.nameFa"]</label>
-                <input class="input" asp-for="NameFa" required maxlength="128" />
-            </div>
-            <div class="field">
-                <label class="field__label" asp-for="NameEn">@L["admin.application.nameEn"]</label>
-                <input class="input" asp-for="NameEn" dir="ltr" required maxlength="128" />
-            </div>
-        </div>
-
-        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))">
-            <div class="field">
-                <label class="field__label" asp-for="Key">@L["admin.plan.key"]</label>
-                @if (Model.IsNew)
-                {
-                    <input class="input" asp-for="Key" dir="ltr" required maxlength="64"
-                           autocomplete="off" spellcheck="false" placeholder="vpn-50gb-monthly" />
-                }
-                else
-                {
-                    @* Immutable: the key is in audit rows already written. *@
-                    <input class="input" value="@Model.Key" dir="ltr" disabled />
-                    <input type="hidden" asp-for="Key" />
-                }
+    @*
+        Three sections, because a plan is three separate decisions: what it is called, what the
+        customer gets, and who may buy it. As one flat list of fourteen fields it read as a wall.
+    *@
+    <div class="form">
+        <section class="form-section">
+            <div class="form-section__head">
+                <h2 class="form-section__title">@L["admin.plan.section.identity"]</h2>
             </div>
 
             <div class="field">
-                <label class="field__label" asp-for="CountryCode">@L["admin.plan.country"]</label>
-                <input class="input" asp-for="CountryCode" dir="ltr" maxlength="2"
-                       autocapitalize="characters" spellcheck="false"
-                       placeholder="@L["admin.plan.country.any"]" />
+                <label class="field__label" asp-for="ProductId">@L["admin.plan.product"]</label>
+                <select class="input" asp-for="ProductId" required>
+                    <option value="">—</option>
+                    @foreach (var product in products)
+                    {
+                        <option value="@product.Id" selected="@(Model.ProductId == product.Id)">
+                            @(isPersian ? product.NameFa : product.NameEn)
+                        </option>
+                    }
+                </select>
             </div>
 
-            <div class="field">
-                <label class="field__label" asp-for="DisplayOrder">@L["admin.application.displayOrder"]</label>
-                <input class="input" asp-for="DisplayOrder" type="number" min="0" max="10000" dir="ltr" />
-            </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))">
-            <div class="field">
-                <label class="field__label" asp-for="TrafficBytes">@L["admin.plan.traffic"]</label>
-                <input class="input" asp-for="TrafficBytes" type="number" min="0" dir="ltr" />
-                <p class="text-xs text-muted">@L["admin.plan.traffic.hint"]</p>
+            <div class="form-row form-row--2">
+                <div class="field">
+                    <label class="field__label" asp-for="NameFa">@L["admin.application.nameFa"]</label>
+                    <input class="input" asp-for="NameFa" required maxlength="128" />
+                </div>
+                <div class="field">
+                    <label class="field__label" asp-for="NameEn">@L["admin.application.nameEn"]</label>
+                    <input class="input" asp-for="NameEn" dir="ltr" required maxlength="128" />
+                </div>
             </div>
 
-            <div class="field">
-                <label class="field__label" asp-for="DurationDays">@L["admin.plan.duration"]</label>
-                <input class="input" asp-for="DurationDays" type="number" min="1" max="3650" dir="ltr" />
+            <div class="form-row form-row--3">
+                <div class="field">
+                    <label class="field__label" asp-for="Key">@L["admin.plan.key"]</label>
+                    @if (Model.IsNew)
+                    {
+                        <input class="input" asp-for="Key" dir="ltr" required maxlength="64"
+                               autocomplete="off" spellcheck="false" placeholder="vpn-50gb-monthly" />
+                        <p class="field__hint">@L["admin.plan.key.hint"]</p>
+                    }
+                    else
+                    {
+                        @* Immutable: the key is in audit rows already written. *@
+                        <input class="input" value="@Model.Key" dir="ltr" disabled />
+                        <input type="hidden" asp-for="Key" />
+                        <p class="field__hint">@L["admin.plan.key.fixed"]</p>
+                    }
+                </div>
+
+                <div class="field">
+                    <label class="field__label" asp-for="CountryCode">@L["admin.plan.country"]</label>
+                    <input class="input" asp-for="CountryCode" dir="ltr" maxlength="2"
+                           autocapitalize="characters" spellcheck="false"
+                           placeholder="@L["admin.plan.country.any"]" />
+                    <p class="field__hint">@L["admin.plan.country.hint"]</p>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" asp-for="DisplayOrder">@L["admin.application.displayOrder"]</label>
+                    <input class="input" asp-for="DisplayOrder" type="number" min="0" max="10000" dir="ltr" />
+                    <p class="field__hint">@L["admin.plan.displayOrder.hint"]</p>
+                </div>
             </div>
 
-            <div class="field">
-                <label class="field__label" asp-for="DeviceLimit">@L["admin.plan.devices"]</label>
-                <input class="input" asp-for="DeviceLimit" type="number" min="0" max="1000" dir="ltr" />
-                <p class="text-xs text-muted">@L["admin.plan.devices.hint"]</p>
+            <div class="form-row form-row--2">
+                <div class="field">
+                    <label class="field__label" asp-for="DescriptionFa">@L["admin.application.descriptionFa"]</label>
+                    <textarea class="input" asp-for="DescriptionFa" rows="2" maxlength="1000"></textarea>
+                </div>
+                <div class="field">
+                    <label class="field__label" asp-for="DescriptionEn">@L["admin.application.descriptionEn"]</label>
+                    <textarea class="input" asp-for="DescriptionEn" rows="2" maxlength="1000" dir="ltr"></textarea>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <div class="grid" style="grid-template-columns:2fr 1fr">
-            <div class="field">
-                <label class="field__label" asp-for="PriceMinorUnits">@L["admin.plan.price"]</label>
-                <input class="input" asp-for="PriceMinorUnits" type="number" min="0" dir="ltr" />
-                <p class="text-xs text-muted">@L["admin.plan.price.hint"]</p>
+        <section class="form-section">
+            <div class="form-section__head">
+                <h2 class="form-section__title">@L["admin.plan.section.terms"]</h2>
+                <p class="form-section__note">@L["admin.plan.section.terms.note"]</p>
             </div>
 
-            <div class="field">
-                <label class="field__label" asp-for="Currency">@L["admin.plan.currency"]</label>
-                <input class="input" asp-for="Currency" dir="ltr" required
-                       maxlength="3" minlength="3" autocapitalize="characters" spellcheck="false" />
+            <div class="form-row form-row--3">
+                <div class="field">
+                    <label class="field__label" asp-for="TrafficBytes">@L["admin.plan.traffic"]</label>
+                    <input class="input" asp-for="TrafficBytes" type="number" min="0" dir="ltr" />
+                    <p class="field__hint">@L["admin.plan.traffic.hint"]</p>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" asp-for="DurationDays">@L["admin.plan.duration"]</label>
+                    <input class="input" asp-for="DurationDays" type="number" min="1" max="3650" dir="ltr" />
+                    <p class="field__hint">@L["admin.plan.duration.hint"]</p>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" asp-for="DeviceLimit">@L["admin.plan.devices"]</label>
+                    <input class="input" asp-for="DeviceLimit" type="number" min="0" max="1000" dir="ltr" />
+                    <p class="field__hint">@L["admin.plan.devices.hint"]</p>
+                </div>
             </div>
-        </div>
 
-        <div class="grid" style="grid-template-columns:1fr 1fr">
-            <div class="field">
-                <label class="field__label" asp-for="DescriptionFa">@L["admin.application.descriptionFa"]</label>
-                <textarea class="input" asp-for="DescriptionFa" rows="2" maxlength="1000"
-                          style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+            <div class="form-row form-row--lead">
+                <div class="field">
+                    <label class="field__label" asp-for="PriceMinorUnits">@L["admin.plan.price"]</label>
+                    <input class="input" asp-for="PriceMinorUnits" type="number" min="0" dir="ltr" />
+                    <p class="field__hint">@L["admin.plan.price.hint"]</p>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" asp-for="Currency">@L["admin.plan.currency"]</label>
+                    <input class="input" asp-for="Currency" dir="ltr" required
+                           maxlength="3" minlength="3" autocapitalize="characters" spellcheck="false" />
+                    <p class="field__hint">@L["admin.plan.currency.hint"]</p>
+                </div>
             </div>
-            <div class="field">
-                <label class="field__label" asp-for="DescriptionEn">@L["admin.application.descriptionEn"]</label>
-                <textarea class="input" asp-for="DescriptionEn" rows="2" maxlength="1000" dir="ltr"
-                          style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+        </section>
+
+        <section class="form-section">
+            <div class="form-section__head">
+                <h2 class="form-section__title">@L["admin.plan.section.availability"]</h2>
             </div>
-        </div>
 
-        <label class="checkbox">
-            <input type="checkbox" asp-for="IsVisible" />
-            <span>@L["admin.plan.visible"]</span>
-        </label>
+            <div class="checkbox-group">
+                <div class="checkbox-field">
+                    <label class="checkbox">
+                        <input type="checkbox" asp-for="IsVisible" />
+                        <span>@L["admin.plan.visible"]</span>
+                    </label>
+                    <p class="field__hint">@L["admin.plan.visible.hint"]</p>
+                </div>
 
-        <label class="checkbox">
-            <input type="checkbox" asp-for="IsPurchasable" />
-            <span>@L["admin.plan.purchasable"]</span>
-        </label>
-        <p class="text-xs text-muted">@L["admin.plan.purchasable.hint"]</p>
+                <div class="checkbox-field">
+                    <label class="checkbox">
+                        <input type="checkbox" asp-for="IsPurchasable" />
+                        <span>@L["admin.plan.purchasable"]</span>
+                    </label>
+                    <p class="field__hint">@L["admin.plan.purchasable.hint"]</p>
+                </div>
 
-        <label class="checkbox">
-            <input type="checkbox" asp-for="IsFeatured" />
-            <span>@L["admin.plan.featured"]</span>
-        </label>
-        <p class="text-xs text-muted">@L["admin.plan.featured.hint"]</p>
+                <div class="checkbox-field">
+                    <label class="checkbox">
+                        <input type="checkbox" asp-for="IsFeatured" />
+                        <span>@L["admin.plan.featured"]</span>
+                    </label>
+                    <p class="field__hint">@L["admin.plan.featured.hint"]</p>
+                </div>
+            </div>
+        </section>
 
-        <div class="cluster">
+        <div class="form-actions">
             <button type="submit" class="btn btn--primary">@L["admin.save"]</button>
             <a class="btn btn--ghost" asp-action="Index">@L["common.cancel"]</a>
         </div>

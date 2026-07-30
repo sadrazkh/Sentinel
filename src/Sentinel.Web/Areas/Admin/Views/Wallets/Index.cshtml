@@ -1,0 +1,90 @@
+@using Sentinel.Web.Areas.Admin.Models
+@model WalletListViewModel
+@{
+    ViewData["Title"] = L["admin.wallet.list.title"].Value;
+
+    var statusMessage = TempData["StatusMessage"] as string;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.wallet.list.title"]</h1>
+        <p class="page-head__subtitle">@L["admin.wallet.list.subtitle"]</p>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert alert--info" role="status">@statusMessage</div>
+}
+
+<form method="get" class="card" style="margin-block-end:var(--space-6)">
+    <div class="filter-bar">
+        <div class="field">
+            <label class="field__label" for="search">@L["admin.wallet.list.search"]</label>
+            <input id="search" name="search" class="input" type="search"
+                   value="@Model.Search" maxlength="128"
+                   placeholder="@L["admin.wallet.list.search.placeholder"]" />
+        </div>
+
+        <div class="cluster">
+            <button type="submit" class="btn btn--secondary">@L["admin.filter.apply"]</button>
+            @if (!string.IsNullOrWhiteSpace(Model.Search))
+            {
+                <a class="btn btn--ghost" asp-action="Index">@L["admin.filter.reset"]</a>
+            }
+        </div>
+    </div>
+</form>
+
+@if (Model.Holders.Count == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <p class="empty-state__title">@L["admin.wallet.list.empty.title"]</p>
+            <p class="empty-state__body">@L["admin.wallet.list.empty.body"]</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div style="overflow-x:auto">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">@L["admin.user.displayName"]</th>
+                        <th scope="col">@L["wallet.balance"]</th>
+                        <th scope="col"><span class="visually-hidden">@L["admin.wallet.title"]</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var holder in Model.Holders)
+                    {
+                        <tr>
+                            <td>
+                                @holder.DisplayName
+                                <span class="text-muted" dir="ltr"> · @holder.UserName</span>
+                                @if (holder.IsFrozen)
+                                {
+                                    <span class="badge badge--warning">@L["wallet.frozen"]</span>
+                                }
+                            </td>
+                            <td dir="ltr">
+                                @* A member with no wallet row yet holds nothing, which is a zero
+                                   balance and not a missing one. *@
+                                @PlanPresentation.DescribeMoney(holder.BalanceMinorUnits, holder.Currency)
+                            </td>
+                            <td>
+                                <a class="btn btn--ghost btn--sm"
+                                   asp-action="Details" asp-route-userId="@holder.UserId">
+                                    @L[Model.CanWrite ? "admin.wallet.credit" : "admin.wallet.ledger"]
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

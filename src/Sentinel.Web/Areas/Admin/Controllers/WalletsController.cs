@@ -48,6 +48,22 @@ public sealed class WalletsController : Controller
 
     private bool CanWrite => User.IsInRole(RoleNames.SuperAdmin) || User.IsInRole(RoleNames.Admin);
 
+    /// <summary>
+    /// Every member and what they hold.
+    /// <para>
+    /// The way in for the common task — "put credit on this account" — which previously meant
+    /// finding the member first and knowing the button was on their page.
+    /// </para>
+    /// </summary>
+    [HttpGet("")]
+    public async Task<IActionResult> Index(string? search, CancellationToken cancellationToken) =>
+        View(new WalletListViewModel
+        {
+            Holders = await _wallet.ListHoldersAsync(search, 50, cancellationToken),
+            Search = search,
+            CanWrite = CanWrite,
+        });
+
     [HttpGet("{userId:guid}")]
     public async Task<IActionResult> Details([FromRoute] Guid userId, CancellationToken cancellationToken)
     {

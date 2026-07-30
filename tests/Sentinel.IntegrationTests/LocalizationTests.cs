@@ -59,6 +59,16 @@ public sealed partial class LocalizationTests
             $"Keys present in en.json but missing from fa.json: {string.Join(", ", missingFromPersian)}");
     }
 
+    /// <summary>
+    /// A controller's own lookups, written `_localizer["key"]` rather than `L["key"]`.
+    /// <para>
+    /// These are the ones that reach a page as a raw key without any view being wrong — a status
+    /// message set on a redirect, an error resolved before the model is built.
+    /// </para>
+    /// </summary>
+    [GeneratedRegex("_localizer\\[\"([a-z][A-Za-z0-9.]*)\"", RegexOptions.CultureInvariant)]
+    private static partial Regex ControllerUsageRegex();
+
     [Fact]
     public void Every_key_the_views_ask_for_exists_in_both_catalogues()
     {
@@ -75,6 +85,24 @@ public sealed partial class LocalizationTests
             }
         }
 
+        // Controllers too. Scanning only views left a real gap: a status message written in a
+        // controller reached the page as "admin.feature.vpnOpened" with every view test green.
+        foreach (var file in Directory.EnumerateFiles(WebRoot, "*.cs", SearchOption.AllDirectories))
+        {
+            if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",
+                    StringComparison.Ordinal)
+                || file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
+                    StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            foreach (Match match in ControllerUsageRegex().Matches(File.ReadAllText(file)))
+            {
+                used.Add(match.Groups[1].Value);
+            }
+        }
+
         Assert.NotEmpty(used);
 
         // Interpolated lookups such as L[$"role.{name}"] are skipped by the regex on purpose:
@@ -85,7 +113,7 @@ public sealed partial class LocalizationTests
 
         Assert.True(
             missing.Count == 0,
-            $"Views reference keys that are not in both catalogues: {string.Join(", ", missing)}");
+            $"Keys referenced but not in both catalogues: {string.Join(", ", missing)}");
     }
 
     /// <summary>

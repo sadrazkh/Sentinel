@@ -13,7 +13,7 @@
     <input type="hidden" asp-for="ConcurrencyToken" />
 
     <div class="stack">
-        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))">
+        <div class="form-row form-row--3">
             <div class="field">
                 <label class="field__label" asp-for="Kind">@L["admin.content.kind"]</label>
                 <select class="input" asp-for="Kind">
@@ -44,7 +44,7 @@
             </div>
         </div>
 
-        <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="form-row form-row--2">
             <div class="field">
                 <label class="field__label" asp-for="TitleFa">@L["admin.application.nameFa"]</label>
                 <input class="input" asp-for="TitleFa" maxlength="200" />
@@ -72,7 +72,7 @@
             <span>@L["admin.application.isEnabled"]</span>
         </label>
 
-        <div class="cluster">
+        <div class="form-actions">
             <button type="submit" class="btn btn--primary">@L["admin.save"]</button>
             <a class="btn btn--ghost" asp-action="Index" asp-route-productId="@Model.ProductId">
                 @L["common.cancel"]
