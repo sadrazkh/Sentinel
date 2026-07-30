@@ -1,0 +1,82 @@
+@using Sentinel.Web.Areas.Admin.Models
+@model CustomerServiceCreateViewModel
+@{
+    ViewData["Title"] = L["admin.service.add"].Value;
+
+    var errors = ViewData.ModelState
+        .SelectMany(entry => entry.Value!.Errors)
+        .Select(error => error.ErrorMessage)
+        .Where(message => !string.IsNullOrWhiteSpace(message))
+        .Distinct()
+        .ToList();
+
+    string Localize(string message) =>
+        message.StartsWith("validation.", StringComparison.Ordinal)
+        || message.StartsWith("admin.", StringComparison.Ordinal)
+            ? L[message].Value
+            : message;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@ViewData["Title"]</h1>
+        <p class="page-head__subtitle">@L["admin.service.add.subtitle"]</p>
+    </div>
+    <a class="btn btn--ghost btn--sm" asp-action="Index">@L["admin.back"]</a>
+</div>
+
+@if (errors.Count > 0)
+{
+    <div class="alert alert--danger" role="alert" style="margin-block-end:var(--space-6)">
+        <div>
+            @foreach (var error in errors)
+            {
+                <div>@Localize(error)</div>
+            }
+        </div>
+    </div>
+}
+
+@*
+    Two selects and a note. Everything else about the service — traffic, duration, devices, which
+    server, which inbound — comes from the plan row and the server selector, so there is nothing
+    here for an operator to set and nothing for a crafted post to override.
+*@
+<form method="post" asp-action="Create" class="card">
+    <div class="stack">
+        <div class="field">
+            <label class="field__label" asp-for="UserId">@L["admin.service.member"]</label>
+            <select class="input" asp-for="UserId" required>
+                <option value="">—</option>
+                @foreach (var member in Model.Members)
+                {
+                    <option value="@member.Id" selected="@(member.Id == Model.UserId)">@member.Label</option>
+                }
+            </select>
+            <p class="field__hint">@L["admin.service.member.hint", Model.PickerSize]</p>
+        </div>
+
+        <div class="field">
+            <label class="field__label" asp-for="PlanId">@L["admin.service.plan"]</label>
+            <select class="input" asp-for="PlanId" required>
+                <option value="">—</option>
+                @foreach (var plan in Model.Plans)
+                {
+                    <option value="@plan.Id" selected="@(plan.Id == Model.PlanId)">@plan.Label</option>
+                }
+            </select>
+            <p class="field__hint">@L["admin.service.plan.hint"]</p>
+        </div>
+
+        <div class="field">
+            <label class="field__label" asp-for="Notes">@L["admin.service.notes"]</label>
+            <textarea class="input" asp-for="Notes" rows="3"></textarea>
+            <p class="field__hint">@L["admin.service.notes.hint"]</p>
+        </div>
+
+        <div class="cluster">
+            <button type="submit" class="btn btn--primary">@L["admin.service.add"]</button>
+            <a class="btn btn--ghost" asp-action="Index">@L["action.cancel"]</a>
+        </div>
+    </div>
+</form>

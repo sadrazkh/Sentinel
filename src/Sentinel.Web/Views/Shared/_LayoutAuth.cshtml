@@ -62,7 +62,7 @@
                 @L["theme.toggle"]
             </button>
 
-            <form method="post" asp-controller="Home" asp-action="SetLanguage">
+            <form method="post" asp-area="" asp-controller="Home" asp-action="SetLanguage">
                 <input type="hidden" name="culture" value="@otherCulture" />
                 <input type="hidden" name="returnUrl" value="@currentPath" />
                 <button type="submit" class="btn btn--ghost btn--sm">@otherCultureLabel</button>

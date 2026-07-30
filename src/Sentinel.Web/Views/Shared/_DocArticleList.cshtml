@@ -12,7 +12,7 @@
 
         <li>
             <a class="doc-link"
-               asp-controller="Products" asp-action="Article"
+               asp-area="" asp-controller="Products" asp-action="Article"
                asp-route-key="@Model.ProductKey" asp-route-slug="@article.Slug">
                 <span class="doc-link__body">
                     <span class="doc-link__title">@(isPersian ? article.TitleFa : article.TitleEn)</span>

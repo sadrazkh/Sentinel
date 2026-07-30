@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sentinel.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Sentinel.Infrastructure.Persistence;
 namespace Sentinel.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SentinelDbContext))]
-    partial class SentinelDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260730054832_CustomerServices")]
+    partial class CustomerServices
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1202,10 +1205,6 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTimeOffset?>("DeliveryTokenIssuedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeliveryTokenSealed")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
 
                     b.Property<int>("DeviceLimit")
                         .HasColumnType("integer");

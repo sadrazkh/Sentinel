@@ -13,6 +13,27 @@ public static class PlanPresentation
 
     public static string RuleKindKey(AudienceRuleKind kind) => $"audienceKind.{Lower(kind)}";
 
+    public static string ServiceStatusKey(CustomerServiceStatus status) =>
+        $"serviceStatus.{Lower(status)}";
+
+    /// <summary>
+    /// The badge a service's status wears.
+    /// <para>
+    /// Three of the nine states are a customer's normal life (working, waiting, finished) and one —
+    /// <see cref="CustomerServiceStatus.NeedsAttention"/> — is the portal admitting it does not know.
+    /// That one is deliberately a warning rather than a danger: nothing is broken from the member's
+    /// side yet, and an alarming badge for "we are checking" is how a support queue fills up.
+    /// </para>
+    /// </summary>
+    public static string ServiceStatusBadgeClass(CustomerServiceStatus status) => status switch
+    {
+        CustomerServiceStatus.Active => "badge--success",
+        CustomerServiceStatus.Pending or CustomerServiceStatus.Provisioning => "badge--info",
+        CustomerServiceStatus.NeedsAttention => "badge--warning",
+        CustomerServiceStatus.Expired or CustomerServiceStatus.Exhausted => "badge--danger",
+        _ => "badge--neutral",
+    };
+
     /// <summary>
     /// A traffic allowance as a human quantity.
     /// <para>

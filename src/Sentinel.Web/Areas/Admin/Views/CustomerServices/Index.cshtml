@@ -1,0 +1,222 @@
+@using Sentinel.Vpn.Domain
+@using Sentinel.Web.Areas.Admin.Models
+@model CustomerServiceListViewModel
+@{
+    ViewData["Title"] = L["admin.service.title"].Value;
+
+    var statusMessage = TempData["StatusMessage"] as string;
+    var attention = Model.NeedingAttention;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.service.title"]</h1>
+        <p class="page-head__subtitle">@L["admin.service.subtitle"]</p>
+    </div>
+    @if (Model.CanWrite)
+    {
+        <a class="btn btn--primary btn--sm" asp-action="Create">@L["admin.service.add"]</a>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert alert--info" role="status">@statusMessage</div>
+}
+
+@if (attention.Count > 0)
+{
+    @* Surfaced above the list rather than left to be spotted in it. A service parked after an
+       unknown panel outcome is a customer in limbo, and it is precisely the state that disappears
+       into a long table of working ones. *@
+    <div class="alert alert--warning" role="status">
+        @L["admin.service.attention", attention.Count]
+    </div>
+}
+
+@if (Model.Services.Count == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3l7.5 3.5v5c0 4.4-3.1 8.3-7.5 9.5-4.4-1.2-7.5-5.1-7.5-9.5v-5z" />
+                    <path d="M9.5 12l1.8 1.8 3.4-3.6" />
+                </svg>
+            </div>
+            <p class="empty-state__title">@L["admin.service.empty.title"]</p>
+            <p class="empty-state__body">@L["admin.service.empty.body"]</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack stack--tight">
+        @foreach (var service in Model.Services)
+        {
+            <section class="card">
+                <div class="card__header">
+                    <div style="min-inline-size:0">
+                        <h2 class="card__title">@service.UserDisplayName</h2>
+                        <p class="card__hint">
+                            <span dir="ltr">@service.UserName</span>
+                            <span aria-hidden="true">·</span>
+                            @service.PlanNameEn
+                        </p>
+                    </div>
+
+                    <div class="cluster">
+                        @if (service.NeedsAttention)
+                        {
+                            <span class="badge badge--warning">@L["admin.service.needsAttention"]</span>
+                        }
+                        <span class="badge @PlanPresentation.ServiceStatusBadgeClass(service.Status)">
+                            @L[PlanPresentation.ServiceStatusKey(service.Status)]
+                        </span>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(service.LastError))
+                {
+                    @* Already redacted where it was recorded — the manager and the worker never write
+                       a raw exception, a URL or a token into this column. *@
+                    <p class="text-xs text-muted" style="margin-block-end:var(--space-4)">
+                        @service.LastError
+                    </p>
+                }
+
+                <dl class="detail-list">
+                    <div>
+                        <dt>@L["admin.service.server"]</dt>
+                        <dd dir="ltr">
+                            @(service.ServerKey ?? "—")
+                            @if (!string.IsNullOrEmpty(service.CountryCode))
+                            {
+                                <span class="badge badge--neutral badge--plain">@service.CountryCode</span>
+                            }
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>@L["admin.service.panelClient"]</dt>
+                        @* The opaque identifier this service has on the panel, not the member's
+                           address. An operator needs it to find the client in the panel's own UI. *@
+                        <dd dir="ltr" class="checksum">@(service.PanelClientEmail ?? "—")</dd>
+                    </div>
+                    <div>
+                        <dt>@L["vpn.service.used"]</dt>
+                        <dd dir="ltr">@ByteSize.Describe(service.UsedBytes)</dd>
+                    </div>
+                    <div>
+                        <dt>@L["vpn.service.allowance"]</dt>
+                        <dd dir="ltr">
+                            @(service.TrafficBytes <= 0
+                                ? L["plan.unlimited"].Value
+                                : ByteSize.Describe(service.TrafficBytes))
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>@L["vpn.service.expires"]</dt>
+                        <dd>
+                            @if (service.ExpiresAt is { } expires)
+                            {
+                                <time datetime="@UserTime.ToIso8601(expires)">
+                                    @UserTime.Format(expires, Model.TimeZoneId, "yyyy/MM/dd")
+                                </time>
+                            }
+                            else
+                            {
+                                <span class="text-muted">@L["vpn.service.noExpiry"]</span>
+                            }
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>@L["admin.service.pendingJobs"]</dt>
+                        <dd dir="ltr">@service.PendingJobCount</dd>
+                    </div>
+                    <div>
+                        <dt>@L["admin.service.lastSync"]</dt>
+                        <dd>
+                            @if (service.LastUsageSyncAt is { } synced)
+                            {
+                                <time datetime="@UserTime.ToIso8601(synced)">
+                                    @UserTime.Format(synced, Model.TimeZoneId)
+                                </time>
+                            }
+                            else
+                            {
+                                <span class="text-muted">@L["admin.vpn.neverChecked"]</span>
+                            }
+                        </dd>
+                    </div>
+                </dl>
+
+                @if (Model.CanWrite && service.Status != CustomerServiceStatus.Ended)
+                {
+                    <div class="cluster" style="margin-block-start:var(--space-4)">
+                        @if (service.Status == CustomerServiceStatus.Active)
+                        {
+                            <form method="post" asp-action="Suspend" asp-route-id="@service.Id">
+                                <button type="submit" class="btn btn--ghost btn--sm">
+                                    @L["admin.service.suspend"]
+                                </button>
+                            </form>
+                        }
+                        else if (service.Status == CustomerServiceStatus.Suspended)
+                        {
+                            <form method="post" asp-action="Resume" asp-route-id="@service.Id">
+                                <button type="submit" class="btn btn--ghost btn--sm">
+                                    @L["admin.service.resume"]
+                                </button>
+                            </form>
+                        }
+
+                        <form method="post" asp-action="Renew" asp-route-id="@service.Id" class="cluster">
+                            @* Bounded here and again in the manager. The number is the only thing an
+                               operator supplies; the new expiry is computed server-side from
+                               whichever is later, the current expiry or now. *@
+                            <input type="number"
+                                   class="input input--sm"
+                                   name="AdditionalDays"
+                                   value="30"
+                                   min="1"
+                                   max="3650"
+                                   inputmode="numeric"
+                                   dir="ltr"
+                                   style="inline-size:6rem"
+                                   aria-label="@L["admin.service.renewDays"]" />
+
+                            <button type="submit" class="btn btn--ghost btn--sm">
+                                @L["admin.service.renew"]
+                            </button>
+                        </form>
+
+                        <form method="post" asp-action="ResetTraffic" asp-route-id="@service.Id">
+                            <button type="submit"
+                                    class="btn btn--ghost btn--sm"
+                                    data-confirm="@L["admin.service.resetTrafficConfirm"]"
+                                    data-confirm-title="@L["admin.service.resetTraffic"]"
+                                    data-confirm-yes="@L["admin.service.resetTraffic"]"
+                                    data-confirm-no="@L["action.cancel"]">
+                                @L["admin.service.resetTraffic"]
+                            </button>
+                        </form>
+
+                        <form method="post" asp-action="Decommission" asp-route-id="@service.Id">
+                            @* The one action here that cannot be undone: the client is removed from
+                               the panel and the delivery link dies immediately. *@
+                            <button type="submit"
+                                    class="btn btn--danger btn--sm"
+                                    data-confirm="@L["admin.service.decommissionConfirm"]"
+                                    data-confirm-title="@L["admin.service.decommission"]"
+                                    data-confirm-yes="@L["admin.service.decommission"]"
+                                    data-confirm-no="@L["action.cancel"]">
+                                @L["admin.service.decommission"]
+                            </button>
+                        </form>
+                    </div>
+                }
+            </section>
+        }
+    </div>
+}

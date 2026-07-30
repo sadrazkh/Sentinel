@@ -24,7 +24,9 @@ using Sentinel.Web.Infrastructure;
 using Sentinel.Web.Localization;
 using Sentinel.Web.Security;
 using Sentinel.Vpn;
+using Sentinel.Vpn.Delivery;
 using Sentinel.Vpn.Panel;
+using Sentinel.Vpn.Provisioning;
 using Sentinel.Vpn.Persistence;
 using Sentinel.Infrastructure.Vpn;
 using Sentinel.Web.Services;
@@ -96,6 +98,11 @@ builder.Services.AddOptions<ThreeXUiOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services.AddOptions<ProvisioningOptions>()
+    .Bind(builder.Configuration.GetSection(ProvisioningOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 builder.Services.AddOptions<TelegramOptions>()
     .Bind(builder.Configuration.GetSection(TelegramOptions.SectionName))
     .ValidateDataAnnotations()
@@ -156,10 +163,11 @@ builder.Services.AddScoped<IPortalSignInService, PortalSignInService>();
 builder.Services.AddSentinelPersistence(databaseOptions);
 builder.Services.AddSentinelInfrastructure();
 
-// The VPN module registers its own services. Its credential protector lives in Infrastructure
-// because it needs the data-protection key ring, which the module deliberately does not reference.
+// The VPN module registers its own services. Both protectors live in Infrastructure because they
+// need the data-protection key ring, which the module deliberately does not reference.
 builder.Services.AddSentinelVpn();
 builder.Services.AddScoped<IPanelCredentialProtector, DataProtectionPanelCredentialProtector>();
+builder.Services.AddScoped<IDeliverySecretProtector, DataProtectionDeliverySecretProtector>();
 builder.Services.AddScoped<IVpnDbContext>(sp => sp.GetRequiredService<SentinelDbContext>());
 
 // The bot is optional. With no token configured the integration stays dormant: no polling, no

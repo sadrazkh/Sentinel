@@ -40,7 +40,7 @@
 <a class="visually-hidden" href="#main-content">@L["nav.skipToContent"]</a>
 
 <header class="landing__header">
-    <a class="brand" asp-controller="Home" asp-action="Index">
+    <a class="brand" asp-area="" asp-controller="Home" asp-action="Index">
         <span class="brand__mark" aria-hidden="true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
@@ -69,13 +69,13 @@
             </svg>
         </button>
 
-        <form method="post" asp-controller="Home" asp-action="SetLanguage">
+        <form method="post" asp-area="" asp-controller="Home" asp-action="SetLanguage">
             <input type="hidden" name="culture" value="@otherCulture" />
             <input type="hidden" name="returnUrl" value="@currentPath" />
             <button type="submit" class="btn btn--ghost btn--sm">@otherCultureLabel</button>
         </form>
 
-        <a class="btn btn--primary btn--sm" asp-controller="Account" asp-action="Login">
+        <a class="btn btn--primary btn--sm" asp-area="" asp-controller="Account" asp-action="Login">
             @L["landing.signIn"]
         </a>
     </div>

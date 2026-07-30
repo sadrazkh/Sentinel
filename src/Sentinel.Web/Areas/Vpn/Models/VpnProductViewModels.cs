@@ -1,6 +1,7 @@
 using Sentinel.Application.Products;
 using Sentinel.Application.Subscriptions;
 using Sentinel.Vpn.Plans;
+using Sentinel.Vpn.Provisioning;
 
 namespace Sentinel.Web.Areas.Vpn.Models;
 
@@ -23,10 +24,24 @@ public sealed class VpnProductViewModel
     public required ServicePlanCatalog Plans { get; init; }
 
     /// <summary>
-    /// The member's own services. Today these are their external subscription links; managed
-    /// services provisioned against a panel join this list in the provisioning phase.
+    /// Services this portal provisions and operates on a panel. These carry a delivery URL the
+    /// portal issued, so the member never sees a panel address.
+    /// </summary>
+    public required IReadOnlyList<CustomerServiceView> ManagedServices { get; init; }
+
+    /// <summary>
+    /// External subscription links the member registered themselves. Kept separate from
+    /// <see cref="ManagedServices"/> rather than merged into one list: the portal can act on one and
+    /// only read the other, and a single list would invite a page that offers actions it cannot do.
     /// </summary>
     public required IReadOnlyList<SubscriptionView> Services { get; init; }
+
+    /// <summary>
+    /// The base URL a delivery link is built from — scheme and authority only, taken from the current
+    /// request. Composed in the view rather than stored, so one deployment's links never leak a
+    /// hostname from another.
+    /// </summary>
+    public required string DeliveryBaseUrl { get; init; }
 
     public required ProductPageContent Content { get; init; }
 

@@ -25,5 +25,23 @@ public interface IVpnDbContext
 
     DbSet<PlanAudienceRule> PlanAudienceRules { get; }
 
+    DbSet<CustomerService> CustomerServices { get; }
+
+    DbSet<ServiceInboundBinding> ServiceInboundBindings { get; }
+
+    DbSet<ProvisioningJob> ProvisioningJobs { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Re-reads a tracked entity from the database, discarding local changes.
+    /// <para>
+    /// Needed after a concurrency conflict: the tracked copy still carries the original token, so
+    /// retrying with it would resubmit the same losing UPDATE. Exposed here rather than casting the
+    /// interface back to <c>DbContext</c> at the call site, which would defeat the point of having a
+    /// narrow contract.
+    /// </para>
+    /// </summary>
+    Task ReloadAsync<TEntity>(TEntity entity, CancellationToken cancellationToken = default)
+        where TEntity : class;
 }

@@ -12,7 +12,10 @@ public enum VpnProductTab
     /// <summary>What the product is, and the plans on offer.</summary>
     Overview = 0,
 
-    /// <summary>The member's own services. Today: their external subscription links.</summary>
+    /// <summary>
+    /// The member's own services — both the ones this portal provisions on a panel and the external
+    /// subscription links they registered themselves.
+    /// </summary>
     Services = 1,
 
     /// <summary>The individual configurations behind those services.</summary>

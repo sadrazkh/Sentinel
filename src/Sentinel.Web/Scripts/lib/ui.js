@@ -144,3 +144,39 @@ export function bindConfirmables(root = document) {
     });
   });
 }
+
+/**
+ * Wires any element carrying data-copy to the clipboard.
+ *
+ * The value is read from the attribute rather than from a sibling's text, so a page can offer a
+ * masked display and still copy the whole thing — which is what the subscription link does.
+ *
+ * navigator.clipboard is unavailable on an insecure origin and can be refused by the user, so a
+ * failure is reported rather than swallowed: silently doing nothing would leave somebody pasting
+ * whatever was on their clipboard before into a VPN client.
+ */
+export function bindCopyables(root = document) {
+  root.querySelectorAll('[data-copy]').forEach((element) => {
+    if (element.dataset.copyBound === 'true') {
+      return;
+    }
+
+    element.dataset.copyBound = 'true';
+
+    element.addEventListener('click', async () => {
+      const value = element.getAttribute('data-copy');
+      if (!value) {
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(value);
+        toast(element.dataset.copyDone || 'Copied', { variant: 'success' });
+      } catch {
+        // No message from the exception: it can carry the page's own URL, and this one is a
+        // capability. The member is told what to do instead.
+        toast(element.dataset.copyFailed || 'Copy failed', { variant: 'warning' });
+      }
+    });
+  });
+}

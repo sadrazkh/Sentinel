@@ -24,13 +24,13 @@
 
     @if (isAuthenticated)
     {
-        <a class="btn btn--outline btn--block" asp-controller="Dashboard" asp-action="Index">
+        <a class="btn btn--outline btn--block" asp-area="" asp-controller="Dashboard" asp-action="Index">
             @L["common.backToDashboard"]
         </a>
     }
     else
     {
-        <a class="btn btn--outline btn--block" asp-controller="Account" asp-action="Login">
+        <a class="btn btn--outline btn--block" asp-area="" asp-controller="Account" asp-action="Login">
             @L["common.backToLogin"]
         </a>
     }

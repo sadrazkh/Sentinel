@@ -69,6 +69,17 @@ public class SentinelDbContext
 
     public DbSet<PlanAudienceRule> PlanAudienceRules => Set<PlanAudienceRule>();
 
+    public DbSet<CustomerService> CustomerServices => Set<CustomerService>();
+
+    public DbSet<ServiceInboundBinding> ServiceInboundBindings => Set<ServiceInboundBinding>();
+
+    public DbSet<ProvisioningJob> ProvisioningJobs => Set<ProvisioningJob>();
+
+    /// <summary>Satisfies <see cref="IVpnDbContext.ReloadAsync{TEntity}"/>.</summary>
+    public Task ReloadAsync<TEntity>(TEntity entity, CancellationToken cancellationToken = default)
+        where TEntity : class =>
+        Entry(entity).ReloadAsync(cancellationToken);
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

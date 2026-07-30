@@ -13,6 +13,13 @@
 
     var unlimited = L["plan.unlimited"].Value;
     var free = L["plan.free"].Value;
+
+    var statusMessage = TempData["StatusMessage"] as string;
+}
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert alert--info" role="status">@statusMessage</div>
 }
 
 <nav class="breadcrumb" aria-label="@L["nav.breadcrumb"]">

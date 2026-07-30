@@ -1,14 +1,17 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 using Sentinel.Application.Accounts;
 using Sentinel.Application.Authorization;
 using Sentinel.Application.Features;
 using Sentinel.Application.Products;
 using Sentinel.Application.Subscriptions;
 using Sentinel.Vpn.Plans;
+using Sentinel.Vpn.Provisioning;
 using Sentinel.Web.Areas.Vpn.Models;
 using Sentinel.Web.Infrastructure;
+using Sentinel.Web.Localization;
 using Sentinel.Web.Security;
 
 namespace Sentinel.Web.Areas.Vpn.Controllers;
@@ -31,24 +34,33 @@ public sealed class ServicesController : Controller
     private readonly IProductLibraryService _library;
     private readonly IProductContentService _content;
     private readonly IServicePlanCatalog _plans;
+    private readonly ICustomerServiceQuery _services;
+    private readonly ICustomerServiceManager _manager;
     private readonly ISubscriptionService _subscriptions;
     private readonly IAccountOverviewQuery _accountOverview;
     private readonly IFeatureGate _features;
+    private readonly IStringLocalizer<SharedResource> _localizer;
 
     public ServicesController(
         IProductLibraryService library,
         IProductContentService content,
         IServicePlanCatalog plans,
+        ICustomerServiceQuery services,
+        ICustomerServiceManager manager,
         ISubscriptionService subscriptions,
         IAccountOverviewQuery accountOverview,
-        IFeatureGate features)
+        IFeatureGate features,
+        IStringLocalizer<SharedResource> localizer)
     {
         _library = library;
         _content = content;
         _plans = plans;
+        _services = services;
+        _manager = manager;
         _subscriptions = subscriptions;
         _accountOverview = accountOverview;
         _features = features;
+        _localizer = localizer;
     }
 
     /// <summary>
@@ -94,6 +106,12 @@ public sealed class ServicesController : Controller
         var content = await _content.GetPageContentAsync(userId, key, cancellationToken);
         var plans = await _plans.GetForMemberAsync(userId, detail.Card.Id, cancellationToken);
 
+        // Services this portal provisions, scoped to this product and this member by the query
+        // itself. Always read: unlike the external links below, these are the portal's own records
+        // and cost one indexed query, not a round trip to somebody else's server.
+        var managed = await _services.GetForUserAndProductAsync(
+            userId, detail.Card.Id, cancellationToken);
+
         // The member's external subscription links. Read without forcing a refresh: opening a page
         // must not make the server reach out to every upstream the member has registered.
         var services = _features.IsEnabled(FeatureNames.ExternalSubscriptions)
@@ -102,7 +120,10 @@ public sealed class ServicesController : Controller
 
         var availability = new VpnTabAvailability(
             plans.HasPlans,
-            services.Count,
+            managed.Count + services.Count,
+
+            // A managed service's configurations live on the panel and are fetched through the
+            // delivery URL, not held here — so it contributes its link, not a config count.
             services.Sum(service => service.Configs.Count),
             content.Downloads.Count,
             content.TotalArticleCount);
@@ -124,11 +145,49 @@ public sealed class ServicesController : Controller
             ActiveTab = requested,
             Tabs = availability,
             Plans = plans,
+            ManagedServices = managed,
             Services = services,
+
+            // Built from the live request rather than configuration: behind a reverse proxy the
+            // forwarded-headers middleware has already corrected these, and hard-coding a host is
+            // how a staging deployment ends up handing out production links.
+            DeliveryBaseUrl = $"{Request.Scheme}://{Request.Host}",
             Content = content,
             TimeZoneId = overview?.TimeZoneId ?? UserTime.DefaultTimeZoneId,
             SelfServiceEnabled = _features.IsEnabled(FeatureNames.VpnSelfService),
         });
+    }
+
+    /// <summary>
+    /// Issues a fresh delivery URL for one of the member's own services.
+    /// <para>
+    /// The only remedy once a subscription URL has leaked, so it is offered to the member rather than
+    /// kept behind a support request. The service id comes from the form, but ownership is re-checked
+    /// in the manager against the signed-in user — the form value decides nothing on its own.
+    /// </para>
+    /// </summary>
+    [HttpPost("link/rotate")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RotateLink(
+        string key,
+        Guid serviceId,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Forbid();
+        }
+
+        var result = await _manager.RotateDeliveryTokenAsync(serviceId, userId, cancellationToken);
+
+        // The new token is deliberately not carried in the redirect. A query string or fragment
+        // lands in browser history, in a proxy log and in the next request's referrer — and this
+        // value is the credential. The redirected page re-reads it from the sealed copy instead.
+        TempData["StatusMessage"] = result.Succeeded
+            ? _localizer["vpn.service.link.rotated"].Value
+            : _localizer[result.ErrorKey ?? ServiceErrors.NotFound].Value;
+
+        return RedirectToAction(nameof(Index), new { key, tab = "services" });
     }
 
     private bool TryGetUserId(out Guid userId) =>

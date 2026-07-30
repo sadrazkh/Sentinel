@@ -5,7 +5,7 @@
  */
 
 import { applyTheme, cycleTheme, getTheme } from './lib/theme.js';
-import { bindConfirmables, confirmDialog, toast } from './lib/ui.js';
+import { bindConfirmables, bindCopyables, confirmDialog, toast } from './lib/ui.js';
 import { http } from './lib/http.js';
 
 const THEME_LABEL_ATTRIBUTES = {
@@ -57,6 +57,7 @@ function boot() {
   initThemeToggle();
   initTimestamps();
   bindConfirmables();
+  bindCopyables();
 }
 
 if (document.readyState === 'loading') {

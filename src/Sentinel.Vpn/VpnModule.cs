@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Sentinel.Vpn.Panel;
+using Sentinel.Vpn.Delivery;
 using Sentinel.Vpn.Plans;
+using Sentinel.Vpn.Provisioning;
 using Sentinel.Vpn.Servers;
 
 namespace Sentinel.Vpn;
@@ -30,8 +32,18 @@ public static class VpnModule
         services.AddScoped<IServicePlanAdminService, ServicePlanAdminService>();
         services.AddScoped<IServicePlanAdminQuery, ServicePlanAdminQuery>();
 
+        services.AddScoped<ICapacityService, CapacityService>();
+        services.AddScoped<ICustomerServiceManager, CustomerServiceManager>();
+        services.AddScoped<ICustomerServiceQuery, CustomerServiceQuery>();
+        services.AddScoped<IProvisioningExecutor, ProvisioningExecutor>();
+        services.AddScoped<IReconciliationService, ReconciliationService>();
+        services.AddScoped<IDeliveryService, DeliveryService>();
+
         // Moves a dead panel out of selection before a customer's provisioning meets it.
         services.AddHostedService<ServerHealthService>();
+
+        // Runs the queued panel work, resolves unknown outcomes, and pulls traffic counters.
+        services.AddHostedService<ProvisioningBackgroundService>();
 
         return services;
     }

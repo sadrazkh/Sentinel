@@ -511,4 +511,15 @@ public static class VpnAuditActions
     public const string PlanDeleted = "vpn.plan.deleted";
     public const string PlanRuleAdded = "vpn.plan.rule.added";
     public const string PlanRuleRemoved = "vpn.plan.rule.removed";
+
+    public const string ServiceCreated = "vpn.service.created";
+    public const string ServiceProvisioned = "vpn.service.provisioned";
+    public const string ServiceSuspended = "vpn.service.suspended";
+    public const string ServiceResumed = "vpn.service.resumed";
+    public const string ServiceRenewed = "vpn.service.renewed";
+    public const string ServiceTrafficReset = "vpn.service.traffic.reset";
+    public const string ServiceDecommissioned = "vpn.service.decommissioned";
+    public const string ServiceLinkRotated = "vpn.service.link.rotated";
+    public const string ServiceNeedsAttention = "vpn.service.needsAttention";
+    public const string ServiceReconciled = "vpn.service.reconciled";
 }
