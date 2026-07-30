@@ -118,6 +118,55 @@ public static class PhoneNumberNormalizer
     /// Maps ASCII, Persian (U+06F0–U+06F9) and Arabic-Indic (U+0660–U+0669) digits to ASCII.
     /// A Persian keyboard produces the first two interchangeably.
     /// </summary>
+    /// <summary>
+    /// The digits of a partial phone number, ready to match against a stored E.164 value.
+    /// <para>
+    /// Searching needs something <see cref="Normalize"/> cannot give it: a term like "0912" is not
+    /// a phone number — too short to canonicalise — yet it is exactly what somebody types to find
+    /// one. Matching it literally fails, because the stored form is "+989120000001" and contains no
+    /// "0912" anywhere.
+    /// </para>
+    /// <para>
+    /// So this keeps only digits, maps Persian and Arabic ones to ASCII, and drops the national
+    /// trunk prefix that the stored form does not carry. "0912" becomes "912", which is a substring
+    /// of the stored number; "+98912" becomes "98912", which also is.
+    /// </para>
+    /// <para>
+    /// Returns <c>null</c> when the term has no digits — a name, an address — so the caller knows
+    /// not to add a phone clause at all.
+    /// </para>
+    /// </summary>
+    public static string? ToSearchFragment(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        var digits = new StringBuilder(input.Length);
+
+        foreach (var character in input)
+        {
+            if (MapDigit(character) is { } mapped)
+            {
+                digits.Append(mapped);
+            }
+        }
+
+        var raw = digits.ToString();
+
+        // Trim the prefixes a stored E.164 number does not have: the international "00" and the
+        // national trunk "0". Only one of them, and only at the front.
+        var trimmed = raw switch
+        {
+            ['0', '0', .. var international] => international,
+            ['0', .. var national] => national,
+            _ => raw,
+        };
+
+        return trimmed.Length == 0 ? null : trimmed;
+    }
+
     private static char? MapDigit(char character) => character switch
     {
         >= '0' and <= '9' => character,

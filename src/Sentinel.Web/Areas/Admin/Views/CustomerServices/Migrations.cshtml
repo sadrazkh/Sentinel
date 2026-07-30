@@ -85,7 +85,7 @@ else
                 @if (!string.IsNullOrWhiteSpace(migration.LastError))
                 {
                     @* Already redacted where it was recorded — never a raw exception or a URL. *@
-                    <p class="text-xs text-muted" style="margin-block-end:var(--space-4)">
+                    <p class="text-xs text-muted bidi" dir="auto" style="margin-block-end:var(--space-4)">
                         @migration.LastError
                     </p>
                 }

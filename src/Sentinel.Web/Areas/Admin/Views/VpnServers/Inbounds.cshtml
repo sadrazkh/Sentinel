@@ -110,7 +110,7 @@
     @if (Model.DiscoveryError is { } error)
     {
         <div class="alert alert--danger" role="alert">
-            <span>@error</span>
+            <span class="bidi" dir="auto">@error</span>
         </div>
     }
     else if (Model.Discovered is { } discovered)

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sentinel.Application.Identity;
 using Sentinel.Application.Common;
 using Sentinel.Application.Memberships;
 using Sentinel.Application.Security;
@@ -49,11 +50,22 @@ public sealed class UserAdminQuery : IUserAdminQuery
             // wildcards only is safe because the term itself stays a parameter.
             var pattern = $"%{EscapeLike(search)}%";
 
-            query = query.Where(u =>
-                EF.Functions.Like(u.UserName!, pattern)
-                || EF.Functions.Like(u.DisplayName, pattern)
-                || EF.Functions.Like(u.Email!, pattern)
-                || EF.Functions.Like(u.NormalizedPhoneNumber!, pattern));
+            // A phone number is stored in E.164 ("+989120000001"), which is not what anyone types.
+            // Matching the raw term against it finds nothing for "0912…" — the leading zero is a
+            // national trunk prefix the stored form does not carry — so the digits are reduced to
+            // the form that can actually match. Null when the term has no digits at all.
+            var phone = PhoneNumberNormalizer.ToSearchFragment(search);
+
+            query = phone is null
+                ? query.Where(u =>
+                    EF.Functions.Like(u.UserName!, pattern)
+                    || EF.Functions.Like(u.DisplayName, pattern)
+                    || EF.Functions.Like(u.Email!, pattern))
+                : query.Where(u =>
+                    EF.Functions.Like(u.UserName!, pattern)
+                    || EF.Functions.Like(u.DisplayName, pattern)
+                    || EF.Functions.Like(u.Email!, pattern)
+                    || EF.Functions.Like(u.NormalizedPhoneNumber!, $"%{EscapeLike(phone)}%"));
         }
 
         if (request.Status is { } status)

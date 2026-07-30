@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Sentinel.Application.Identity;
 using Sentinel.Application.Abstractions;
 using Sentinel.Application.Auditing;
 using Sentinel.Application.Billing;
@@ -102,10 +103,21 @@ public sealed class WalletService : IWalletService
 
         if (search is not null)
         {
-            members = members.Where(user =>
-                user.UserName!.Contains(search)
-                || user.DisplayName.Contains(search)
-                || (user.Email != null && user.Email.Contains(search)));
+            // Same reduction the user admin uses: a stored number is E.164, so "0912…" has to lose
+            // its trunk prefix before it can match anything.
+            var phone = PhoneNumberNormalizer.ToSearchFragment(search);
+
+            members = phone is null
+                ? members.Where(user =>
+                    user.UserName!.Contains(search)
+                    || user.DisplayName.Contains(search)
+                    || (user.Email != null && user.Email.Contains(search)))
+                : members.Where(user =>
+                    user.UserName!.Contains(search)
+                    || user.DisplayName.Contains(search)
+                    || (user.Email != null && user.Email.Contains(search))
+                    || (user.NormalizedPhoneNumber != null
+                        && user.NormalizedPhoneNumber.Contains(phone)));
         }
 
         var rows = await members

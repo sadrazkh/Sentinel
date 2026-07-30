@@ -85,8 +85,11 @@ public sealed class ThreeXUiClient : IThreeXUiClient, IDisposable
         PanelEndpoint endpoint,
         CancellationToken cancellationToken = default)
     {
+        // GET, not POST. The panel registers this one with g.GET("/status"), and a POST to it is
+        // routed as "no such path" — which surfaced as "check the base path" on a panel whose base
+        // path was perfectly correct and whose inbound calls were already working.
         var status = await SendAsync<JsonElement>(
-            endpoint, HttpMethod.Post, StatusPath, null, cancellationToken);
+            endpoint, HttpMethod.Get, StatusPath, null, cancellationToken);
 
         if (!status.IsSuccess)
         {

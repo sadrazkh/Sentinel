@@ -80,7 +80,7 @@ else
                                 @L[PlanPresentation.WalletKindKey(entry.Kind)]
                                 @if (!string.IsNullOrWhiteSpace(entry.Description))
                                 {
-                                    <span class="text-muted"> — @entry.Description</span>
+                                    <span class="text-muted bidi" dir="auto"> — @entry.Description</span>
                                 }
                             </td>
                             <td dir="ltr" class="@(isCredit ? "text-success" : null)">

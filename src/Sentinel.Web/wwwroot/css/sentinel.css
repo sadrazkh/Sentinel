@@ -1749,6 +1749,20 @@ textarea.input {
 .form-actions__spacer { margin-inline-start: auto; }
 
 /*
+  Text whose direction the page cannot know: a panel's error message, a hostname, a member's own
+  note, anything a machine or another person wrote.
+
+  Without isolation the *paragraph's* direction decides where trailing punctuation lands, so an
+  English sentence inside a Persian page renders as ".The panel did not answer" with the full stop
+  leading — which is what "the text runs together" looks like. Pair with dir="auto" so the browser
+  picks the run's direction from its first strong character; `isolate` then stops that run from
+  reordering against whatever sits beside it.
+*/
+.bidi {
+  unicode-bidi: isolate;
+}
+
+/*
   One switch and what it does: an explanation on one side, the controls on the other.
 
   A row rather than a card each. These are read as a list — an operator scans for the one that is

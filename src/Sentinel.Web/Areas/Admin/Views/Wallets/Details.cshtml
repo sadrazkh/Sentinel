@@ -52,7 +52,7 @@
 
     @if (wallet?.IsFrozen == true && !string.IsNullOrWhiteSpace(wallet.FrozenReason))
     {
-        <p class="text-xs text-muted">@wallet.FrozenReason</p>
+        <p class="text-xs text-muted bidi" dir="auto">@wallet.FrozenReason</p>
     }
 
     @if (Model.CanWrite)
@@ -164,7 +164,7 @@ else
                                 }
                                 @if (!string.IsNullOrWhiteSpace(entry.Description))
                                 {
-                                    <span class="text-muted"> — @entry.Description</span>
+                                    <span class="text-muted bidi" dir="auto"> — @entry.Description</span>
                                 }
                             </td>
                             <td dir="ltr">

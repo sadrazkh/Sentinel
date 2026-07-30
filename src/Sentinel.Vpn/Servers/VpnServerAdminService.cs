@@ -474,7 +474,16 @@ public sealed class VpnServerAdminService : IVpnServerAdminService
     {
         PanelOutcome.Unauthorized => "The panel refused the API token.",
         PanelOutcome.Blocked => "The panel address is not allowed.",
-        PanelOutcome.NotFound => "The panel did not recognise the API path. Check the base path.",
+
+        // 3x-ui answers 404 to an unauthenticated API call as well as to an unknown path — it will
+        // not confirm that an endpoint exists to a caller it has not authenticated. So this message
+        // names the likelier cause first. Telling an operator to check a base path that is perfectly
+        // correct, when the real problem is a token, costs an afternoon.
+        PanelOutcome.NotFound =>
+            "The panel answered 404. Most often the API token is wrong, missing, or has been "
+            + "regenerated — the panel returns 404 rather than 401 to an unauthenticated API call. "
+            + "Failing that, check the base path in the address.",
+
         PanelOutcome.UnknownOutcome => "The panel did not answer.",
         _ => message ?? "The panel refused the request.",
     };

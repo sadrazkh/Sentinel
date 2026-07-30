@@ -36,6 +36,65 @@ public sealed class ThreeXUiClientTests
         IpLimit: 2,
         Enabled: true);
 
+    // ---------------------------------------------------------------- the panel's verbs ----
+
+    [Theory]
+    // Every route the portal calls, with the method the panel's own OpenAPI document declares.
+    // Pinned as a table because getting one wrong is invisible in code review and produces a 404
+    // the panel describes as an unknown path — which sends an operator to check a base path that
+    // was never wrong. That is exactly what a POST to this GET-only status route did.
+    [InlineData("GET", "panel/api/server/status")]
+    [InlineData("GET", "panel/api/inbounds/list/slim")]
+    public async Task The_portal_calls_each_route_with_the_method_the_panel_registers(
+        string expectedMethod,
+        string path)
+    {
+        await using var panel = FakePanel.Start();
+
+        panel.Handlers[path] = _ => PanelReply.Ok(
+            path.Contains("inbounds", StringComparison.Ordinal)
+                ? Array.Empty<object>()
+                : new { xray = new { state = "running" } });
+
+        // getXrayVersion is called alongside status and is allowed to fail; the assertion below
+        // looks only at the route under test.
+        panel.Handlers["panel/api/server/getXrayVersion"] = _ => PanelReply.Ok("25.1.1");
+
+        using var client = CreateClient();
+
+        if (path.Contains("inbounds", StringComparison.Ordinal))
+        {
+            await client.ListInboundsAsync(EndpointFor(panel));
+        }
+        else
+        {
+            await client.GetStatusAsync(EndpointFor(panel));
+        }
+
+        var call = panel.Requests.Single(request => request.Path.EndsWith(path, StringComparison.Ordinal));
+
+        Assert.Equal(expectedMethod, call.Method);
+    }
+
+    [Fact]
+    public async Task A_healthy_panel_reports_xray_running()
+    {
+        // The whole probe path, end to end: status is read, its shape is parsed, and the server
+        // comes back healthy. This is what a wrong verb silently prevented.
+        await using var panel = FakePanel.Start();
+
+        panel.Handlers["panel/api/server/status"] =
+            _ => PanelReply.Ok(new { xray = new { state = "running" } });
+
+        panel.Handlers["panel/api/server/getXrayVersion"] = _ => PanelReply.Ok("25.1.1");
+
+        using var client = CreateClient();
+        var result = await client.GetStatusAsync(EndpointFor(panel));
+
+        Assert.True(result.IsSuccess, result.Message);
+        Assert.True(result.Value!.XrayRunning);
+    }
+
     // ------------------------------------------------------------------ authentication ----
 
     [Fact]
