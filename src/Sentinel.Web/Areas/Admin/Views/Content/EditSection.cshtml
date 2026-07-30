@@ -1,0 +1,82 @@
+@using Sentinel.Application.Content
+@using Sentinel.Domain.Products
+@using Sentinel.Web.Areas.Admin.Models
+@model SectionEditViewModel
+@{
+    ViewData["Title"] = Model.IsNew ? L["admin.content.addSection"].Value : L["admin.content.sections"].Value;
+}
+
+<partial name="_ContentFormHead" model="@(new ContentFormHead(ViewData["Title"] as string ?? string.Empty, Model.ProductId))" />
+
+<form method="post" asp-action="SaveSection" asp-route-productId="@Model.ProductId" class="card">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="ConcurrencyToken" />
+
+    <div class="stack">
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))">
+            <div class="field">
+                <label class="field__label" asp-for="Kind">@L["admin.content.kind"]</label>
+                <select class="input" asp-for="Kind">
+                    @foreach (var kind in Enum.GetValues<ProductSectionKind>())
+                    {
+                        <option value="@kind" selected="@(Model.Kind == kind)">
+                            @L[ProductPresentation.SectionKindKey(kind)]
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="Visibility">@L["admin.content.visibility"]</label>
+                <select class="input" asp-for="Visibility">
+                    @foreach (var visibility in Enum.GetValues<ContentVisibility>())
+                    {
+                        <option value="@visibility" selected="@(Model.Visibility == visibility)">
+                            @L[ProductPresentation.VisibilityKey(visibility)]
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="DisplayOrder">@L["admin.application.displayOrder"]</label>
+                <input class="input" asp-for="DisplayOrder" type="number" min="0" max="10000" dir="ltr" />
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+                <label class="field__label" asp-for="TitleFa">@L["admin.application.nameFa"]</label>
+                <input class="input" asp-for="TitleFa" maxlength="200" />
+            </div>
+            <div class="field">
+                <label class="field__label" asp-for="TitleEn">@L["admin.application.nameEn"]</label>
+                <input class="input" asp-for="TitleEn" dir="ltr" maxlength="200" />
+            </div>
+        </div>
+
+        <p class="text-xs text-muted">@L[RichTextRenderer.SyntaxHelpKey]</p>
+
+        <div class="field">
+            <label class="field__label" asp-for="MarkupFa">@L["admin.content.markupFa"]</label>
+            <textarea class="input input--code" asp-for="MarkupFa" rows="10" maxlength="20000"></textarea>
+        </div>
+
+        <div class="field">
+            <label class="field__label" asp-for="MarkupEn">@L["admin.content.markupEn"]</label>
+            <textarea class="input input--code" asp-for="MarkupEn" rows="10" maxlength="20000" dir="ltr"></textarea>
+        </div>
+
+        <label class="checkbox">
+            <input type="checkbox" asp-for="IsVisible" />
+            <span>@L["admin.application.isEnabled"]</span>
+        </label>
+
+        <div class="cluster">
+            <button type="submit" class="btn btn--primary">@L["admin.save"]</button>
+            <a class="btn btn--ghost" asp-action="Index" asp-route-productId="@Model.ProductId">
+                @L["common.cancel"]
+            </a>
+        </div>
+    </div>
+</form>

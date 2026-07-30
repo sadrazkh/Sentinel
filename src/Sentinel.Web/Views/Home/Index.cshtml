@@ -1,0 +1,100 @@
+@{
+    Layout = "_LayoutLanding";
+    ViewData["Title"] = L["landing.title"].Value;
+}
+
+@*
+    The portal's front door.
+
+    Deliberately plain HTML with no island and no data of its own: this is the one page an
+    unauthenticated visitor reaches, so it must render on a cold cache with scripting unavailable.
+    It also says nothing about which products exist — the catalogue is behind the sign-in, and
+    listing it here would leak what is being sold to whom.
+*@
+
+<section class="hero">
+    <div class="hero__body">
+        <span class="badge badge--accent">@L["landing.eyebrow"]</span>
+
+        <h1 class="hero__title">@L["landing.headline"]</h1>
+        <p class="hero__lede">@L["landing.lede"]</p>
+
+        <div class="cluster hero__actions">
+            <a class="btn btn--primary" asp-controller="Account" asp-action="Login">
+                @L["landing.cta.primary"]
+            </a>
+            <a class="btn btn--secondary" href="#what-you-get">@L["landing.cta.secondary"]</a>
+        </div>
+
+        <p class="hero__note">@L["landing.inviteOnly"]</p>
+    </div>
+</section>
+
+<section id="what-you-get" class="landing__section">
+    <h2 class="landing__sectionTitle">@L["landing.features.title"]</h2>
+
+    <div class="grid grid--cards">
+        <article class="feature">
+            <span class="feature__icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3.5" y="3.5" width="7" height="7" rx="2" />
+                    <rect x="13.5" y="3.5" width="7" height="7" rx="2" />
+                    <rect x="3.5" y="13.5" width="7" height="7" rx="2" />
+                    <rect x="13.5" y="13.5" width="7" height="7" rx="2" />
+                </svg>
+            </span>
+            <h3 class="feature__title">@L["landing.feature.library.title"]</h3>
+            <p class="feature__body">@L["landing.feature.library.body"]</p>
+        </article>
+
+        <article class="feature">
+            <span class="feature__icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2.5 4.5 5.8v5.4c0 4.6 3.2 8.9 7.5 10.3 4.3-1.4 7.5-5.7 7.5-10.3V5.8z" />
+                    <path d="m9.2 12.1 2 2 3.6-3.9" />
+                </svg>
+            </span>
+            <h3 class="feature__title">@L["landing.feature.access.title"]</h3>
+            <p class="feature__body">@L["landing.feature.access.body"]</p>
+        </article>
+
+        <article class="feature">
+            <span class="feature__icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="8.5" />
+                    <path d="M12 7.5V12l3 2" />
+                </svg>
+            </span>
+            <h3 class="feature__title">@L["landing.feature.membership.title"]</h3>
+            <p class="feature__body">@L["landing.feature.membership.body"]</p>
+        </article>
+
+        <article class="feature">
+            <span class="feature__icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 4.5h9l5 5V19a.5.5 0 0 1-.5.5h-13A.5.5 0 0 1 5 19z" />
+                    <path d="M14 4.5V9a.5.5 0 0 0 .5.5H19" />
+                    <path d="M8.5 13h7M8.5 16h4" />
+                </svg>
+            </span>
+            <h3 class="feature__title">@L["landing.feature.docs.title"]</h3>
+            <p class="feature__body">@L["landing.feature.docs.body"]</p>
+        </article>
+    </div>
+</section>
+
+<section class="landing__section">
+    <div class="card callout">
+        <div>
+            <h2 class="card__title">@L["landing.access.title"]</h2>
+            <p class="card__hint">@L["landing.access.body"]</p>
+        </div>
+        <a class="btn btn--primary" asp-controller="Account" asp-action="Login">
+            @L["landing.cta.primary"]
+        </a>
+    </div>
+</section>

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Sentinel.Application.Abstractions;
+using Sentinel.Application.Products;
 using Sentinel.Domain.Products;
 using Sentinel.Domain.Common;
 using Sentinel.Domain.Entitlements;
@@ -182,6 +183,91 @@ public static class PortalTestData
             await db.SaveChangesAsync();
 
             return category.Id;
+        });
+
+    /// <summary>
+    /// Adds a page section through the real admin service, so the stored HTML is produced by the
+    /// same renderer the running application uses — a hand-written row would let a test pass
+    /// against markup that the save path would never actually produce.
+    /// </summary>
+    public static Task<Guid> AddSectionAsync(
+        this SentinelWebApplicationFactory factory,
+        Guid productId,
+        ContentVisibility visibility = ContentVisibility.Public,
+        string? markupFa = null,
+        string? markupEn = null,
+        ProductSectionKind kind = ProductSectionKind.Text,
+        int displayOrder = 100) =>
+        factory.WithScopeAsync(async services =>
+        {
+            var admin = services.GetRequiredService<IProductContentAdminService>();
+
+            var result = await admin.SaveSectionAsync(productId, null, new ProductSectionSaveRequest(
+                kind, visibility, "بخش", "Section", markupFa, markupEn, displayOrder, true, null));
+
+            Assert.True(result.Succeeded, result.ErrorKey);
+
+            return result.Value;
+        });
+
+    public static Task<Guid> AddDownloadAsync(
+        this SentinelWebApplicationFactory factory,
+        Guid productId,
+        ContentVisibility visibility = ContentVisibility.Entitled,
+        DownloadPlatform platform = DownloadPlatform.Windows,
+        string url = "https://downloads.example.com/client.exe") =>
+        factory.WithScopeAsync(async services =>
+        {
+            var admin = services.GetRequiredService<IProductContentAdminService>();
+
+            var result = await admin.SaveDownloadAsync(productId, null, new ProductDownloadSaveRequest(
+                platform, visibility, "دانلود آزمایشی", "Test download",
+                null, null, url, "1.0.0", null, 1024, 100, true, null));
+
+            Assert.True(result.Succeeded, result.ErrorKey);
+
+            return result.Value;
+        });
+
+    public static Task<Guid> AddArticleAsync(
+        this SentinelWebApplicationFactory factory,
+        Guid productId,
+        string slug,
+        string titleEn = "Test article",
+        bool isPublished = true,
+        ContentVisibility visibility = ContentVisibility.Public,
+        string? markupEn = null,
+        int displayOrder = 100,
+        Guid? categoryId = null) =>
+        factory.WithScopeAsync(async services =>
+        {
+            var admin = services.GetRequiredService<IProductContentAdminService>();
+
+            var result = await admin.SaveArticleAsync(productId, null, new DocumentationArticleSaveRequest(
+                categoryId, slug, $"مقالهٔ {slug}", titleEn, null, null,
+                null, markupEn, visibility, null, displayOrder, isPublished, null));
+
+            Assert.True(result.Succeeded, result.ErrorKey);
+
+            return result.Value;
+        });
+
+    public static Task<Guid> AddDocCategoryAsync(
+        this SentinelWebApplicationFactory factory,
+        Guid productId,
+        string slug,
+        string titleEn = "Test category",
+        bool isVisible = true) =>
+        factory.WithScopeAsync(async services =>
+        {
+            var admin = services.GetRequiredService<IProductContentAdminService>();
+
+            var result = await admin.SaveCategoryAsync(productId, null, new DocumentationCategorySaveRequest(
+                slug, $"دستهٔ {slug}", titleEn, null, 100, isVisible, null));
+
+            Assert.True(result.Succeeded, result.ErrorKey);
+
+            return result.Value;
         });
 
     public static Task GrantAsync(

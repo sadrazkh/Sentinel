@@ -56,6 +56,10 @@
   --ramp-neutral-300: #c6cbd5;
   --ramp-neutral-400: #99a1b0;
   --ramp-neutral-500: #6f7889;
+  /* Two extra steps that exist only to carry muted text. #6f7889 measures 4.48:1 on white and
+     on a dark card — under the 4.5 that AA needs for body text, by just enough to matter. */
+  --ramp-neutral-450: #808a9c;
+  --ramp-neutral-550: #616a7c;
   --ramp-neutral-600: #525a6b;
   --ramp-neutral-700: #3b4252;
   --ramp-neutral-800: #262b37;
@@ -72,17 +76,21 @@
   --ramp-success-400: #34d399;
   --ramp-success-500: #10b981;
   --ramp-success-600: #059669;
+  --ramp-success-700: #036b4a;
 
   --ramp-warning-400: #fbbf24;
   --ramp-warning-500: #f59e0b;
   --ramp-warning-600: #d97706;
+  --ramp-warning-700: #8a4a05;
 
   --ramp-danger-400: #f87171;
   --ramp-danger-500: #ef4444;
   --ramp-danger-600: #dc2626;
+  --ramp-danger-700: #b3181b;
 
   --ramp-info-400: #38bdf8;
   --ramp-info-500: #0ea5e9;
+  --ramp-info-700: #0a628c;
 
   /* Shape and motion are theme-independent. */
   --radius-xs: 6px;
@@ -140,7 +148,7 @@
 
   --text-primary: var(--ramp-neutral-900);
   --text-secondary: var(--ramp-neutral-600);
-  --text-muted: var(--ramp-neutral-500);
+  --text-muted: var(--ramp-neutral-550);
   --text-inverse: var(--ramp-neutral-0);
   --text-on-accent: #ffffff;
 
@@ -157,6 +165,14 @@
   --danger-soft: color-mix(in srgb, var(--ramp-danger-500) 13%, transparent);
   --info: var(--ramp-info-500);
   --info-soft: color-mix(in srgb, var(--ramp-info-500) 13%, transparent);
+
+  /* Status colours have two jobs: a dot or a border, where brightness reads as "status", and the
+     label text itself, where the same brightness measures 2.3-3.3:1 on the soft tint and fails
+     AA. Splitting the roles is what lets a badge stay recognisably green and still be readable. */
+  --success-text: var(--ramp-success-700);
+  --warning-text: var(--ramp-warning-700);
+  --danger-text: var(--ramp-danger-700);
+  --info-text: var(--ramp-info-700);
 
   --shadow-sm: 0 1px 2px rgb(16 20 32 / 6%), 0 1px 1px rgb(16 20 32 / 4%);
   --shadow-md: 0 4px 16px -4px rgb(16 20 32 / 10%), 0 2px 6px -2px rgb(16 20 32 / 6%);
@@ -180,9 +196,13 @@
 
   --text-primary: #eef0f6;
   --text-secondary: var(--ramp-neutral-400);
-  --text-muted: var(--ramp-neutral-500);
+  --text-muted: var(--ramp-neutral-450);
   --text-inverse: var(--ramp-neutral-950);
-  --text-on-accent: #ffffff;
+
+  /* Dark, not white. The dark theme's accent is a *light* blue, so white text on it measures
+     2.67:1 — a primary button whose label is barely readable. The contrast pair has to flip with
+     the accent, not stay fixed. */
+  --text-on-accent: var(--ramp-neutral-950);
 
   --accent: var(--ramp-accent-400);
   --accent-hover: var(--ramp-accent-300);
@@ -197,6 +217,12 @@
   --danger-soft: color-mix(in srgb, var(--ramp-danger-400) 16%, transparent);
   --info: var(--ramp-info-400);
   --info-soft: color-mix(in srgb, var(--ramp-info-400) 15%, transparent);
+
+  /* On a dark surface the 400-level colours already clear AA, so text follows the status colour. */
+  --success-text: var(--success);
+  --warning-text: var(--warning);
+  --danger-text: var(--danger);
+  --info-text: var(--info);
 
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
   --shadow-md: 0 6px 20px -6px rgb(0 0 0 / 55%);
@@ -222,8 +248,9 @@
 
     --text-primary: #eef0f6;
     --text-secondary: var(--ramp-neutral-400);
-    --text-muted: var(--ramp-neutral-500);
+    --text-muted: var(--ramp-neutral-450);
     --text-inverse: var(--ramp-neutral-950);
+    --text-on-accent: var(--ramp-neutral-950);
 
     --accent: var(--ramp-accent-400);
     --accent-hover: var(--ramp-accent-300);
@@ -238,6 +265,11 @@
     --danger-soft: color-mix(in srgb, var(--ramp-danger-400) 16%, transparent);
     --info: var(--ramp-info-400);
     --info-soft: color-mix(in srgb, var(--ramp-info-400) 15%, transparent);
+
+    --success-text: var(--success);
+    --warning-text: var(--warning);
+    --danger-text: var(--danger);
+    --info-text: var(--info);
 
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
     --shadow-md: 0 6px 20px -6px rgb(0 0 0 / 55%);
@@ -294,6 +326,13 @@ a {
 a:hover { color: var(--accent-hover); }
 
 img, svg { display: block; max-width: 100%; }
+
+/* The `hidden` attribute is a platform contract, and a type selector in an author stylesheet
+   outranks the user-agent rule that implements it — so the reset above was silently defeating
+   `<svg hidden>`, drawing both states of every icon toggle on top of each other. This is the one
+   place !important is the right tool: any author rule that beats `hidden` is a bug, and listing
+   the exceptions one at a time would mean finding them one bug at a time. */
+[hidden] { display: none !important; }
 
 :focus-visible {
   outline: 2px solid var(--accent);
@@ -793,6 +832,202 @@ a.chip { text-decoration: none; }
   color: var(--text-primary);
 }
 
+/* ---------------------------------------------------------------------------- prose ---- */
+
+/* Rendered operator content. The tag set is fixed and small — see RichTextRenderer — so every
+   selector here corresponds to something that file actually emits. */
+.prose {
+  font-size: var(--text-sm);
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+
+.prose > :first-child { margin-block-start: 0; }
+.prose > :last-child { margin-block-end: 0; }
+
+.prose p { margin-block: var(--space-3); }
+
+.prose h3,
+.prose h4,
+.prose h5 {
+  margin-block: var(--space-5) var(--space-2);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.prose h3 { font-size: var(--text-md); font-weight: 640; }
+.prose h4 { font-size: var(--text-base); font-weight: 620; }
+.prose h5 { font-size: var(--text-sm); font-weight: 620; }
+
+.prose ul,
+.prose ol {
+  margin-block: var(--space-3);
+  padding-inline-start: var(--space-6);
+}
+
+.prose li { margin-block: var(--space-1); }
+
+.prose strong { color: var(--text-primary); font-weight: 620; }
+
+.prose code {
+  padding: 2px 5px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  /* Code is Latin even inside Persian prose, so it must not inherit the RTL direction. */
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.prose a { color: var(--accent); }
+
+/* ------------------------------------------------------------------------- downloads ---- */
+
+.download-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-md);
+}
+
+.download-row__main {
+  flex: 1;
+  min-inline-size: min(100%, 200px);
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* A checksum is a long unbroken Latin string; without this it forces the card wider than the
+   viewport on a phone. */
+.checksum {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Markup source, so a monospace face and no RTL reflow of the syntax characters. */
+.input--code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  min-block-size: auto;
+  padding-block: var(--space-3);
+}
+
+/* One step's fields on the article form. */
+.step-fields {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.step-fields > legend {
+  padding-inline: var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------- documentation ---- */
+
+.doc-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  color: inherit;
+  text-decoration: none;
+  background-color: var(--surface-sunken);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.doc-link:hover { border-color: var(--border-strong); }
+
+.doc-link__body { display: grid; gap: 2px; min-inline-size: 0; }
+.doc-link__title { font-size: var(--text-sm); font-weight: 560; }
+.doc-link__summary { font-size: var(--text-xs); color: var(--text-secondary); }
+
+.doc-nav {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: 1fr 1fr;
+}
+
+.doc-nav__link {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-4);
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.doc-nav__link:hover { border-color: var(--border-strong); }
+
+/* Aligned to the end so "next" reads as forward motion in both RTL and LTR — logical
+   properties, so it follows the document direction rather than assuming left-to-right. */
+.doc-nav__link--next { text-align: end; }
+
+.doc-nav__label { font-size: var(--text-xs); color: var(--text-muted); }
+.doc-nav__title { font-size: var(--text-sm); font-weight: 560; }
+
+/* -------------------------------------------------------------------------- steps ---- */
+
+.steps {
+  display: grid;
+  gap: var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.step__number {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 28px;
+  block-size: 28px;
+  font-size: var(--text-xs);
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  background-color: var(--accent-soft);
+  border-radius: var(--radius-full);
+}
+
+.step__body { flex: 1; min-inline-size: 0; display: grid; gap: var(--space-2); }
+.step__title { font-size: var(--text-sm); font-weight: 620; }
+.step__text { font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.7; }
+
+.step__image {
+  max-inline-size: 100%;
+  block-size: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 640px) {
+  .doc-nav { grid-template-columns: 1fr; }
+}
+
 /* ------------------------------------------------------------------------ stat tile ---- */
 
 .stat {
@@ -1014,10 +1249,10 @@ a.chip { text-decoration: none; }
 }
 
 .badge--neutral { color: var(--text-secondary); background-color: var(--surface-sunken); }
-.badge--success { color: var(--success); background-color: var(--success-soft); }
-.badge--warning { color: var(--warning); background-color: var(--warning-soft); }
-.badge--danger { color: var(--danger); background-color: var(--danger-soft); }
-.badge--info { color: var(--info); background-color: var(--info-soft); }
+.badge--success { color: var(--success-text); background-color: var(--success-soft); }
+.badge--warning { color: var(--warning-text); background-color: var(--warning-soft); }
+.badge--danger { color: var(--danger-text); background-color: var(--danger-soft); }
+.badge--info { color: var(--info-text); background-color: var(--info-soft); }
 .badge--accent { color: var(--accent); background-color: var(--accent-soft); }
 
 .badge--plain::before { display: none; }
@@ -1036,25 +1271,25 @@ a.chip { text-decoration: none; }
 }
 
 .alert--danger {
-  color: var(--danger);
+  color: var(--danger-text);
   background-color: var(--danger-soft);
   border-color: color-mix(in srgb, var(--danger) 28%, transparent);
 }
 
 .alert--warning {
-  color: var(--warning);
+  color: var(--warning-text);
   background-color: var(--warning-soft);
   border-color: color-mix(in srgb, var(--warning) 28%, transparent);
 }
 
 .alert--info {
-  color: var(--info);
+  color: var(--info-text);
   background-color: var(--info-soft);
   border-color: color-mix(in srgb, var(--info) 28%, transparent);
 }
 
 .alert--success {
-  color: var(--success);
+  color: var(--success-text);
   background-color: var(--success-soft);
   border-color: color-mix(in srgb, var(--success) 28%, transparent);
 }
@@ -1290,8 +1525,147 @@ a.chip { text-decoration: none; }
 
 /* ------------------------------------------------------------------------ responsive ---- */
 
+/* ---------------------------------------------------------------------------- landing ---- */
+
+.landing {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+}
+
+.landing__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--header-height);
+  padding-inline: var(--space-6);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.landing__main {
+  flex: 1;
+  inline-size: 100%;
+  max-inline-size: var(--content-max);
+  margin-inline: auto;
+  padding: var(--space-12) var(--space-6) var(--space-16);
+}
+
+.landing__footer {
+  padding: var(--space-6);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+.landing__section { margin-block-start: var(--space-16); }
+
+.landing__sectionTitle {
+  margin-block-end: var(--space-6);
+  font-size: var(--text-lg);
+  font-weight: 640;
+}
+
+/* ------------------------------------------------------------------------------- hero ---- */
+
+.hero {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding-block: var(--space-12);
+  text-align: center;
+
+  /* The glow below is inset past both edges on purpose, which without this gives the whole page
+     a horizontal scrollbar. `clip` rather than `hidden` so no scroll container is created. */
+  overflow-x: clip;
+}
+
+/* The accent wash sits behind the text and is purely decorative, so it is painted by a
+   pseudo-element rather than an image the browser has to fetch. */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20% auto;
+  block-size: 420px;
+  background: var(--glow);
+  pointer-events: none;
+}
+
+.hero__body {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-5);
+  max-inline-size: 62ch;
+}
+
+.hero__title {
+  font-size: var(--text-3xl);
+  font-weight: 680;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.hero__lede {
+  font-size: var(--text-md);
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+
+.hero__actions { justify-content: center; }
+
+.hero__note { font-size: var(--text-xs); color: var(--text-muted); }
+
+/* ---------------------------------------------------------------------------- feature ---- */
+
+.feature {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.feature__icon {
+  display: grid;
+  place-items: center;
+  inline-size: 40px;
+  block-size: 40px;
+  color: var(--accent);
+  background-color: var(--accent-soft);
+  border-radius: var(--radius-md);
+}
+
+.feature__title { font-size: var(--text-base); font-weight: 620; }
+
+.feature__body {
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+/* A card whose text and action sit side by side on a wide screen and stack on a narrow one. */
+.callout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
 @media (max-width: 720px) {
   :root { --header-height: 56px; }
+
+  .landing__header { padding-inline: var(--space-4); }
+  .landing__main { padding: var(--space-8) var(--space-4) var(--space-12); }
+  .landing__section { margin-block-start: var(--space-12); }
+  .hero__title { font-size: var(--text-2xl); }
+  .hero__lede { font-size: var(--text-base); }
+
+  /* Full-width actions on a phone: two side-by-side buttons at this width end up too narrow
+     to read comfortably. */
+  .hero__actions .btn { flex: 1; min-inline-size: 100%; }
 
   /* Comfortable touch targets. 40px is fine for a mouse but below the 44px that finger
      input needs, and this is the breakpoint where input is almost always a finger. */

@@ -23,6 +23,10 @@ using Sentinel.Infrastructure.Subscriptions;
 using Sentinel.Web.Infrastructure;
 using Sentinel.Web.Localization;
 using Sentinel.Web.Security;
+using Sentinel.Vpn;
+using Sentinel.Vpn.Panel;
+using Sentinel.Vpn.Persistence;
+using Sentinel.Infrastructure.Vpn;
 using Sentinel.Web.Services;
 using Serilog;
 
@@ -87,6 +91,11 @@ builder.Services.AddOptions<SubscriptionFetchOptions>()
 builder.Services.AddOptions<FeatureFlags>()
     .Bind(builder.Configuration.GetSection(FeatureFlags.SectionName));
 
+builder.Services.AddOptions<ThreeXUiOptions>()
+    .Bind(builder.Configuration.GetSection(ThreeXUiOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 builder.Services.AddOptions<TelegramOptions>()
     .Bind(builder.Configuration.GetSection(TelegramOptions.SectionName))
     .ValidateDataAnnotations()
@@ -117,6 +126,10 @@ var seedOptions = builder.Configuration
     .GetSection(SeedOptions.SectionName)
     .Get<SeedOptions>() ?? new SeedOptions();
 
+var panelOptions = builder.Configuration
+    .GetSection(ThreeXUiOptions.SectionName)
+    .Get<ThreeXUiOptions>() ?? new ThreeXUiOptions();
+
 using (var startupLoggerFactory = LoggerFactory.Create(logging => logging.AddSimpleConsole()))
 {
     StartupGuards.EnsureProductionSafety(
@@ -124,6 +137,7 @@ using (var startupLoggerFactory = LoggerFactory.Create(logging => logging.AddSim
         databaseOptions,
         securityOptions,
         seedOptions,
+        panelOptions,
         startupLoggerFactory.CreateLogger("Sentinel.Startup"));
 }
 
@@ -141,6 +155,12 @@ builder.Services.AddScoped<IPortalSignInService, PortalSignInService>();
 
 builder.Services.AddSentinelPersistence(databaseOptions);
 builder.Services.AddSentinelInfrastructure();
+
+// The VPN module registers its own services. Its credential protector lives in Infrastructure
+// because it needs the data-protection key ring, which the module deliberately does not reference.
+builder.Services.AddSentinelVpn();
+builder.Services.AddScoped<IPanelCredentialProtector, DataProtectionPanelCredentialProtector>();
+builder.Services.AddScoped<IVpnDbContext>(sp => sp.GetRequiredService<SentinelDbContext>());
 
 // The bot is optional. With no token configured the integration stays dormant: no polling, no
 // delivery loop, and the portal simply does not offer to link an account. Notifications are
@@ -255,6 +275,20 @@ builder.Services.AddControllersWithViews(options =>
     // the ISO date an <input type="date"> submits through the Persian calendar and stores a
     // year six centuries out. See Iso8601DateModelBinder.
     options.ModelBinderProviders.Insert(0, new Iso8601DateModelBinderProvider());
+})
+.AddViewOptions(options =>
+{
+    // No client-side validation attributes.
+    //
+    // This project ships no jQuery-unobtrusive-validation, so nothing reads data-val-*. What they
+    // did do is emit each DataAnnotation's ErrorMessage verbatim — and those are localisation
+    // keys, not messages. So every form carried `data-val-required="validation.required"`:
+    // internal key names in the page source, bytes on every response, and a message that would
+    // read as gibberish the moment anyone did add a validation script.
+    //
+    // Validation is server-side and re-rendered through the localiser, which is the control that
+    // actually holds. Turning the attributes off removes dead weight rather than a safeguard.
+    options.HtmlHelperOptions.ClientValidationEnabled = false;
 });
 
 // By default the HTML encoder only lets Basic Latin through unescaped, so every Persian

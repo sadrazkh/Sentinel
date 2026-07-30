@@ -1,0 +1,109 @@
+@using Sentinel.Application.Content
+@using Sentinel.Domain.Products
+@using Sentinel.Web.Areas.Admin.Models
+@model DownloadEditViewModel
+@{
+    ViewData["Title"] = Model.IsNew ? L["admin.content.addDownload"].Value : Model.TitleEn;
+}
+
+<partial name="_ContentFormHead" model="@(new ContentFormHead(ViewData["Title"] as string ?? string.Empty, Model.ProductId))" />
+
+<form method="post" asp-action="SaveDownload" asp-route-productId="@Model.ProductId" class="card">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="ConcurrencyToken" />
+
+    <div class="stack">
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+                <label class="field__label" asp-for="TitleFa">@L["admin.application.nameFa"]</label>
+                <input class="input" asp-for="TitleFa" required maxlength="160" />
+            </div>
+            <div class="field">
+                <label class="field__label" asp-for="TitleEn">@L["admin.application.nameEn"]</label>
+                <input class="input" asp-for="TitleEn" dir="ltr" required maxlength="160" />
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="field__label" asp-for="Url">@L["admin.content.url"]</label>
+            @* type="url" is a convenience for the browser only; the server decides with
+               DownloadUrlPolicy, which also refuses plain http and embedded credentials. *@
+            <input class="input" asp-for="Url" type="url" dir="ltr" required maxlength="2048"
+                   placeholder="https://downloads.example.com/client.exe" />
+            <p class="text-xs text-muted">@L["admin.content.url.hint"]</p>
+        </div>
+
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))">
+            <div class="field">
+                <label class="field__label" asp-for="Platform">@L["admin.content.platform"]</label>
+                <select class="input" asp-for="Platform">
+                    @foreach (var platform in Enum.GetValues<DownloadPlatform>())
+                    {
+                        <option value="@platform" selected="@(Model.Platform == platform)">
+                            @L[ProductPresentation.PlatformKey(platform)]
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="Visibility">@L["admin.content.visibility"]</label>
+                <select class="input" asp-for="Visibility">
+                    @foreach (var visibility in Enum.GetValues<ContentVisibility>())
+                    {
+                        <option value="@visibility" selected="@(Model.Visibility == visibility)">
+                            @L[ProductPresentation.VisibilityKey(visibility)]
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="Version">@L["admin.content.version"]</label>
+                <input class="input" asp-for="Version" dir="ltr" maxlength="32" placeholder="1.8.29" />
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="DisplayOrder">@L["admin.application.displayOrder"]</label>
+                <input class="input" asp-for="DisplayOrder" type="number" min="0" max="10000" dir="ltr" />
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:2fr 1fr">
+            <div class="field">
+                <label class="field__label" asp-for="Checksum">@L["admin.content.checksum"]</label>
+                <input class="input" asp-for="Checksum" dir="ltr" maxlength="128" />
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="SizeBytes">@L["admin.content.size"]</label>
+                <input class="input" asp-for="SizeBytes" type="number" min="0" dir="ltr" />
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+                <label class="field__label" asp-for="NoteFa">@L["admin.application.descriptionFa"]</label>
+                <textarea class="input" asp-for="NoteFa" rows="2" maxlength="500"
+                          style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+            </div>
+            <div class="field">
+                <label class="field__label" asp-for="NoteEn">@L["admin.application.descriptionEn"]</label>
+                <textarea class="input" asp-for="NoteEn" rows="2" maxlength="500" dir="ltr"
+                          style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+            </div>
+        </div>
+
+        <label class="checkbox">
+            <input type="checkbox" asp-for="IsVisible" />
+            <span>@L["admin.application.isEnabled"]</span>
+        </label>
+
+        <div class="cluster">
+            <button type="submit" class="btn btn--primary">@L["admin.save"]</button>
+            <a class="btn btn--ghost" asp-action="Index" asp-route-productId="@Model.ProductId">
+                @L["common.cancel"]
+            </a>
+        </div>
+    </div>
+</form>

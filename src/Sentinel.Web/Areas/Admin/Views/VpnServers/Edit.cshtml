@@ -1,0 +1,178 @@
+@using Sentinel.Vpn.Domain
+@using Sentinel.Web.Areas.Admin.Models
+@model VpnServerEditViewModel
+@{
+    ViewData["Title"] = Model.IsNew ? L["admin.vpn.add"].Value : Model.NameEn;
+
+    var errors = ViewData.ModelState
+        .SelectMany(entry => entry.Value!.Errors)
+        .Select(error => error.ErrorMessage)
+        .Where(message => !string.IsNullOrWhiteSpace(message))
+        .Distinct()
+        .ToList();
+
+    string Localize(string message) =>
+        message.StartsWith("validation.", StringComparison.Ordinal)
+        || message.StartsWith("admin.", StringComparison.Ordinal)
+            ? L[message].Value
+            : message;
+}
+
+<div class="page-head">
+    <h1 class="page-head__title">@ViewData["Title"]</h1>
+    <a class="btn btn--ghost btn--sm" asp-action="Index">@L["admin.back"]</a>
+</div>
+
+@if (errors.Count > 0)
+{
+    <div class="alert alert--danger" role="alert" style="margin-block-end:var(--space-6)">
+        <div>
+            @foreach (var error in errors)
+            {
+                <div>@Localize(error)</div>
+            }
+        </div>
+    </div>
+}
+
+<form method="post"
+      asp-action="@(Model.IsNew ? "Create" : "Edit")"
+      asp-route-id="@(Model.IsNew ? null : Model.Id.ToString())"
+      class="card">
+    <input type="hidden" asp-for="ConcurrencyToken" />
+
+    <div class="stack">
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+                <label class="field__label" asp-for="NameFa">@L["admin.application.nameFa"]</label>
+                <input class="input" asp-for="NameFa" required maxlength="128" />
+            </div>
+            <div class="field">
+                <label class="field__label" asp-for="NameEn">@L["admin.application.nameEn"]</label>
+                <input class="input" asp-for="NameEn" dir="ltr" required maxlength="128" />
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))">
+            <div class="field">
+                <label class="field__label" asp-for="Key">@L["admin.vpn.key"]</label>
+                @if (Model.IsNew)
+                {
+                    <input class="input" asp-for="Key" dir="ltr" required maxlength="64"
+                           autocomplete="off" spellcheck="false" placeholder="de-frankfurt-1" />
+                }
+                else
+                {
+                    @* Immutable: the key appears in logs and audit rows already written. *@
+                    <input class="input" value="@Model.Key" dir="ltr" disabled />
+                    <input type="hidden" asp-for="Key" />
+                }
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="CountryCode">@L["admin.vpn.country"]</label>
+                <input class="input" asp-for="CountryCode" dir="ltr" required
+                       maxlength="2" minlength="2" autocapitalize="characters"
+                       spellcheck="false" placeholder="DE" />
+                <p class="text-xs text-muted">@L["admin.vpn.country.hint"]</p>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="Status">@L["admin.vpn.status"]</label>
+                <select class="input" asp-for="Status">
+                    @foreach (var status in Enum.GetValues<VpnServerStatus>())
+                    {
+                        <option value="@status" selected="@(Model.Status == status)">
+                            @L[VpnPresentation.StatusKey(status)]
+                        </option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="field__label" asp-for="BaseUrl">@L["admin.vpn.baseUrl"]</label>
+            <input class="input" asp-for="BaseUrl" type="url" dir="ltr" required maxlength="512"
+                   autocomplete="off" spellcheck="false"
+                   placeholder="https://panel.example.com:2053/mypath" />
+            <p class="text-xs text-muted">@L["admin.vpn.baseUrl.hint"]</p>
+        </div>
+
+        <div class="field">
+            <label class="field__label" asp-for="ApiToken">@L["admin.vpn.apiToken"]</label>
+            @* dir on the wrapper so the affix and the input's reserved padding resolve on the
+               same side — see the note in Account/Login.cshtml. *@
+            <div class="field__control" dir="ltr">
+                <input class="input input--with-affix"
+                       asp-for="ApiToken"
+                       type="password"
+                       autocomplete="new-password"
+                       maxlength="512"
+                       placeholder="@(Model.IsNew ? "" : L["admin.vpn.apiToken.unchanged"].Value)" />
+
+                <button type="button"
+                        class="field__affix"
+                        data-password-toggle
+                        hidden
+                        aria-pressed="false"
+                        aria-label="@L["login.showPassword"]"
+                        data-label-show="@L["login.showPassword"]"
+                        data-label-hide="@L["login.hidePassword"]">
+                    <svg data-icon="show" width="17" height="17" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                        <path d="M2.5 12S6 5.6 12 5.6 21.5 12 21.5 12 18 18.4 12 18.4 2.5 12 2.5 12Z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    <svg data-icon="hide" width="17" height="17" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" hidden>
+                        <path d="M3 3l18 18M10.6 10.7a3 3 0 0 0 4.2 4.2" />
+                        <path d="M7.4 7.5C4.5 9.2 2.5 12 2.5 12s3.5 6.4 9.5 6.4c1.6 0 3-.4 4.2-1M17.9 15.3c2-1.6 3.6-3.3 3.6-3.3S18 5.6 12 5.6c-.7 0-1.4.1-2 .2" />
+                    </svg>
+                </button>
+            </div>
+
+            @if (Model.IsNew)
+            {
+                <p class="text-xs text-muted">@L["admin.vpn.apiToken.hint"]</p>
+            }
+            else
+            {
+                <p class="text-xs text-muted">
+                    @L["admin.vpn.apiToken.stored", Model.ApiTokenHint ?? "—"]
+                </p>
+            }
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+                <label class="field__label" asp-for="MaxClients">@L["admin.vpn.maxClients"]</label>
+                <input class="input" asp-for="MaxClients" type="number" min="0" max="100000" dir="ltr" />
+                <p class="text-xs text-muted">@L["admin.vpn.maxClients.hint"]</p>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="SelectionPriority">@L["admin.vpn.priority"]</label>
+                <input class="input" asp-for="SelectionPriority" type="number" min="0" max="10000" dir="ltr" />
+                <p class="text-xs text-muted">@L["admin.vpn.priority.hint"]</p>
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="field__label" asp-for="Notes">@L["admin.membership.notes"]</label>
+            <textarea class="input" asp-for="Notes" rows="2" maxlength="1000"
+                      style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+        </div>
+
+        <div class="cluster">
+            <button type="submit" class="btn btn--primary">@L["admin.save"]</button>
+            <a class="btn btn--ghost" asp-action="Index">@L["common.cancel"]</a>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    @* Reuses the login page's password-reveal behaviour: same markup contract, same script. *@
+    <script type="module" src="~/js/dist/page-login.js" asp-append-version="true"></script>
+}

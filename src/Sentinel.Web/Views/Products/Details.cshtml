@@ -159,9 +159,123 @@
     {
         <section class="card">
             <h2 class="card__title" style="margin-block-end:var(--space-3)">@L["product.about.title"]</h2>
-            @* Plain text, rendered through Razor's default encoding. Rich content arrives with
-               the documentation phase and will be sanitised before it is ever marked safe. *@
+            @* Plain text, encoded by Razor. The rich sections below carry the formatted copy. *@
             <p class="text-sm text-secondary" style="white-space:pre-line">@description</p>
+        </section>
+    }
+
+    @foreach (var section in Model.Content.Sections)
+    {
+        var sectionTitle = isPersian ? section.TitleFa : section.TitleEn;
+        var sectionBody = isPersian ? section.BodyHtmlFa : section.BodyHtmlEn;
+
+        @* A section with nothing in this language is skipped rather than rendered empty: an
+           operator may legitimately write only one of the two. *@
+        if (string.IsNullOrWhiteSpace(sectionBody))
+        {
+            continue;
+        }
+
+        <section class="card">
+            @if (!string.IsNullOrWhiteSpace(sectionTitle))
+            {
+                <h2 class="card__title" style="margin-block-end:var(--space-3)">@sectionTitle</h2>
+            }
+
+            <partial name="_RenderedContent" model="sectionBody" />
+        </section>
+    }
+
+    @if (Model.Content.Downloads.Count > 0)
+    {
+        <section class="card">
+            <div class="card__header">
+                <h2 class="card__title">@L["product.downloads.title"]</h2>
+                <span class="badge badge--neutral">@Model.Content.Downloads.Count</span>
+            </div>
+
+            <ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+                @foreach (var download in Model.Content.Downloads)
+                {
+                    var downloadTitle = isPersian ? download.TitleFa : download.TitleEn;
+                    var downloadNote = isPersian ? download.NoteFa : download.NoteEn;
+
+                    <li class="download-row">
+                        <div class="download-row__main">
+                            <div class="cluster">
+                                <strong>@downloadTitle</strong>
+                                <span class="badge badge--neutral badge--plain">
+                                    @L[ProductPresentation.PlatformKey(download.Platform)]
+                                </span>
+                                @if (!string.IsNullOrWhiteSpace(download.Version))
+                                {
+                                    <span class="badge badge--neutral badge--plain" dir="ltr">v@(download.Version)</span>
+                                }
+                                @if (download.SizeBytes is { } size)
+                                {
+                                    <span class="text-xs text-muted" dir="ltr">@ByteSize.Describe(size)</span>
+                                }
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(downloadNote))
+                            {
+                                <p class="text-xs text-secondary">@downloadNote</p>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(download.Checksum))
+                            {
+                                @* Shown so a member can verify what they downloaded. We do not
+                                   hold the bytes, so we never claim to have verified them. *@
+                                <p class="text-xs text-muted checksum" dir="ltr" title="@L["product.downloads.checksum"]">
+                                    @download.Checksum
+                                </p>
+                            }
+                        </div>
+
+                        @* Points at the portal, never at the file: the endpoint re-checks access
+                           and re-validates the URL before redirecting. *@
+                        <a class="btn btn--secondary btn--sm"
+                           asp-action="Download"
+                           asp-route-key="@card.Key"
+                           asp-route-id="@download.Id"
+                           rel="noopener noreferrer">
+                            @L["product.downloads.get"]
+                        </a>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    @if (Model.ShowDocumentation)
+    {
+        <section class="card">
+            <div class="card__header">
+                <div>
+                    <h2 class="card__title">@L["product.docs.title"]</h2>
+                    <p class="card__hint">@L["product.docs.count", Model.Content.TotalArticleCount]</p>
+                </div>
+                <a class="btn btn--ghost btn--sm"
+                   asp-action="Docs" asp-route-key="@card.Key">@L["product.docs.viewAll"]</a>
+            </div>
+
+            <ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+                @foreach (var article in Model.Content.FeaturedArticles)
+                {
+                    <li>
+                        <a class="doc-link"
+                           asp-action="Article" asp-route-key="@card.Key" asp-route-slug="@article.Slug">
+                            <span>@(isPersian ? article.TitleFa : article.TitleEn)</span>
+                            @if (article.Platform is { } platform && platform != DownloadPlatform.Any)
+                            {
+                                <span class="badge badge--neutral badge--plain">
+                                    @L[ProductPresentation.PlatformKey(platform)]
+                                </span>
+                            }
+                        </a>
+                    </li>
+                }
+            </ul>
         </section>
     }
 </div>

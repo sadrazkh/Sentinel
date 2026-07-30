@@ -1,0 +1,215 @@
+@using Sentinel.Application.Content
+@using Sentinel.Application.Media
+@using Sentinel.Application.Products
+@using Sentinel.Domain.Products
+@using Sentinel.Web.Areas.Admin.Models
+@model ArticleEditViewModel
+@{
+    ViewData["Title"] = Model.IsNew ? L["admin.content.addArticle"].Value : Model.TitleEn;
+
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+    var categories = ViewData["Categories"] as IReadOnlyList<DocumentationCategoryOption> ?? [];
+    var maxIconKb = (int)(ViewData["MaxIconBytes"] ?? 0) / 1024;
+}
+
+<partial name="_ContentFormHead" model="@(new ContentFormHead(ViewData["Title"] as string ?? string.Empty, Model.ProductId))" />
+
+<form method="post" asp-action="SaveArticle" asp-route-productId="@Model.ProductId" class="card">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="ConcurrencyToken" />
+
+    <div class="stack">
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+                <label class="field__label" asp-for="TitleFa">@L["admin.application.nameFa"]</label>
+                <input class="input" asp-for="TitleFa" required maxlength="200" />
+            </div>
+            <div class="field">
+                <label class="field__label" asp-for="TitleEn">@L["admin.application.nameEn"]</label>
+                <input class="input" asp-for="TitleEn" dir="ltr" required maxlength="200" />
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))">
+            <div class="field">
+                <label class="field__label" asp-for="Slug">@L["admin.content.slug"]</label>
+                <input class="input" asp-for="Slug" dir="ltr" maxlength="120"
+                       autocomplete="off" spellcheck="false" />
+                <p class="text-xs text-muted">@L["admin.content.slug.hint"]</p>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="CategoryId">@L["admin.content.category"]</label>
+                <select class="input" asp-for="CategoryId">
+                    <option value="">@L["admin.content.category.none"]</option>
+                    @foreach (var category in categories)
+                    {
+                        <option value="@category.Id" selected="@(Model.CategoryId == category.Id)">
+                            @(isPersian ? category.TitleFa : category.TitleEn)
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="Visibility">@L["admin.content.visibility"]</label>
+                <select class="input" asp-for="Visibility">
+                    @foreach (var visibility in Enum.GetValues<ContentVisibility>())
+                    {
+                        <option value="@visibility" selected="@(Model.Visibility == visibility)">
+                            @L[ProductPresentation.VisibilityKey(visibility)]
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="Platform">@L["admin.content.platform"]</label>
+                <select class="input" asp-for="Platform">
+                    <option value="">@L["platform.any"]</option>
+                    @foreach (var platform in Enum.GetValues<DownloadPlatform>())
+                    {
+                        if (platform == DownloadPlatform.Any)
+                        {
+                            continue;
+                        }
+
+                        <option value="@platform" selected="@(Model.Platform == platform)">
+                            @L[ProductPresentation.PlatformKey(platform)]
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="DisplayOrder">@L["admin.application.displayOrder"]</label>
+                <input class="input" asp-for="DisplayOrder" type="number" min="0" max="10000" dir="ltr" />
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+                <label class="field__label" asp-for="SummaryFa">@L["admin.content.summaryFa"]</label>
+                <input class="input" asp-for="SummaryFa" maxlength="400" />
+            </div>
+            <div class="field">
+                <label class="field__label" asp-for="SummaryEn">@L["admin.content.summaryEn"]</label>
+                <input class="input" asp-for="SummaryEn" dir="ltr" maxlength="400" />
+            </div>
+        </div>
+
+        <p class="text-xs text-muted">@L[RichTextRenderer.SyntaxHelpKey]</p>
+
+        <div class="field">
+            <label class="field__label" asp-for="MarkupFa">@L["admin.content.markupFa"]</label>
+            <textarea class="input input--code" asp-for="MarkupFa" rows="12" maxlength="40000"></textarea>
+        </div>
+
+        <div class="field">
+            <label class="field__label" asp-for="MarkupEn">@L["admin.content.markupEn"]</label>
+            <textarea class="input input--code" asp-for="MarkupEn" rows="12" maxlength="40000" dir="ltr"></textarea>
+        </div>
+
+        <div class="divider"></div>
+
+        <div>
+            <h2 class="card__title">@L["admin.content.steps"]</h2>
+            <p class="text-xs text-muted">@L["admin.content.steps.hint"]</p>
+        </div>
+
+        @for (var index = 0; index < Model.Steps.Count; index++)
+        {
+            <fieldset class="step-fields">
+                <legend class="field__label">@(index + 1)</legend>
+
+                <div class="grid" style="grid-template-columns:1fr 1fr">
+                    <input class="input" asp-for="Steps[index].TitleFa" maxlength="200"
+                           placeholder="@L["admin.application.nameFa"]" />
+                    <input class="input" asp-for="Steps[index].TitleEn" dir="ltr" maxlength="200"
+                           placeholder="@L["admin.application.nameEn"]" />
+                </div>
+
+                <div class="grid" style="grid-template-columns:1fr 1fr">
+                    <textarea class="input" asp-for="Steps[index].BodyFa" rows="3" maxlength="4000"
+                              placeholder="@L["admin.content.markupFa"]"
+                              style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+                    <textarea class="input" asp-for="Steps[index].BodyEn" rows="3" maxlength="4000" dir="ltr"
+                              placeholder="@L["admin.content.markupEn"]"
+                              style="min-block-size:auto;padding-block:var(--space-3)"></textarea>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.Steps[index].MediaPath))
+                {
+                    <label class="checkbox">
+                        <input type="checkbox" asp-for="Steps[index].ClearImage" />
+                        <span>@L["admin.content.clearImage"]</span>
+                    </label>
+                }
+            </fieldset>
+        }
+
+        <label class="checkbox">
+            <input type="checkbox" asp-for="IsPublished" />
+            <span>@L["admin.content.published"]</span>
+        </label>
+        <p class="text-xs text-muted">@L["admin.content.published.hint"]</p>
+
+        <div class="cluster">
+            <button type="submit" class="btn btn--primary">@L["admin.save"]</button>
+            <a class="btn btn--ghost" asp-action="Index" asp-route-productId="@Model.ProductId">
+                @L["common.cancel"]
+            </a>
+        </div>
+    </div>
+</form>
+
+@* Image uploads are separate forms, and only offered once the article exists: attaching an image
+   needs a saved step row to attach it to. *@
+@if (!Model.IsNew)
+{
+    <section class="card" style="margin-block-start:var(--space-6)">
+        <div class="card__header">
+            <div>
+                <h2 class="card__title">@L["admin.content.stepImage"]</h2>
+                <p class="card__hint">@L["admin.application.icon.hint", maxIconKb]</p>
+            </div>
+        </div>
+
+        <div class="stack stack--tight">
+            @for (var index = 0; index < Model.Steps.Count; index++)
+            {
+                var stepNumber = index + 1;
+                var current = Model.Steps[index].MediaPath;
+
+                @* The trailing blank row has no saved step behind it, so it gets no upload slot. *@
+                if (Model.Steps[index].IsBlank && string.IsNullOrWhiteSpace(current))
+                {
+                    continue;
+                }
+
+                <div class="download-row">
+                    <div class="download-row__main">
+                        <strong>@stepNumber</strong>
+
+                        @if (!string.IsNullOrWhiteSpace(current))
+                        {
+                            <span class="badge badge--success">@L["admin.content.stepImage"]</span>
+                        }
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data"
+                          asp-action="UploadStepImage" asp-route-id="@Model.Id" asp-route-step="@stepNumber"
+                          class="cluster">
+                        @* accept is a file-picker convenience only. The bytes decide, server-side. *@
+                        <input class="input" type="file" name="Image"
+                               accept="@ImageSignature.AcceptAttribute" required
+                               style="padding-block:var(--space-2)" />
+                        <button type="submit" class="btn btn--secondary btn--sm">
+                            @L["admin.application.icon.upload"]
+                        </button>
+                    </form>
+                </div>
+            }
+        </div>
+    </section>
+}

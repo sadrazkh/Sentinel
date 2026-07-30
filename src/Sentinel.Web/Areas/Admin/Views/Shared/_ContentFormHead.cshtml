@@ -1,0 +1,37 @@
+@using Sentinel.Web.Areas.Admin.Models
+@model ContentFormHead
+@{
+    var errors = ViewData.ModelState
+        .SelectMany(entry => entry.Value!.Errors)
+        .Select(error => error.ErrorMessage)
+        .Where(message => !string.IsNullOrWhiteSpace(message))
+        .Distinct()
+        .ToList();
+
+    // Error messages arrive as localisation keys from the application layer, or as literal text
+    // from a data annotation that had no key. Both are handled so neither shows raw.
+    string Localize(string message) =>
+        message.StartsWith("validation.", StringComparison.Ordinal)
+        || message.StartsWith("admin.", StringComparison.Ordinal)
+            ? L[message].Value
+            : message;
+}
+
+<div class="page-head">
+    <h1 class="page-head__title">@Model.Title</h1>
+    <a class="btn btn--ghost btn--sm" asp-action="Index" asp-route-productId="@Model.ProductId">
+        @L["admin.back"]
+    </a>
+</div>
+
+@if (errors.Count > 0)
+{
+    <div class="alert alert--danger" role="alert" style="margin-block-end:var(--space-6)">
+        <div>
+            @foreach (var error in errors)
+            {
+                <div>@Localize(error)</div>
+            }
+        </div>
+    </div>
+}

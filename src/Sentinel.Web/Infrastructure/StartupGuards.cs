@@ -1,5 +1,6 @@
 using Sentinel.Infrastructure.Persistence;
 using Sentinel.Infrastructure.Seeding;
+using Sentinel.Vpn.Panel;
 using Sentinel.Web.Security;
 
 namespace Sentinel.Web.Infrastructure;
@@ -16,6 +17,7 @@ public static class StartupGuards
         DatabaseOptions database,
         SentinelSecurityOptions security,
         SeedOptions seed,
+        ThreeXUiOptions panel,
         ILogger logger)
     {
         if (environment.IsProduction())
@@ -46,6 +48,22 @@ public static class StartupGuards
                 throw new InvalidOperationException(
                     "Seed:IncludeSampleApplications must be false in Production; it inserts " +
                     "placeholder catalogue rows.");
+            }
+
+            if (panel.AllowInsecurePanelUrls)
+            {
+                throw new InvalidOperationException(
+                    "Vpn:Panel:AllowInsecurePanelUrls must be false in Production. A panel " +
+                    "addressed over plain http receives its API token in the clear on every call, " +
+                    "and that token is full control of the panel.");
+            }
+
+            if (panel.AllowLoopbackPanelUrls)
+            {
+                throw new InvalidOperationException(
+                    "Vpn:Panel:AllowLoopbackPanelUrls must be false in Production. It exists so " +
+                    "the test suite can reach a fake panel on localhost; in production it would " +
+                    "let an operator aim the panel client at the portal's own host.");
             }
         }
 

@@ -32,7 +32,16 @@
             @(Model.IsNew ? L["admin.applications.create.subtitle"].Value : Model.Key)
         </p>
     </div>
-    <a class="btn btn--ghost btn--sm" asp-action="Index">@L["admin.back"]</a>
+    <div class="cluster">
+        @if (!Model.IsNew)
+        {
+            <a class="btn btn--secondary btn--sm"
+               asp-controller="Content" asp-action="Index" asp-route-productId="@Model.Id">
+                @L["admin.content.manage"]
+            </a>
+        }
+        <a class="btn btn--ghost btn--sm" asp-action="Index">@L["admin.back"]</a>
+    </div>
 </div>
 
 @if (errors.Count > 0)

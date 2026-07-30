@@ -29,6 +29,16 @@ public interface ISentinelDbContext
 
     DbSet<ProductCategory> ProductCategories { get; }
 
+    DbSet<ProductSection> ProductSections { get; }
+
+    DbSet<ProductDownload> ProductDownloads { get; }
+
+    DbSet<DocumentationCategory> DocumentationCategories { get; }
+
+    DbSet<DocumentationArticle> DocumentationArticles { get; }
+
+    DbSet<DocumentationStep> DocumentationSteps { get; }
+
     DbSet<ProductEntitlement> ProductEntitlements { get; }
 
     DbSet<AuditLog> AuditLogs { get; }

@@ -3,20 +3,10 @@ using System.Net.Sockets;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sentinel.Application.Security;
 using Sentinel.Application.Subscriptions;
 
 namespace Sentinel.Infrastructure.Subscriptions;
-
-/// <summary>
-/// Raised by the connect callback when a target resolves to an address we refuse to reach.
-/// A distinct type so the caller can report "blocked" rather than a generic network failure.
-/// </summary>
-public sealed class BlockedAddressException : Exception
-{
-    public BlockedAddressException(string message) : base(message)
-    {
-    }
-}
 
 /// <summary>
 /// Retrieves a subscription over HTTP with the SSRF defences applied.
@@ -64,7 +54,7 @@ public sealed class SubscriptionFetcher : ISubscriptionFetcher, IDisposable
 
             ConnectTimeout = TimeSpan.FromSeconds(Math.Min(10, _options.TimeoutSeconds)),
             AutomaticDecompression = DecompressionMethods.All,
-            ConnectCallback = ConnectToValidatedAddressAsync,
+            ConnectCallback = ValidatedAddressConnector.Create(),
         };
 
         _client = new HttpClient(handler, disposeHandler: true)
@@ -77,62 +67,6 @@ public sealed class SubscriptionFetcher : ISubscriptionFetcher, IDisposable
 
         _client.DefaultRequestHeaders.UserAgent.ParseAdd(_options.UserAgent);
         _client.DefaultRequestHeaders.Accept.ParseAdd("text/plain, */*");
-    }
-
-    /// <summary>
-    /// Resolves the host, refuses any address the policy rejects, and connects to one that
-    /// passed. TLS still uses the original host name for SNI and certificate validation, so
-    /// pinning the address costs nothing in correctness.
-    /// </summary>
-    private static async ValueTask<Stream> ConnectToValidatedAddressAsync(
-        SocketsHttpConnectionContext context,
-        CancellationToken cancellationToken)
-    {
-        var host = context.DnsEndPoint.Host;
-        var port = context.DnsEndPoint.Port;
-
-        IPAddress[] resolved;
-
-        if (IPAddress.TryParse(host, out var literal))
-        {
-            resolved = [literal];
-        }
-        else
-        {
-            resolved = await Dns.GetHostAddressesAsync(host, cancellationToken);
-        }
-
-        // Every returned address must pass. Connecting to the one good address in a set that
-        // also contains an internal one would still be a successful rebinding attack, because
-        // the attacker controls which address the resolver returns next.
-        var rejected = resolved
-            .Select(address => (Address: address, Rejection: IpAddressPolicy.Evaluate(address)))
-            .FirstOrDefault(entry => entry.Rejection != IpRejection.None);
-
-        if (rejected.Address is not null)
-        {
-            throw new BlockedAddressException(
-                $"The target resolves to a disallowed address ({rejected.Rejection}).");
-        }
-
-        if (resolved.Length == 0)
-        {
-            throw new BlockedAddressException("The target did not resolve to any address.");
-        }
-
-        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-
-        try
-        {
-            // Connect to the validated addresses, never to the host name again.
-            await socket.ConnectAsync(resolved, port, cancellationToken);
-            return new NetworkStream(socket, ownsSocket: true);
-        }
-        catch
-        {
-            socket.Dispose();
-            throw;
-        }
     }
 
     public async Task<SubscriptionFetchResult> FetchAsync(

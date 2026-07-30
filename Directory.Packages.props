@@ -19,6 +19,9 @@
   <ItemGroup Label="Identity and security">
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Identity.Stores" Version="$(AspNetCoreVersion)" />
+    <!-- Encrypts stored VPN panel API tokens with the same key ring that protects auth cookies,
+         under a separate purpose string. -->
+    <PackageVersion Include="Microsoft.AspNetCore.DataProtection" Version="$(AspNetCoreVersion)" />
   </ItemGroup>
 
   <ItemGroup Label="Integrations">
@@ -41,6 +44,14 @@
     <PackageVersion Include="SQLitePCLRaw.core" Version="2.1.12" />
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
     <PackageVersion Include="SQLitePCLRaw.provider.e_sqlite3" Version="2.1.12" />
+
+    <!-- Microsoft.AspNetCore.DataProtection 10.0.9 pulls System.Security.Cryptography.Xml
+         10.0.9, which audit flags with several high-severity advisories
+         (GHSA-23rf-6693-g89p, GHSA-8q5v-6pqq-x66h, GHSA-cvvh-rhrc-wg4q, GHSA-g8r8-53c2-pm3f,
+         GHSA-mmjf-rqrv-855v). 10.0.10 is the patched build. Data protection uses this to sign
+         and encrypt the key ring itself, so it is squarely on the path that protects both
+         session cookies and stored panel credentials. -->
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.10" />
   </ItemGroup>
 
   <ItemGroup Label="Testing">

@@ -25,15 +25,45 @@ public sealed class AuthorizationTests : IClassFixture<SentinelWebApplicationFac
     }
 
     [Fact]
-    public async Task The_root_path_sends_an_anonymous_visitor_to_the_login_page()
+    public async Task The_root_path_serves_the_landing_page_to_an_anonymous_visitor()
     {
         using var client = _factory.CreateNonRedirectingClient();
+
+        var response = await client.GetAsync("/");
+        var page = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // A way in, and an explanation of what is being signed in to.
+        Assert.Contains("/Account/Login", page, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task The_landing_page_does_not_name_a_single_product()
+    {
+        // The catalogue is behind the sign-in. Listing it on a public page would leak what is
+        // being offered, and to whom, before anyone has authenticated.
+        await _factory.CreateProductAsync("landing-secret-product");
+
+        using var client = _factory.CreateNonRedirectingClient();
+        var page = await client.GetStringAsync("/");
+
+        Assert.DoesNotContain("landing-secret-product", page, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task The_root_path_sends_a_signed_in_visitor_to_their_dashboard()
+    {
+        // Landing on a marketing page when you already have an account is friction.
+        using var client = _factory.CreateNonRedirectingClient();
+        await client.SignInAsync(
+            SentinelWebApplicationFactory.AdminUserName, SentinelWebApplicationFactory.AdminPassword);
 
         var response = await client.GetAsync("/");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Contains(
-            "/Account/Login",
+            "/Dashboard",
             response.Headers.Location?.ToString() ?? string.Empty,
             StringComparison.OrdinalIgnoreCase);
     }

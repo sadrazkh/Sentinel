@@ -47,7 +47,38 @@ public sealed class ProductDetailViewModel
 {
     public required ProductDetail Detail { get; init; }
 
+    public required ProductPageContent Content { get; init; }
+
     public required string TimeZoneId { get; init; }
 
     public required bool DocumentationEnabled { get; init; }
+
+    public bool ShowDocumentation => DocumentationEnabled && Content.TotalArticleCount > 0;
 }
+
+public sealed class DocumentationIndexViewModel
+{
+    public required DocumentationIndexView Index { get; init; }
+
+    public string? Search { get; init; }
+
+    /// <summary><c>null</c> when no search was run, which is different from a search that found nothing.</summary>
+    public IReadOnlyList<DocumentationArticleSummary>? Matches { get; init; }
+
+    public bool IsSearching => Matches is not null;
+}
+
+public sealed class DocumentationArticleViewModel
+{
+    public required DocumentationArticleView Article { get; init; }
+
+    public required string TimeZoneId { get; init; }
+}
+
+/// <summary>
+/// What the shared article-list partial needs. A record rather than a tuple so the partial's
+/// model type is nameable in the <c>@model</c> directive.
+/// </summary>
+public sealed record DocArticleListModel(
+    string ProductKey,
+    IReadOnlyList<DocumentationArticleSummary> Articles);

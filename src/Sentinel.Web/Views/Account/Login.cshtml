@@ -35,14 +35,17 @@
     <div class="stack">
         <div class="field">
             <label class="field__label" asp-for="Identifier">@L["login.identifier"]</label>
-            <div class="field__control">
+            @* dir on the wrapper, not on the input: the affix is positioned with logical
+               properties against this element, while the input's own padding resolves against
+               its direction. With the two disagreeing — an LTR input inside an RTL page — the
+               button lands on one side and the space reserved for it on the other. *@
+            <div class="field__control" dir="ltr">
                 <input class="input"
                        asp-for="Identifier"
                        autocomplete="username"
                        autocapitalize="none"
                        autocorrect="off"
                        spellcheck="false"
-                       dir="ltr"
                        required
                        maxlength="256"
                        placeholder="@L["login.identifier.placeholder"]" />
@@ -51,12 +54,11 @@
 
         <div class="field">
             <label class="field__label" asp-for="Password">@L["login.password"]</label>
-            <div class="field__control">
+            <div class="field__control" dir="ltr">
                 <input class="input input--with-affix"
                        asp-for="Password"
                        type="password"
                        autocomplete="current-password"
-                       dir="ltr"
                        required
                        maxlength="256"
                        placeholder="@L["login.password.placeholder"]" />

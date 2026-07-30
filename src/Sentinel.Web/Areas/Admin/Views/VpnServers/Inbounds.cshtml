@@ -1,0 +1,185 @@
+@using Sentinel.Web.Areas.Admin.Models
+@model VpnServerInboundsViewModel
+@{
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+    var serverName = isPersian ? Model.ServerNameFa : Model.ServerNameEn;
+
+    ViewData["Title"] = $"{L["admin.vpn.inbounds"].Value} · {serverName}";
+}
+
+<nav class="breadcrumb" aria-label="@L["nav.breadcrumb"]">
+    <a asp-action="Index">@L["admin.vpn.title"]</a>
+    <span aria-hidden="true">/</span>
+    <span>@serverName</span>
+</nav>
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.vpn.inbounds"]</h1>
+        <p class="page-head__subtitle">@L["admin.vpn.inbounds.subtitle"]</p>
+    </div>
+
+    @if (Model.CanWrite)
+    {
+        @* A POST, not a link: it makes an authenticated outbound call to the panel, so it must
+           not be something a prefetch or a crawler can set off. *@
+        <form method="post" asp-action="Discover" asp-route-id="@Model.ServerId">
+            <button type="submit" class="btn btn--primary btn--sm">@L["admin.vpn.discover"]</button>
+        </form>
+    }
+</div>
+
+<div class="stack" style="gap:var(--space-6)">
+    <section class="card">
+        <div class="card__header">
+            <div>
+                <h2 class="card__title">@L["admin.vpn.allowlisted"]</h2>
+                <p class="card__hint">@L["admin.vpn.allowlisted.hint"]</p>
+            </div>
+            <span class="badge badge--neutral">@Model.Allowlisted.Count</span>
+        </div>
+
+        @if (Model.Allowlisted.Count == 0)
+        {
+            <div class="empty-state">
+                <p class="empty-state__title">@L["admin.vpn.noInbounds.title"]</p>
+                <p class="empty-state__body">@L["admin.vpn.noInbounds.body"]</p>
+            </div>
+        }
+        else
+        {
+            <ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+                @foreach (var profile in Model.Allowlisted)
+                {
+                    <li class="download-row">
+                        <div class="download-row__main">
+                            <div class="cluster">
+                                <strong>@profile.Label</strong>
+                                <span class="badge badge--neutral badge--plain" dir="ltr">
+                                    #@profile.InboundId
+                                </span>
+                                <span class="badge badge--neutral badge--plain" dir="ltr">
+                                    @profile.Protocol
+                                </span>
+                                @if (profile.IsEnabled)
+                                {
+                                    <span class="badge badge--success">@L["admin.vpn.inbound.enabled"]</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge--warning">@L["admin.vpn.inbound.draining"]</span>
+                                }
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(profile.Remark))
+                            {
+                                <p class="text-xs text-muted" dir="ltr">@profile.Remark</p>
+                            }
+                        </div>
+
+                        @if (Model.CanWrite)
+                        {
+                            <div class="cluster">
+                                <form method="post" asp-action="ToggleInbound"
+                                      asp-route-id="@Model.ServerId" asp-route-profileId="@profile.Id">
+                                    <input type="hidden" name="enabled" value="@((!profile.IsEnabled).ToString().ToLowerInvariant())" />
+                                    <button type="submit" class="btn btn--ghost btn--sm">
+                                        @(profile.IsEnabled
+                                            ? L["admin.vpn.inbound.drain"]
+                                            : L["admin.vpn.inbound.enable"])
+                                    </button>
+                                </form>
+
+                                <form method="post" asp-action="RemoveInbound"
+                                      asp-route-id="@Model.ServerId" asp-route-profileId="@profile.Id">
+                                    <button type="submit" class="btn btn--danger btn--sm"
+                                            data-confirm="@L["admin.vpn.inbound.removeConfirm"]"
+                                            data-confirm-yes="@L["common.confirm"]"
+                                            data-confirm-no="@L["common.cancel"]">
+                                        @L["admin.delete"]
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    @if (Model.DiscoveryError is { } error)
+    {
+        <div class="alert alert--danger" role="alert">
+            <span>@error</span>
+        </div>
+    }
+    else if (Model.Discovered is { } discovered)
+    {
+        <section class="card">
+            <div class="card__header">
+                <div>
+                    <h2 class="card__title">@L["admin.vpn.onPanel"]</h2>
+                    <p class="card__hint">@L["admin.vpn.onPanel.hint"]</p>
+                </div>
+                <span class="badge badge--neutral">@discovered.Count</span>
+            </div>
+
+            @if (discovered.Count == 0)
+            {
+                <div class="empty-state">
+                    <p class="empty-state__title">@L["admin.vpn.panelEmpty.title"]</p>
+                    <p class="empty-state__body">@L["admin.vpn.panelEmpty.body"]</p>
+                </div>
+            }
+            else
+            {
+                <ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+                    @foreach (var inbound in discovered)
+                    {
+                        <li class="download-row">
+                            <div class="download-row__main">
+                                <div class="cluster">
+                                    <strong dir="ltr">#@inbound.InboundId</strong>
+                                    <span class="badge badge--neutral badge--plain" dir="ltr">
+                                        @inbound.Protocol
+                                    </span>
+                                    <span class="badge badge--neutral badge--plain" dir="ltr">
+                                        :@inbound.Port
+                                    </span>
+                                    @if (!inbound.EnabledOnPanel)
+                                    {
+                                        <span class="badge badge--warning">@L["admin.vpn.disabledOnPanel"]</span>
+                                    }
+                                    @if (inbound.AlreadyAllowlisted)
+                                    {
+                                        <span class="badge badge--success">@L["admin.vpn.alreadyAdded"]</span>
+                                    }
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(inbound.Remark))
+                                {
+                                    <p class="text-xs text-muted" dir="ltr">@inbound.Remark</p>
+                                }
+                            </div>
+
+                            @if (Model.CanWrite && !inbound.AlreadyAllowlisted)
+                            {
+                                <form method="post" asp-action="Allow" asp-route-id="@Model.ServerId"
+                                      class="cluster">
+                                    <input type="hidden" name="inboundId" value="@inbound.InboundId" />
+                                    <input class="input" name="label" maxlength="128"
+                                           placeholder="@L["admin.vpn.label"]"
+                                           value="@($"{inbound.Protocol}:{inbound.Port}")"
+                                           dir="ltr" style="inline-size:min(200px,40vw)" />
+                                    <button type="submit" class="btn btn--secondary btn--sm">
+                                        @L["admin.vpn.allow"]
+                                    </button>
+                                </form>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    }
+</div>

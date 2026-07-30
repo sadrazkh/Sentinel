@@ -1,0 +1,135 @@
+@using Sentinel.Vpn.Domain
+@using Sentinel.Web.Areas.Admin.Models
+@model VpnServerListViewModel
+@{
+    ViewData["Title"] = L["admin.vpn.title"].Value;
+
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.vpn.title"]</h1>
+        <p class="page-head__subtitle">@L["admin.vpn.subtitle"]</p>
+    </div>
+    @if (Model.CanWrite)
+    {
+        <a class="btn btn--primary btn--sm" asp-action="Create">@L["admin.vpn.add"]</a>
+    }
+</div>
+
+@if (Model.Servers.Count == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4.5" width="18" height="6" rx="2" />
+                    <rect x="3" y="13.5" width="18" height="6" rx="2" />
+                    <path d="M7 7.5h.01M7 16.5h.01" />
+                </svg>
+            </div>
+            <p class="empty-state__title">@L["admin.vpn.empty.title"]</p>
+            <p class="empty-state__body">@L["admin.vpn.empty.body"]</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack stack--tight">
+        @foreach (var server in Model.Servers)
+        {
+            <section class="card">
+                <div class="card__header">
+                    <div>
+                        <h2 class="card__title">
+                            @(isPersian ? server.NameFa : server.NameEn)
+                            <span class="badge badge--neutral badge--plain" dir="ltr">@server.CountryCode</span>
+                        </h2>
+                        <p class="card__hint" dir="ltr">@server.BaseUrlHost</p>
+                    </div>
+
+                    <div class="cluster">
+                        <span class="badge @VpnPresentation.StatusBadgeClass(server.Status)">
+                            @L[VpnPresentation.StatusKey(server.Status)]
+                        </span>
+                        <span class="badge @VpnPresentation.HealthBadgeClass(server.Health)">
+                            @L[VpnPresentation.HealthKey(server.Health)]
+                        </span>
+                    </div>
+                </div>
+
+                @if (server.IsMisconfigured)
+                {
+                    @* Active but unusable. Flagged loudly, because selection will skip it and the
+                       reason is not obvious from the status badge alone. *@
+                    <div class="alert alert--warning" role="status" style="margin-block-end:var(--space-4)">
+                        <span>@L["admin.vpn.misconfigured"]</span>
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(server.LastHealthError))
+                {
+                    <p class="text-xs text-muted" style="margin-block-end:var(--space-4)">
+                        @server.LastHealthError
+                    </p>
+                }
+
+                <dl class="detail-list">
+                    <div>
+                        <dt>@L["admin.vpn.capacity"]</dt>
+                        <dd dir="ltr">@server.ReservedClients / @server.MaxClients</dd>
+                    </div>
+                    <div>
+                        <dt>@L["admin.vpn.remaining"]</dt>
+                        <dd dir="ltr">@server.RemainingCapacity</dd>
+                    </div>
+                    <div>
+                        <dt>@L["admin.vpn.inbounds"]</dt>
+                        <dd dir="ltr">@server.EnabledInboundCount</dd>
+                    </div>
+                    <div>
+                        <dt>@L["admin.vpn.priority"]</dt>
+                        <dd dir="ltr">@server.SelectionPriority</dd>
+                    </div>
+                    <div>
+                        <dt>@L["admin.vpn.apiToken"]</dt>
+                        @* Only the tail. The portal cannot show the whole token again, by design. *@
+                        <dd dir="ltr">@(server.ApiTokenHint ?? "—")</dd>
+                    </div>
+                    <div>
+                        <dt>@L["admin.vpn.lastChecked"]</dt>
+                        <dd>
+                            @if (server.LastHealthCheckAt is { } checkedAt)
+                            {
+                                <time datetime="@UserTime.ToIso8601(checkedAt)">
+                                    @UserTime.Format(checkedAt, Model.TimeZoneId)
+                                </time>
+                            }
+                            else
+                            {
+                                <span class="text-muted">@L["admin.vpn.neverChecked"]</span>
+                            }
+                        </dd>
+                    </div>
+                </dl>
+
+                <div class="cluster" style="margin-block-start:var(--space-4)">
+                    <a class="btn btn--secondary btn--sm"
+                       asp-action="Inbounds" asp-route-id="@server.Id">@L["admin.vpn.manageInbounds"]</a>
+
+                    @if (Model.CanWrite)
+                    {
+                        <a class="btn btn--ghost btn--sm"
+                           asp-action="Edit" asp-route-id="@server.Id">@L["admin.edit"]</a>
+
+                        <form method="post" asp-action="Probe" asp-route-id="@server.Id">
+                            <button type="submit" class="btn btn--ghost btn--sm">@L["admin.vpn.probe"]</button>
+                        </form>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+}

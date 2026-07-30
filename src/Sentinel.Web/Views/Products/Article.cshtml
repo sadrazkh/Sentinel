@@ -1,0 +1,120 @@
+@using Sentinel.Domain.Products
+@using Sentinel.Web.Models.Products
+@model DocumentationArticleViewModel
+@{
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+
+    var article = Model.Article;
+    var title = isPersian ? article.TitleFa : article.TitleEn;
+    var summary = isPersian ? article.SummaryFa : article.SummaryEn;
+    var body = isPersian ? article.BodyHtmlFa : article.BodyHtmlEn;
+    var categoryTitle = isPersian ? article.CategoryTitleFa : article.CategoryTitleEn;
+
+    ViewData["Title"] = title;
+}
+
+<nav class="breadcrumb" aria-label="@L["nav.breadcrumb"]">
+    <a asp-action="Details" asp-route-key="@article.ProductKey">@L["product.docs.backToProduct"]</a>
+    <span aria-hidden="true">/</span>
+    <a asp-action="Docs" asp-route-key="@article.ProductKey">@L["product.docs.title"]</a>
+    @if (!string.IsNullOrWhiteSpace(categoryTitle))
+    {
+        <span aria-hidden="true">/</span>
+        <span>@categoryTitle</span>
+    }
+</nav>
+
+<article class="stack">
+    <div class="page-head">
+        <div>
+            <h1 class="page-head__title">@title</h1>
+            @if (!string.IsNullOrWhiteSpace(summary))
+            {
+                <p class="page-head__subtitle">@summary</p>
+            }
+        </div>
+
+        <div class="cluster">
+            @if (article.Platform is { } platform && platform != DownloadPlatform.Any)
+            {
+                <span class="badge badge--neutral">@L[ProductPresentation.PlatformKey(platform)]</span>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(body))
+    {
+        <section class="card">
+            <partial name="_RenderedContent" model="body" />
+        </section>
+    }
+
+    @if (article.Steps.Count > 0)
+    {
+        <section class="card">
+            <h2 class="card__title" style="margin-block-end:var(--space-4)">@L["product.docs.steps"]</h2>
+
+            <ol class="steps">
+                @foreach (var step in article.Steps)
+                {
+                    var stepTitle = isPersian ? step.TitleFa : step.TitleEn;
+                    var stepBody = isPersian ? step.BodyFa : step.BodyEn;
+
+                    <li class="step">
+                        <span class="step__number" aria-hidden="true">@step.StepNumber</span>
+
+                        <div class="step__body">
+                            @if (!string.IsNullOrWhiteSpace(stepTitle))
+                            {
+                                <p class="step__title">@stepTitle</p>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(stepBody))
+                            {
+                                @* Plain text by design: a step needs no formatting, and encoding
+                                   it through Razor keeps one fewer thing to reason about. *@
+                                <p class="step__text" style="white-space:pre-line">@stepBody</p>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(step.MediaPath))
+                            {
+                                <img class="step__image"
+                                     src="@Url.Action("StepImage", "Media",
+                                          new { key = article.ProductKey, slug = article.Slug, step = step.StepNumber })"
+                                     alt="" loading="lazy" />
+                            }
+                        </div>
+                    </li>
+                }
+            </ol>
+        </section>
+    }
+
+    <footer class="doc-nav">
+        @if (article.Previous is { } previous)
+        {
+            <a class="doc-nav__link"
+               asp-action="Article" asp-route-key="@article.ProductKey" asp-route-slug="@previous.Slug">
+                <span class="doc-nav__label">@L["product.docs.previous"]</span>
+                <span class="doc-nav__title">@(isPersian ? previous.TitleFa : previous.TitleEn)</span>
+            </a>
+        }
+        else
+        {
+            <span></span>
+        }
+
+        @if (article.Next is { } next)
+        {
+            <a class="doc-nav__link doc-nav__link--next"
+               asp-action="Article" asp-route-key="@article.ProductKey" asp-route-slug="@next.Slug">
+                <span class="doc-nav__label">@L["product.docs.next"]</span>
+                <span class="doc-nav__title">@(isPersian ? next.TitleFa : next.TitleEn)</span>
+            </a>
+        }
+    </footer>
+
+    <p class="text-xs text-muted">
+        @L["product.docs.updated", UserTime.Format(article.UpdatedAt, Model.TimeZoneId, "yyyy/MM/dd")]
+    </p>
+</article>

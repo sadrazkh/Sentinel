@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The VPN module.
+
+    A separate assembly on purpose. VPN policy differs from every other product's — capacity,
+    provisioning against a third-party panel, traffic quotas, migration between countries — and
+    keeping it here means none of that can leak into the shared catalogue. The dependency only
+    ever points inwards: Sentinel.Application knows nothing about this project, so a change to
+    VPN rules cannot alter how any other product behaves.
+
+    Entities are registered into the shared DbContext rather than a second one, so provisioning
+    and the wallet can commit in a single transaction later. The separation that matters is of
+    code and policy, not of database.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sentinel.Application\Sentinel.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sentinel.UnitTests" />
+    <InternalsVisibleTo Include="Sentinel.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,108 @@
+@using Sentinel.Application.Products
+@using Sentinel.Domain.Products
+@using Sentinel.Web.Models.Products
+@model DocumentationIndexViewModel
+@{
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+
+    var productName = isPersian ? Model.Index.ProductNameFa : Model.Index.ProductNameEn;
+    ViewData["Title"] = $"{L["product.docs.title"].Value} · {productName}";
+}
+
+<nav class="breadcrumb" aria-label="@L["nav.breadcrumb"]">
+    <a asp-action="Library">@L["products.mine.title"]</a>
+    <span aria-hidden="true">/</span>
+    <a asp-action="Details" asp-route-key="@Model.Index.ProductKey">@productName</a>
+    <span aria-hidden="true">/</span>
+    <span>@L["product.docs.title"]</span>
+</nav>
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["product.docs.title"]</h1>
+        <p class="page-head__subtitle">@L["product.docs.subtitle", productName]</p>
+    </div>
+    <span class="badge badge--neutral">@L["product.docs.count", Model.Index.ArticleCount]</span>
+</div>
+
+@* A plain GET form: search works without scripting and the result is a shareable URL. *@
+<form method="get" asp-action="Docs" asp-route-key="@Model.Index.ProductKey" class="filter-bar">
+    <div class="field field--inline">
+        <label class="field__label" for="doc-search">@L["product.docs.search.label"]</label>
+        <input class="input" type="search" id="doc-search" name="search" value="@Model.Search"
+               maxlength="80" placeholder="@L["product.docs.search.placeholder"]" />
+    </div>
+
+    <button class="btn btn--secondary btn--sm" type="submit">@L["products.search.submit"]</button>
+
+    @if (Model.IsSearching)
+    {
+        <a class="btn btn--ghost btn--sm"
+           asp-action="Docs" asp-route-key="@Model.Index.ProductKey">@L["products.clearFilters"]</a>
+    }
+</form>
+
+@if (Model.IsSearching)
+{
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">@L["product.docs.search.results", Model.Matches!.Count]</h2>
+        </div>
+
+        @if (Model.Matches.Count == 0)
+        {
+            <div class="empty-state">
+                <p class="empty-state__title">@L["product.docs.search.empty.title"]</p>
+                <p class="empty-state__body">@L["product.docs.search.empty.body"]</p>
+            </div>
+        }
+        else
+        {
+            <partial name="_DocArticleList" model="@(new DocArticleListModel(Model.Index.ProductKey, Model.Matches))" />
+        }
+    </section>
+}
+else if (Model.Index.ArticleCount == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 4.5h9l5 5V19a.5.5 0 0 1-.5.5h-13A.5.5 0 0 1 5 19z" />
+                    <path d="M14 4.5V9a.5.5 0 0 0 .5.5H19" />
+                </svg>
+            </div>
+            <p class="empty-state__title">@L["product.docs.empty.title"]</p>
+            <p class="empty-state__body">@L["product.docs.empty.body"]</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack">
+        @foreach (var category in Model.Index.Categories)
+        {
+            <section class="card">
+                <div class="card__header">
+                    <h2 class="card__title">@(isPersian ? category.TitleFa : category.TitleEn)</h2>
+                    <span class="badge badge--neutral">@category.Articles.Count</span>
+                </div>
+
+                <partial name="_DocArticleList" model="@(new DocArticleListModel(Model.Index.ProductKey, category.Articles))" />
+            </section>
+        }
+
+        @if (Model.Index.Uncategorised.Count > 0)
+        {
+            <section class="card">
+                <div class="card__header">
+                    <h2 class="card__title">@L["product.docs.other"]</h2>
+                    <span class="badge badge--neutral">@Model.Index.Uncategorised.Count</span>
+                </div>
+
+                <partial name="_DocArticleList" model="@(new DocArticleListModel(Model.Index.ProductKey, Model.Index.Uncategorised))" />
+            </section>
+        }
+    </div>
+}

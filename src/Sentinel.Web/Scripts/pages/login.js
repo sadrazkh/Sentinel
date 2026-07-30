@@ -7,38 +7,76 @@
  * markup is genuinely dynamic (see Scripts/pages/apps.js), not here.
  */
 
-function initPasswordReveal() {
-  const toggle = document.querySelector('[data-password-toggle]');
-  const input = document.getElementById('Password');
-
-  if (!toggle || !input) {
-    return;
+/**
+ * Shows or hides an element by attribute.
+ *
+ * Works for any element, including SVG. The `hidden` property only exists on HTMLElement, so
+ * `svgElement.hidden = true` compiles, runs, and does nothing at all — the kind of failure that
+ * looks like a CSS problem for an hour.
+ */
+function setHidden(element, hide) {
+  if (hide) {
+    element.setAttribute('hidden', '');
+  } else {
+    element.removeAttribute('hidden');
   }
+}
 
-  const eyeOpen = toggle.querySelector('[data-icon="show"]');
-  const eyeClosed = toggle.querySelector('[data-icon="hide"]');
+/**
+ * Wires every password-reveal toggle on the page.
+ *
+ * Each toggle finds its own input inside the shared `.field__control` wrapper rather than looking
+ * up a fixed id, so the same markup works for the sign-in form and for the admin form that takes
+ * a VPN panel's API token. Binding to an id would have quietly done nothing on the second one.
+ */
+function initPasswordReveal() {
+  for (const toggle of document.querySelectorAll('[data-password-toggle]')) {
+    const control = toggle.closest('.field__control');
+    const input = control && control.querySelector('input[type="password"], input[type="text"]');
 
-  toggle.hidden = false;
-
-  toggle.addEventListener('click', () => {
-    const revealed = input.type === 'text';
-
-    input.type = revealed ? 'password' : 'text';
-    toggle.setAttribute('aria-pressed', String(!revealed));
-    toggle.setAttribute(
-      'aria-label',
-      revealed ? toggle.dataset.labelShow : toggle.dataset.labelHide,
-    );
-
-    if (eyeOpen && eyeClosed) {
-      eyeOpen.hidden = !revealed;
-      eyeClosed.hidden = revealed;
+    if (!input) {
+      continue;
     }
 
-    // Keep the caret where the user left it.
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
-  });
+    const eyeOpen = toggle.querySelector('[data-icon="show"]');
+    const eyeClosed = toggle.querySelector('[data-icon="hide"]');
+
+    // Revealed only after the script is in place, so a visitor without scripting never sees a
+    // control that would do nothing.
+    toggle.hidden = false;
+
+    toggle.addEventListener('click', () => {
+      const revealed = input.type === 'text';
+
+      input.type = revealed ? 'password' : 'text';
+      toggle.setAttribute('aria-pressed', String(!revealed));
+      toggle.setAttribute(
+        'aria-label',
+        revealed ? toggle.dataset.labelShow : toggle.dataset.labelHide,
+      );
+
+      // The icon shows the action the button performs, not the current state: while the password
+      // is visible the button offers to hide it, so it carries the crossed-out eye.
+      //
+      // Set as an attribute, not through the `hidden` property. `hidden` is an IDL attribute of
+      // HTMLElement, and an <svg> is an SVGElement — assigning `svg.hidden` silently creates a
+      // plain JavaScript property and never touches the DOM, so the icons would never swap.
+      if (eyeOpen && eyeClosed) {
+        setHidden(eyeOpen, !revealed);
+        setHidden(eyeClosed, revealed);
+      }
+
+      // Keep the caret where the user left it. Guarded because setSelectionRange throws on input
+      // types that do not support selection, and the type was just reassigned.
+      input.focus();
+
+      try {
+        input.setSelectionRange(input.value.length, input.value.length);
+      } catch {
+        /* selection unsupported for this input; focus alone is enough */
+      }
+    });
+  }
 }
 
 /**
@@ -49,6 +87,8 @@ function initCapsLockHint() {
   const hint = document.querySelector('[data-capslock-hint]');
   const input = document.getElementById('Password');
 
+  // Only the sign-in form carries the hint. An API token is not a password somebody types from
+  // memory, so caps lock is not the failure mode there.
   if (!hint || !input) {
     return;
   }

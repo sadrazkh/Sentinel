@@ -32,6 +32,19 @@ public static class ProductPresentation
 
     public static string SourceKey(EntitlementSource source) => $"entitlementSource.{Lower(source)}";
 
+    public static string PlatformKey(DownloadPlatform platform) => $"platform.{Lower(platform)}";
+
+    public static string SectionKindKey(ProductSectionKind kind) => $"sectionKind.{Lower(kind)}";
+
+    public static string VisibilityKey(ContentVisibility visibility) => $"visibility.{Lower(visibility)}";
+
+    /// <summary>
+    /// The host part of a stored URL, for a list row. A full URL makes the row unreadable, and
+    /// the operator sees the whole value on the edit page anyway.
+    /// </summary>
+    public static string HostOf(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : "—";
+
     public static string StatusBadgeClass(ProductAccessStatus status) => status switch
     {
         ProductAccessStatus.Active => "badge--success",

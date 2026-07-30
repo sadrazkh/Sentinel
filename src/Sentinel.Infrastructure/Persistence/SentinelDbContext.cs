@@ -13,10 +13,13 @@ using Sentinel.Domain.Security;
 using Sentinel.Domain.Subscriptions;
 using Sentinel.Infrastructure.Persistence.Converters;
 
+using Sentinel.Vpn.Domain;
+using Sentinel.Vpn.Persistence;
+
 namespace Sentinel.Infrastructure.Persistence;
 
 public class SentinelDbContext
-    : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>, ISentinelDbContext
+    : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>, ISentinelDbContext, IVpnDbContext
 {
     private readonly TimeProvider _timeProvider;
 
@@ -32,6 +35,16 @@ public class SentinelDbContext
 
     public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>();
 
+    public DbSet<ProductSection> ProductSections => Set<ProductSection>();
+
+    public DbSet<ProductDownload> ProductDownloads => Set<ProductDownload>();
+
+    public DbSet<DocumentationCategory> DocumentationCategories => Set<DocumentationCategory>();
+
+    public DbSet<DocumentationArticle> DocumentationArticles => Set<DocumentationArticle>();
+
+    public DbSet<DocumentationStep> DocumentationSteps => Set<DocumentationStep>();
+
     public DbSet<ProductEntitlement> ProductEntitlements => Set<ProductEntitlement>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -46,10 +59,22 @@ public class SentinelDbContext
 
     public DbSet<SubscriptionSource> SubscriptionSources => Set<SubscriptionSource>();
 
+    // The VPN module's tables, exposed through its own narrow interface. Same context, so a VPN
+    // write and a shared-catalogue write still commit together.
+    public DbSet<VpnServer> VpnServers => Set<VpnServer>();
+
+    public DbSet<ServerInboundProfile> ServerInboundProfiles => Set<ServerInboundProfile>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(typeof(SentinelDbContext).Assembly);
+
+        // The VPN module keeps its entities and their configuration in its own assembly, so its
+        // policy cannot leak into the shared catalogue. They share this context deliberately:
+        // provisioning and, later, the wallet have to be able to commit in one transaction, which
+        // a second context would make impossible.
+        builder.ApplyConfigurationsFromAssembly(VpnModelMarker.Assembly);
 
         if (Database.IsSqlServer())
         {

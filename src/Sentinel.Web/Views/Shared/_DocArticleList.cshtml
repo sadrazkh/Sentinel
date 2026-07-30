@@ -1,0 +1,34 @@
+@using Sentinel.Domain.Products
+@using Sentinel.Web.Models.Products
+@model DocArticleListModel
+@{
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+}
+
+<ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+    @foreach (var article in Model.Articles)
+    {
+        var summary = isPersian ? article.SummaryFa : article.SummaryEn;
+
+        <li>
+            <a class="doc-link"
+               asp-controller="Products" asp-action="Article"
+               asp-route-key="@Model.ProductKey" asp-route-slug="@article.Slug">
+                <span class="doc-link__body">
+                    <span class="doc-link__title">@(isPersian ? article.TitleFa : article.TitleEn)</span>
+                    @if (!string.IsNullOrWhiteSpace(summary))
+                    {
+                        <span class="doc-link__summary">@summary</span>
+                    }
+                </span>
+
+                @if (article.Platform is { } platform && platform != DownloadPlatform.Any)
+                {
+                    <span class="badge badge--neutral badge--plain">
+                        @L[ProductPresentation.PlatformKey(platform)]
+                    </span>
+                }
+            </a>
+        </li>
+    }
+</ul>

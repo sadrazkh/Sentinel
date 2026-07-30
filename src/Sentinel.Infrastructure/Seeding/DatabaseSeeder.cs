@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sentinel.Application.Identity;
+using Sentinel.Application.Products;
 using Sentinel.Domain.Products;
 using Sentinel.Domain.Common;
 using Sentinel.Domain.Identity;
@@ -20,6 +21,7 @@ public sealed class DatabaseSeeder
     private readonly SentinelDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<ApplicationRole> _roleManager;
+    private readonly IProductContentAdminService _content;
     private readonly SeedOptions _options;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<DatabaseSeeder> _logger;
@@ -36,6 +38,7 @@ public sealed class DatabaseSeeder
         SentinelDbContext db,
         UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager,
+        IProductContentAdminService content,
         IOptions<SeedOptions> options,
         TimeProvider timeProvider,
         ILogger<DatabaseSeeder> logger)
@@ -43,6 +46,7 @@ public sealed class DatabaseSeeder
         _db = db;
         _userManager = userManager;
         _roleManager = roleManager;
+        _content = content;
         _options = options.Value;
         _timeProvider = timeProvider;
         _logger = logger;
@@ -56,6 +60,7 @@ public sealed class DatabaseSeeder
         if (_options.IncludeSampleApplications)
         {
             await SeedSampleApplicationsAsync(cancellationToken);
+            await SeedSampleContentAsync(cancellationToken);
             await SeedSampleMembersAsync(cancellationToken);
             await SeedSampleMembershipsAsync(cancellationToken);
         }
@@ -444,6 +449,118 @@ public sealed class DatabaseSeeder
         await _db.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Seeded {Count} sample products.", samples.Count);
+    }
+
+    /// <summary>
+    /// A page section, a download and a two-step guide for the vault sample, so the content
+    /// surfaces are visible in a browser on a fresh database rather than only in tests.
+    /// <para>
+    /// Routed through <see cref="IProductContentAdminService"/> rather than writing rows, so the
+    /// seeded HTML is produced by the same renderer a real edit goes through.
+    /// </para>
+    /// </summary>
+    private async Task SeedSampleContentAsync(CancellationToken cancellationToken)
+    {
+        var product = await _db.Products
+            .AsNoTracking()
+            .Where(p => p.Key == "vault")
+            .Select(p => new { p.Id })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (product is null || await _db.ProductSections.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        await _content.SaveSectionAsync(
+            product.Id,
+            null,
+            new ProductSectionSaveRequest(
+                ProductSectionKind.Features,
+                ContentVisibility.Public,
+                "ویژگی‌ها",
+                "Features",
+                "- نگهداری رمزنگاری‌شده\n- اشتراک‌گذاری با لینک منقضی‌شدنی\n- تاریخچهٔ نسخه‌ها",
+                "- Encrypted storage\n- Sharing by expiring link\n- Version history",
+                10,
+                true,
+                null),
+            cancellationToken);
+
+        await _content.SaveSectionAsync(
+            product.Id,
+            null,
+            new ProductSectionSaveRequest(
+                ProductSectionKind.Requirements,
+                ContentVisibility.Entitled,
+                "پیش‌نیازها",
+                "Requirements",
+                "برای اتصال به میزبان `vault.example.com` نیاز به **دسترسی فعال** دارید.",
+                "Connecting to `vault.example.com` needs **active access**.",
+                20,
+                true,
+                null),
+            cancellationToken);
+
+        await _content.SaveDownloadAsync(
+            product.Id,
+            null,
+            new ProductDownloadSaveRequest(
+                DownloadPlatform.Windows,
+                ContentVisibility.Entitled,
+                "کلاینت ویندوز",
+                "Windows client",
+                null,
+                null,
+                // example.com is the IANA-reserved documentation domain, so this placeholder
+                // cannot point at somebody's real file.
+                "https://downloads.example.com/vault-setup.exe",
+                "1.4.0",
+                null,
+                48_234_496,
+                10,
+                true,
+                null),
+            cancellationToken);
+
+        var categoryId = await _content.SaveCategoryAsync(
+            product.Id,
+            null,
+            new DocumentationCategorySaveRequest(
+                "getting-started", "شروع کار", "Getting started", null, 10, true, null),
+            cancellationToken);
+
+        var articleId = await _content.SaveArticleAsync(
+            product.Id,
+            null,
+            new DocumentationArticleSaveRequest(
+                categoryId.Succeeded ? categoryId.Value : null,
+                "first-upload",
+                "اولین بارگذاری",
+                "Your first upload",
+                "در چند دقیقه اولین سند خود را بارگذاری کنید.",
+                "Upload your first document in a few minutes.",
+                "## پیش از شروع\n\nمطمئن شوید عضویت شما فعال است.",
+                "## Before you start\n\nMake sure your membership is active.",
+                ContentVisibility.Public,
+                null,
+                10,
+                true,
+                null),
+            cancellationToken);
+
+        if (articleId.Succeeded)
+        {
+            await _content.SaveStepsAsync(
+                articleId.Value,
+                [
+                    new StepInput("ورود به پرتال", "Sign in", "با حساب خود وارد شوید.", "Sign in with your account."),
+                    new StepInput("انتخاب فایل", "Choose a file", "فایل را بکشید و رها کنید.", "Drag and drop the file."),
+                ],
+                cancellationToken);
+        }
+
+        _logger.LogInformation("Seeded sample product content for 'vault'.");
     }
 
     private static string Describe(IdentityResult result) =>

@@ -1,0 +1,288 @@
+@using Sentinel.Web.Areas.Admin.Models
+@model ContentOverviewViewModel
+@{
+    var isPersian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+    var productName = isPersian ? Model.ProductNameFa : Model.ProductNameEn;
+
+    ViewData["Title"] = $"{L["admin.content.title"].Value} · {productName}";
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.content.title"]</h1>
+        <p class="page-head__subtitle">@L["admin.content.subtitle", productName]</p>
+    </div>
+    <a class="btn btn--ghost btn--sm"
+       asp-controller="Applications" asp-action="Edit" asp-route-id="@Model.ProductId">
+        @L["admin.back"]
+    </a>
+</div>
+
+<section class="grid grid--stats" style="margin-block-end:var(--space-6)">
+    <div class="stat">
+        <div class="stat__label">@L["admin.content.sections"]</div>
+        <div class="stat__value">@Model.Summary.SectionCount</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">@L["admin.content.downloads"]</div>
+        <div class="stat__value">@Model.Summary.DownloadCount</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">@L["admin.content.articles"]</div>
+        <div class="stat__value">@Model.Summary.ArticleCount</div>
+        @if (Model.Summary.UnpublishedArticleCount > 0)
+        {
+            <div class="stat__meta">@L["admin.content.unpublished", Model.Summary.UnpublishedArticleCount]</div>
+        }
+    </div>
+    <div class="stat">
+        <div class="stat__label">@L["admin.content.categories"]</div>
+        <div class="stat__value">@Model.Summary.CategoryCount</div>
+    </div>
+</section>
+
+<div class="stack" style="gap:var(--space-6)">
+
+    @* ---------------------------------------------------------------- sections ---- *@
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">@L["admin.content.sections"]</h2>
+            @if (Model.CanWrite)
+            {
+                <a class="btn btn--secondary btn--sm"
+                   asp-action="NewSection" asp-route-productId="@Model.ProductId">
+                    @L["admin.content.addSection"]
+                </a>
+            }
+        </div>
+
+        @if (Model.Sections.Count == 0)
+        {
+            <p class="text-sm text-muted">@L["admin.content.empty"]</p>
+        }
+        else
+        {
+            <ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+                @foreach (var block in Model.Sections)
+                {
+                    <li class="download-row">
+                        <div class="download-row__main">
+                            <div class="cluster">
+                                <strong>@(isPersian ? block.TitleFa : block.TitleEn)</strong>
+                                <span class="badge badge--neutral badge--plain">
+                                    @L[ProductPresentation.SectionKindKey(block.Kind)]
+                                </span>
+                                <span class="badge badge--neutral badge--plain">
+                                    @L[ProductPresentation.VisibilityKey(block.Visibility)]
+                                </span>
+                                @if (!block.IsVisible)
+                                {
+                                    <span class="badge badge--warning">@L["admin.application.hidden"]</span>
+                                }
+                            </div>
+                        </div>
+
+                        @if (Model.CanWrite)
+                        {
+                            <div class="cluster">
+                                <a class="btn btn--ghost btn--sm"
+                                   asp-action="EditSection" asp-route-id="@block.Id">@L["admin.edit"]</a>
+
+                                <form method="post" asp-action="DeleteSection"
+                                      asp-route-productId="@Model.ProductId" asp-route-id="@block.Id">
+                                    <button type="submit" class="btn btn--danger btn--sm"
+                                            data-confirm="@L["admin.content.deleteConfirm"]"
+                                            data-confirm-yes="@L["common.confirm"]"
+                                            data-confirm-no="@L["common.cancel"]">
+                                        @L["admin.delete"]
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    @* --------------------------------------------------------------- downloads ---- *@
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">@L["admin.content.downloads"]</h2>
+            @if (Model.CanWrite)
+            {
+                <a class="btn btn--secondary btn--sm"
+                   asp-action="NewDownload" asp-route-productId="@Model.ProductId">
+                    @L["admin.content.addDownload"]
+                </a>
+            }
+        </div>
+
+        @if (Model.Downloads.Count == 0)
+        {
+            <p class="text-sm text-muted">@L["admin.content.empty"]</p>
+        }
+        else
+        {
+            <ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+                @foreach (var download in Model.Downloads)
+                {
+                    <li class="download-row">
+                        <div class="download-row__main">
+                            <div class="cluster">
+                                <strong>@(isPersian ? download.TitleFa : download.TitleEn)</strong>
+                                <span class="badge badge--neutral badge--plain">
+                                    @L[ProductPresentation.PlatformKey(download.Platform)]
+                                </span>
+                                <span class="badge badge--neutral badge--plain">
+                                    @L[ProductPresentation.VisibilityKey(download.Visibility)]
+                                </span>
+                                @if (!string.IsNullOrWhiteSpace(download.Version))
+                                {
+                                    <span class="badge badge--neutral badge--plain" dir="ltr">v@(download.Version)</span>
+                                }
+                            </div>
+                            @* The host only. A full URL in a list makes the row unreadable and the
+                               operator can see the whole thing on the edit page. *@
+                            <p class="text-xs text-muted" dir="ltr">@ProductPresentation.HostOf(download.Url)</p>
+                        </div>
+
+                        @if (Model.CanWrite)
+                        {
+                            <div class="cluster">
+                                <a class="btn btn--ghost btn--sm"
+                                   asp-action="EditDownload" asp-route-id="@download.Id">@L["admin.edit"]</a>
+
+                                <form method="post" asp-action="DeleteDownload"
+                                      asp-route-productId="@Model.ProductId" asp-route-id="@download.Id">
+                                    <button type="submit" class="btn btn--danger btn--sm"
+                                            data-confirm="@L["admin.content.deleteConfirm"]"
+                                            data-confirm-yes="@L["common.confirm"]"
+                                            data-confirm-no="@L["common.cancel"]">
+                                        @L["admin.delete"]
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    @* -------------------------------------------------------------- categories ---- *@
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">@L["admin.content.categories"]</h2>
+            @if (Model.CanWrite)
+            {
+                <a class="btn btn--secondary btn--sm"
+                   asp-action="NewCategory" asp-route-productId="@Model.ProductId">
+                    @L["admin.content.addCategory"]
+                </a>
+            }
+        </div>
+
+        @if (Model.Categories.Count == 0)
+        {
+            <p class="text-sm text-muted">@L["admin.content.empty"]</p>
+        }
+        else
+        {
+            <ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+                @foreach (var category in Model.Categories)
+                {
+                    <li class="download-row">
+                        <div class="download-row__main">
+                            <div class="cluster">
+                                <strong>@(isPersian ? category.TitleFa : category.TitleEn)</strong>
+                                <code class="text-xs" dir="ltr">@category.Slug</code>
+                                @if (!category.IsVisible)
+                                {
+                                    <span class="badge badge--warning">@L["admin.application.hidden"]</span>
+                                }
+                            </div>
+                        </div>
+
+                        @if (Model.CanWrite)
+                        {
+                            <form method="post" asp-action="DeleteCategory"
+                                  asp-route-productId="@Model.ProductId" asp-route-id="@category.Id">
+                                <button type="submit" class="btn btn--danger btn--sm"
+                                        data-confirm="@L["admin.content.deleteConfirm"]"
+                                        data-confirm-yes="@L["common.confirm"]"
+                                        data-confirm-no="@L["common.cancel"]">
+                                    @L["admin.delete"]
+                                </button>
+                            </form>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    @* ---------------------------------------------------------------- articles ---- *@
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">@L["admin.content.articles"]</h2>
+            @if (Model.CanWrite)
+            {
+                <a class="btn btn--secondary btn--sm"
+                   asp-action="NewArticle" asp-route-productId="@Model.ProductId">
+                    @L["admin.content.addArticle"]
+                </a>
+            }
+        </div>
+
+        @if (Model.Articles.Count == 0)
+        {
+            <p class="text-sm text-muted">@L["admin.content.empty"]</p>
+        }
+        else
+        {
+            <ul class="stack stack--tight" style="list-style:none;padding:0;margin:0">
+                @foreach (var article in Model.Articles)
+                {
+                    <li class="download-row">
+                        <div class="download-row__main">
+                            <div class="cluster">
+                                <strong>@(isPersian ? article.TitleFa : article.TitleEn)</strong>
+                                <code class="text-xs" dir="ltr">@article.Slug</code>
+                                <span class="badge badge--neutral badge--plain">
+                                    @L[ProductPresentation.VisibilityKey(article.Visibility)]
+                                </span>
+                                @if (article.IsPublished)
+                                {
+                                    <span class="badge badge--success">@L["admin.content.published"]</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge--warning">@L["releaseStatus.draft"]</span>
+                                }
+                            </div>
+                        </div>
+
+                        @if (Model.CanWrite)
+                        {
+                            <div class="cluster">
+                                <a class="btn btn--ghost btn--sm"
+                                   asp-action="EditArticle" asp-route-id="@article.Id">@L["admin.edit"]</a>
+
+                                <form method="post" asp-action="DeleteArticle"
+                                      asp-route-productId="@Model.ProductId" asp-route-id="@article.Id">
+                                    <button type="submit" class="btn btn--danger btn--sm"
+                                            data-confirm="@L["admin.content.deleteConfirm"]"
+                                            data-confirm-yes="@L["common.confirm"]"
+                                            data-confirm-no="@L["common.cancel"]">
+                                        @L["admin.delete"]
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>

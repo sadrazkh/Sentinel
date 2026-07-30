@@ -1,10 +1,14 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sentinel.Application.Accounts;
+using Sentinel.Application.Auditing;
 using Sentinel.Application.Authorization;
 using Sentinel.Application.Features;
 using Sentinel.Application.Products;
+using Sentinel.Domain.Auditing;
+using Sentinel.Domain.Products;
 using Sentinel.Web.Infrastructure;
 using Sentinel.Web.Models.Products;
 using Sentinel.Web.Security;
@@ -26,17 +30,26 @@ namespace Sentinel.Web.Controllers;
 public sealed class ProductsController : Controller
 {
     private readonly IProductLibraryService _library;
+    private readonly IProductContentService _content;
     private readonly IAccountOverviewQuery _accountOverview;
+    private readonly IAuditService _audit;
     private readonly IFeatureGate _features;
+    private readonly ILogger<ProductsController> _logger;
 
     public ProductsController(
         IProductLibraryService library,
+        IProductContentService content,
         IAccountOverviewQuery accountOverview,
-        IFeatureGate features)
+        IAuditService audit,
+        IFeatureGate features,
+        ILogger<ProductsController> logger)
     {
         _library = library;
+        _content = content;
         _accountOverview = accountOverview;
+        _audit = audit;
         _features = features;
+        _logger = logger;
     }
 
     /// <summary>Discover: everything visible to this member, held or not.</summary>
@@ -72,13 +85,153 @@ public sealed class ProductsController : Controller
         }
 
         var overview = await _accountOverview.GetAsync(userId, 1, cancellationToken);
+        var content = await _content.GetPageContentAsync(userId, key, cancellationToken);
 
         return View(new ProductDetailViewModel
         {
             Detail = detail,
+            Content = content,
             TimeZoneId = overview?.TimeZoneId ?? UserTime.DefaultTimeZoneId,
             DocumentationEnabled = _features.IsEnabled(FeatureNames.ProductDocumentation),
         });
+    }
+
+    /// <summary>The documentation index for one product.</summary>
+    [HttpGet("{key}/docs")]
+    [RequireFeature(FeatureNames.ProductDocumentation)]
+    public async Task<IActionResult> Docs(
+        string key,
+        [StringLength(80)] string? search,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Forbid();
+        }
+
+        var index = await _content.GetDocumentationIndexAsync(userId, key, cancellationToken);
+
+        if (index is null)
+        {
+            return NotFound();
+        }
+
+        // An over-long term is dropped rather than rejected: a GET should still render.
+        var term = ModelState.IsValid ? search : null;
+
+        var matches = string.IsNullOrWhiteSpace(term)
+            ? null
+            : await _content.SearchArticlesAsync(userId, key, term, cancellationToken);
+
+        return View(new DocumentationIndexViewModel
+        {
+            Index = index,
+            Search = term,
+            Matches = matches,
+        });
+    }
+
+    [HttpGet("{key}/docs/{slug}")]
+    [RequireFeature(FeatureNames.ProductDocumentation)]
+    public async Task<IActionResult> Article(
+        string key,
+        string slug,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Forbid();
+        }
+
+        var article = await _content.GetArticleAsync(userId, key, slug, cancellationToken);
+
+        // Absent, unpublished and out-of-audience answer identically — see the service.
+        if (article is null)
+        {
+            return NotFound();
+        }
+
+        var overview = await _accountOverview.GetAsync(userId, 1, cancellationToken);
+
+        return View(new DocumentationArticleViewModel
+        {
+            Article = article,
+            TimeZoneId = overview?.TimeZoneId ?? UserTime.DefaultTimeZoneId,
+        });
+    }
+
+    /// <summary>
+    /// Starts a download.
+    /// <para>
+    /// Mirrors the application launch deliberately: the client never holds the destination, it
+    /// asks the portal for a download by id, the decision is made here, the URL is re-validated,
+    /// and only then is a redirect issued. That is what makes a locked download a real control.
+    /// </para>
+    /// </summary>
+    [HttpGet("{key}/downloads/{id:guid}")]
+    public async Task<IActionResult> Download(
+        string key,
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Forbid();
+        }
+
+        var resolution = await _content.ResolveDownloadAsync(userId, key, id, cancellationToken);
+
+        if (resolution is null)
+        {
+            return NotFound();
+        }
+
+        if (!resolution.IsAllowed)
+        {
+            await _audit.RecordAndSaveAsync(
+                AuditEntry.For(AuditActions.DownloadDenied, nameof(ProductDownload), resolution.DownloadId) with
+                {
+                    Result = AuditResult.Denied,
+                    Metadata = AuditMetadata.Create().Set("productKey", resolution.ProductKey),
+                },
+                cancellationToken);
+
+            return Forbid();
+        }
+
+        // Re-validated even though it passed the same policy when saved: this is the moment the
+        // browser is told to follow the value, so a row that predates the rule — or arrived via a
+        // database restore — must not be trusted here.
+        if (!DownloadUrlPolicy.IsAllowed(resolution.Url))
+        {
+            _logger.LogError(
+                "Download {DownloadId} for product {ProductKey} has a URL that fails the policy; refusing.",
+                resolution.DownloadId,
+                resolution.ProductKey);
+
+            await _audit.RecordAndSaveAsync(
+                AuditEntry.For(AuditActions.DownloadDenied, nameof(ProductDownload), resolution.DownloadId) with
+                {
+                    Result = AuditResult.Failure,
+                    Metadata = AuditMetadata.Create()
+                        .Set("productKey", resolution.ProductKey)
+                        .Set("reason", "invalidDownloadUrl"),
+                },
+                cancellationToken);
+
+            return Forbid();
+        }
+
+        await _audit.RecordAndSaveAsync(
+            AuditEntry.For(AuditActions.DownloadStarted, nameof(ProductDownload), resolution.DownloadId) with
+            {
+                Metadata = AuditMetadata.Create().Set("productKey", resolution.ProductKey),
+            },
+            cancellationToken);
+
+        // A deliberate off-site redirect, not an open redirect: the target comes from the
+        // catalogue an operator curates, never from the request.
+        return Redirect(resolution.Url!);
     }
 
     private async Task<IActionResult> RenderLibraryAsync(

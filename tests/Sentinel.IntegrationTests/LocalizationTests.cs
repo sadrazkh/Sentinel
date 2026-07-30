@@ -158,6 +158,137 @@ public sealed partial class LocalizationTests
             $"Enum-derived keys missing from a catalogue: {string.Join(", ", missing)}");
     }
 
+    /// <summary>
+    /// Not localisation, but it belongs with the other whole-project source scans.
+    /// <para>
+    /// <c>Html.Raw</c> is the one call that can turn stored data into live markup. Exactly one
+    /// view is allowed to use it — the partial that renders content already produced by
+    /// <c>RichTextRenderer</c> — and this test is what keeps a second one from appearing quietly.
+    /// The same goes for <c>v-html</c> on the Vue side.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Only_the_rendered_content_partial_may_emit_unencoded_html()
+    {
+        var offenders = new List<string>();
+
+        foreach (var file in Directory.EnumerateFiles(WebRoot, "*.cshtml", SearchOption.AllDirectories))
+        {
+            // Razor comments are stripped first: a comment explaining that a page deliberately
+            // avoids Html.Raw is not a use of it, and would otherwise fail this test.
+            var text = RazorCommentRegex().Replace(File.ReadAllText(file), string.Empty);
+            var name = Path.GetFileName(file);
+
+            if (text.Contains("Html.Raw", StringComparison.Ordinal)
+                && !string.Equals(name, "_RenderedContent.cshtml", StringComparison.Ordinal))
+            {
+                offenders.Add(name);
+            }
+        }
+
+        foreach (var extension in new[] { "*.vue", "*.js", "*.ts" })
+        {
+            var clientRoot = Path.Combine(WebRoot, "ClientApp");
+
+            if (!Directory.Exists(clientRoot))
+            {
+                continue;
+            }
+
+            offenders.AddRange(Directory
+                .EnumerateFiles(clientRoot, extension, SearchOption.AllDirectories)
+                .Where(file => File.ReadAllText(file).Contains("v-html", StringComparison.Ordinal))
+                .Select(Path.GetFileName)!);
+        }
+
+        Assert.True(
+            offenders.Count == 0,
+            $"These files emit unencoded HTML: {string.Join(", ", offenders.Distinct())}");
+    }
+
+    /// <summary>
+    /// A localisation key rendered into the page instead of its translation.
+    /// <para>
+    /// The catalogue checks above prove the keys <em>exist</em>; this proves the pages actually
+    /// resolve them. The two are different failures: a key emitted into a
+    /// <c>data-val-*</c> attribute, or interpolated into markup that never reached the localiser,
+    /// passes every catalogue check and still shows a customer "validation.required".
+    /// </para>
+    /// </summary>
+    [Theory]
+    [InlineData("fa-IR")]
+    [InlineData("en-US")]
+    public async Task No_page_renders_a_localisation_key_instead_of_its_translation(string culture)
+    {
+        await using var factory = new SentinelWebApplicationFactory();
+
+        await factory.CreateMemberAsync("i18n-probe");
+        var productId = await factory.CreateProductAsync("i18n-probe-product");
+        await factory.AddArticleAsync(productId, "i18n-probe-article", isPublished: true);
+
+        using var client = factory.CreateNonRedirectingClient();
+
+        var anonymous = new[] { "/", "/Account/Login" };
+
+        foreach (var path in anonymous)
+        {
+            await AssertNoRawKeysAsync(client, path, culture);
+        }
+
+        await client.SignInAsync("i18n-probe", PortalTestData.MemberPassword);
+
+        var authenticated = new[]
+        {
+            "/Dashboard", "/Apps", "/products", "/products/library",
+            "/products/i18n-probe-product", "/products/i18n-probe-product/docs",
+            "/products/i18n-probe-product/docs/i18n-probe-article",
+            "/Membership", "/Configs", "/Profile", "/Security", "/Activity", "/Notifications",
+        };
+
+        foreach (var path in authenticated)
+        {
+            await AssertNoRawKeysAsync(client, path, culture);
+        }
+    }
+
+    /// <summary>
+    /// The key prefixes this project uses. Anchored so a real sentence containing a full stop
+    /// cannot match, and deliberately not a catch-all `\w+\.\w+` — that would flag every file
+    /// name and version number on the page.
+    /// </summary>
+    [GeneratedRegex(
+        @"(?<![\w.\-/])(?:landing|admin|apps|products|product|membership|nav|login|theme|common"
+        + @"|denial|validation|vpnStatus|vpnHealth|platform|visibility|sectionKind|capability"
+        + @"|entitlementSource|productStatus|productType|releaseStatus|tier|membershipStatus"
+        + @"|appBadge|content)\.[a-zA-Z][A-Za-z0-9.]*",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex RawKeyRegex();
+
+    private static async Task AssertNoRawKeysAsync(HttpClient client, string path, string culture)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Add("Accept-Language", culture);
+
+        using var response = await client.SendAsync(request);
+
+        Assert.True(
+            response.IsSuccessStatusCode,
+            $"{path} ({culture}) returned {(int)response.StatusCode}.");
+
+        var html = await response.Content.ReadAsStringAsync();
+
+        var leaked = RawKeyRegex()
+            .Matches(html)
+            .Select(match => match.Value)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(key => key, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(
+            leaked.Count == 0,
+            $"{path} ({culture}) rendered raw localisation keys: {string.Join(", ", leaked)}");
+    }
+
     [Fact]
     public void Placeholder_counts_match_between_the_two_languages()
     {
@@ -182,6 +313,9 @@ public sealed partial class LocalizationTests
 
     [GeneratedRegex(@"\{\d+\}", RegexOptions.CultureInvariant)]
     private static partial Regex PlaceholderRegex();
+
+    [GeneratedRegex(@"@\*.*?\*@", RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+    private static partial Regex RazorCommentRegex();
 
     /// <summary>
     /// Walks up from the test assembly to the repository root, so the test does not depend on

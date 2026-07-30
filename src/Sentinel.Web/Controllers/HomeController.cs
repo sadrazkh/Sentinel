@@ -8,11 +8,20 @@ namespace Sentinel.Web.Controllers;
 [AllowAnonymous]
 public sealed class HomeController : Controller
 {
+    /// <summary>
+    /// The portal's front door.
+    /// <para>
+    /// A signed-in visitor goes straight to their dashboard — landing on a marketing page when you
+    /// already have an account is friction, not welcome. Everyone else gets the landing page
+    /// rather than being dropped on a bare sign-in form with no explanation of what they are
+    /// signing in to.
+    /// </para>
+    /// </summary>
     [HttpGet("/")]
     public IActionResult Index() =>
         User.Identity?.IsAuthenticated == true
             ? RedirectToAction("Index", "Dashboard")
-            : RedirectToAction("Login", "Account");
+            : View();
 
     /// <summary>
     /// Switches the interface language. A POST with an anti-forgery token, because it writes

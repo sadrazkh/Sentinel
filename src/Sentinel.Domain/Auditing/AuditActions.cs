@@ -33,6 +33,19 @@ public static class AuditActions
     public const string ApplicationLaunched = "application.launched";
     public const string ApplicationLaunchDenied = "application.launch.denied";
 
+    public const string ContentSectionSaved = "content.section.saved";
+    public const string ContentSectionDeleted = "content.section.deleted";
+    public const string ContentDownloadSaved = "content.download.saved";
+    public const string ContentDownloadDeleted = "content.download.deleted";
+    public const string ContentCategorySaved = "content.category.saved";
+    public const string ContentCategoryDeleted = "content.category.deleted";
+    public const string ContentArticleSaved = "content.article.saved";
+    public const string ContentArticleDeleted = "content.article.deleted";
+
+    /// <summary>A download the member was allowed to take, and one they were refused.</summary>
+    public const string DownloadStarted = "download.started";
+    public const string DownloadDenied = "download.denied";
+
     public const string TelegramLinked = "telegram.linked";
     public const string TelegramUnlinked = "telegram.unlinked";
 

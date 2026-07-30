@@ -1,8 +1,10 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sentinel.Application.Authorization;
 using Sentinel.Application.Catalog;
 using Sentinel.Application.Media;
+using Sentinel.Application.Products;
 
 namespace Sentinel.Web.Controllers;
 
@@ -26,11 +28,19 @@ public sealed class MediaController : Controller
     private const int CacheSeconds = 86_400;
 
     private readonly IApplicationAdminQuery _applications;
+    private readonly IProductContentService _content;
+
+    // Named for its first use, but the store itself is generic: a flat directory of
+    // server-generated names. Documentation step images live in it alongside product icons.
     private readonly IApplicationIconStorage _storage;
 
-    public MediaController(IApplicationAdminQuery applications, IApplicationIconStorage storage)
+    public MediaController(
+        IApplicationAdminQuery applications,
+        IProductContentService content,
+        IApplicationIconStorage storage)
     {
         _applications = applications;
+        _content = content;
         _storage = storage;
     }
 
@@ -71,6 +81,62 @@ public sealed class MediaController : Controller
 
         // No file name is offered. Inline display is the only intended use, and an attachment
         // name would be one more attacker-influenced string in a response header.
+        return File(stream, ImageSignature.ContentTypeFor(format));
+    }
+
+    /// <summary>
+    /// Serves the screenshot attached to one documentation step.
+    /// <para>
+    /// Routed through the content service rather than reading the step row directly, so the
+    /// image is behind exactly the same audience check as the article that shows it. An image
+    /// reachable without that check would be a way to read entitled content by URL.
+    /// </para>
+    /// </summary>
+    [HttpGet("/media/doc-step/{key}/{slug}/{step:int}")]
+    public async Task<IActionResult> StepImage(
+        string key,
+        string slug,
+        int step,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            return Forbid();
+        }
+
+        var article = await _content.GetArticleAsync(userId, key, slug, cancellationToken);
+
+        if (article is null)
+        {
+            return NotFound();
+        }
+
+        var storedName = article.Steps
+            .FirstOrDefault(candidate => candidate.StepNumber == step)?.MediaPath;
+
+        // Re-validated even though this application wrote the value: the row could predate the
+        // rule or arrive from a restore, and this is the one place it steers a file read.
+        if (!IconFileName.IsValid(storedName))
+        {
+            return NotFound();
+        }
+
+        var format = IconFileName.FormatOf(storedName!);
+
+        if (format == ImageFormat.Unknown)
+        {
+            return NotFound();
+        }
+
+        var stream = await _storage.OpenReadAsync(storedName!, cancellationToken);
+
+        if (stream is null)
+        {
+            return NotFound();
+        }
+
+        Response.Headers.CacheControl = $"private, max-age={CacheSeconds}";
+
         return File(stream, ImageSignature.ContentTypeFor(format));
     }
 }

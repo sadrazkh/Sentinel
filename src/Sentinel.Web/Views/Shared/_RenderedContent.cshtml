@@ -1,0 +1,13 @@
+@model string
+@*
+    The single place stored content HTML is emitted unencoded.
+
+    Html.Raw is safe here and nowhere else, for one specific reason: this value was produced by
+    RichTextRenderer, which HTML-encodes its input before adding any markup, so the string cannot
+    contain a tag the renderer did not construct. Nothing user-supplied and nothing fetched from
+    outside ever reaches this partial.
+
+    Keeping it in one file rather than calling Html.Raw at each site means there is exactly one
+    place to audit, and a grep for Html.Raw across the project has exactly one hit to explain.
+*@
+<div class="prose">@Html.Raw(Model)</div>

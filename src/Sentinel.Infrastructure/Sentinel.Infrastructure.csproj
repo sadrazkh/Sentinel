@@ -2,6 +2,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Sentinel.Application\Sentinel.Application.csproj" />
+
+    <!-- For the VPN entity configurations only. The dependency runs this way round so that
+         Sentinel.Vpn never has to know about the DbContext, and nothing in the shared
+         application layer can reference a VPN type. -->
+    <ProjectReference Include="..\Sentinel.Vpn\Sentinel.Vpn.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -12,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />

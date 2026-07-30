@@ -1,0 +1,51 @@
+@using Sentinel.Web.Areas.Admin.Models
+@model CategoryEditViewModel
+@{
+    ViewData["Title"] = Model.IsNew ? L["admin.content.addCategory"].Value : Model.TitleEn;
+}
+
+<partial name="_ContentFormHead" model="@(new ContentFormHead(ViewData["Title"] as string ?? string.Empty, Model.ProductId))" />
+
+<form method="post" asp-action="SaveCategory" asp-route-productId="@Model.ProductId" class="card">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="ConcurrencyToken" />
+
+    <div class="stack">
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+                <label class="field__label" asp-for="TitleFa">@L["admin.application.nameFa"]</label>
+                <input class="input" asp-for="TitleFa" required maxlength="160" />
+            </div>
+            <div class="field">
+                <label class="field__label" asp-for="TitleEn">@L["admin.application.nameEn"]</label>
+                <input class="input" asp-for="TitleEn" dir="ltr" required maxlength="160" />
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:2fr 1fr">
+            <div class="field">
+                <label class="field__label" asp-for="Slug">@L["admin.content.slug"]</label>
+                <input class="input" asp-for="Slug" dir="ltr" maxlength="80"
+                       autocomplete="off" spellcheck="false" placeholder="getting-started" />
+                <p class="text-xs text-muted">@L["admin.content.slug.hint"]</p>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="DisplayOrder">@L["admin.application.displayOrder"]</label>
+                <input class="input" asp-for="DisplayOrder" type="number" min="0" max="10000" dir="ltr" />
+            </div>
+        </div>
+
+        <label class="checkbox">
+            <input type="checkbox" asp-for="IsVisible" />
+            <span>@L["admin.application.isEnabled"]</span>
+        </label>
+
+        <div class="cluster">
+            <button type="submit" class="btn btn--primary">@L["admin.save"]</button>
+            <a class="btn btn--ghost" asp-action="Index" asp-route-productId="@Model.ProductId">
+                @L["common.cancel"]
+            </a>
+        </div>
+    </div>
+</form>

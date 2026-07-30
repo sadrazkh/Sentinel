@@ -91,6 +91,9 @@ public static class DependencyInjection
         // restart — and without any component caching a stale answer.
         services.AddSingleton<IFeatureGate, FeatureGate>();
         services.AddScoped<IProductLibraryService, ProductLibraryService>();
+        services.AddScoped<IProductContentService, ProductContentService>();
+        services.AddScoped<IProductContentAdminService, ProductContentAdminService>();
+        services.AddScoped<IProductContentAdminQuery, ProductContentAdminQuery>();
 
         services.AddScoped<IUserAdminQuery, UserAdminQuery>();
         services.AddScoped<IUserAdminService, UserAdminService>();
