@@ -9,6 +9,7 @@ using Sentinel.Application.Products;
 using Sentinel.Application.Subscriptions;
 using Sentinel.Vpn.Plans;
 using Sentinel.Vpn.Provisioning;
+using Sentinel.Vpn.Purchasing;
 using Sentinel.Web.Areas.Vpn.Models;
 using Sentinel.Web.Infrastructure;
 using Sentinel.Web.Localization;
@@ -36,6 +37,7 @@ public sealed class ServicesController : Controller
     private readonly IServicePlanCatalog _plans;
     private readonly ICustomerServiceQuery _services;
     private readonly ICustomerServiceManager _manager;
+    private readonly IPlanPurchaseService _purchases;
     private readonly ISubscriptionService _subscriptions;
     private readonly IAccountOverviewQuery _accountOverview;
     private readonly IFeatureGate _features;
@@ -47,6 +49,7 @@ public sealed class ServicesController : Controller
         IServicePlanCatalog plans,
         ICustomerServiceQuery services,
         ICustomerServiceManager manager,
+        IPlanPurchaseService purchases,
         ISubscriptionService subscriptions,
         IAccountOverviewQuery accountOverview,
         IFeatureGate features,
@@ -57,6 +60,7 @@ public sealed class ServicesController : Controller
         _plans = plans;
         _services = services;
         _manager = manager;
+        _purchases = purchases;
         _subscriptions = subscriptions;
         _accountOverview = accountOverview;
         _features = features;
@@ -188,6 +192,45 @@ public sealed class ServicesController : Controller
             : _localizer[result.ErrorKey ?? ServiceErrors.NotFound].Value;
 
         return RedirectToAction(nameof(Index), new { key, tab = "services" });
+    }
+
+    /// <summary>
+    /// Buys a plan with wallet credit.
+    /// <para>
+    /// The form sends a plan and an idempotency key. It does <b>not</b> send a price — the amount
+    /// charged is read from the plan row inside the transaction, so a crafted post cannot name its
+    /// own. Whether the plan is on sale and whether this member is in its audience are re-decided
+    /// there too: the catalogue that drew the button is a rendering, not an authorisation.
+    /// </para>
+    /// <para>
+    /// Gated on both flags, and gated again inside the service. Off in production until the purchase
+    /// flow has had its own security review.
+    /// </para>
+    /// </summary>
+    [HttpPost("purchase")]
+    [ValidateAntiForgeryToken]
+    [RequireFeature(FeatureNames.Purchases)]
+    [RequireFeature(FeatureNames.Wallet)]
+    public async Task<IActionResult> Purchase(
+        string key,
+        Guid planId,
+        string? idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Forbid();
+        }
+
+        var result = await _purchases.PurchaseAsync(
+            userId, new PurchasePlanRequest(planId, idempotencyKey), cancellationToken);
+
+        TempData["StatusMessage"] = result.Succeeded
+            ? _localizer["purchase.done"].Value
+            : _localizer[result.ErrorKey ?? PurchaseErrors.PlanNotFound].Value;
+
+        return RedirectToAction(
+            nameof(Index), new { key, tab = result.Succeeded ? "services" : null });
     }
 
     private bool TryGetUserId(out Guid userId) =>

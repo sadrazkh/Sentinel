@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Sentinel.Application.Abstractions;
 using Sentinel.Domain.Auditing;
+using Sentinel.Domain.Billing;
 using Sentinel.Domain.Products;
 using Sentinel.Domain.Common;
 using Sentinel.Domain.Entitlements;
@@ -59,6 +60,12 @@ public class SentinelDbContext
 
     public DbSet<SubscriptionSource> SubscriptionSources => Set<SubscriptionSource>();
 
+    // Credit. Deliberately in the shared context rather than a module's: a balance is a portal-wide
+    // idea, and it has to commit in the same transaction as whatever it paid for.
+    public DbSet<Wallet> Wallets => Set<Wallet>();
+
+    public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
+
     // The VPN module's tables, exposed through its own narrow interface. Same context, so a VPN
     // write and a shared-catalogue write still commit together.
     public DbSet<VpnServer> VpnServers => Set<VpnServer>();
@@ -75,10 +82,16 @@ public class SentinelDbContext
 
     public DbSet<ProvisioningJob> ProvisioningJobs => Set<ProvisioningJob>();
 
+    public DbSet<ServiceMigration> ServiceMigrations => Set<ServiceMigration>();
+
     /// <summary>Satisfies <see cref="IVpnDbContext.ReloadAsync{TEntity}"/>.</summary>
     public Task ReloadAsync<TEntity>(TEntity entity, CancellationToken cancellationToken = default)
         where TEntity : class =>
         Entry(entity).ReloadAsync(cancellationToken);
+
+    /// <summary>Satisfies <see cref="ISentinelDbContext.Detach{TEntity}"/>.</summary>
+    public void Detach<TEntity>(TEntity entity) where TEntity : class =>
+        Entry(entity).State = EntityState.Detached;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -125,6 +138,7 @@ public class SentinelDbContext
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        GuardAppendOnlyLedger();
         ApplyTimestamps();
         RotateConcurrencyTokens();
         return base.SaveChangesAsync(cancellationToken);
@@ -132,9 +146,36 @@ public class SentinelDbContext
 
     public override int SaveChanges()
     {
+        GuardAppendOnlyLedger();
         ApplyTimestamps();
         RotateConcurrencyTokens();
         return base.SaveChanges();
+    }
+
+    /// <summary>
+    /// Refuses any attempt to change or remove a ledger entry.
+    /// <para>
+    /// The append-only rule is the whole value of <see cref="WalletTransaction"/>, and a rule kept
+    /// only by everyone remembering it is one that lasts until the first person in a hurry. This
+    /// makes it structural: a correction has to be a reversal, because an edit does not compile into
+    /// a working save.
+    /// </para>
+    /// <para>
+    /// Throws rather than reverting the change. Something tried to rewrite financial history, and
+    /// the write that follows should not proceed as though it had not.
+    /// </para>
+    /// </summary>
+    private void GuardAppendOnlyLedger()
+    {
+        foreach (var entry in ChangeTracker.Entries<WalletTransaction>())
+        {
+            if (entry.State is EntityState.Modified or EntityState.Deleted)
+            {
+                throw new InvalidOperationException(
+                    $"Wallet ledger entries are append-only; entry {entry.Entity.Id} was "
+                    + $"{entry.State.ToString().ToLowerInvariant()}. Record a reversal instead.");
+            }
+        }
     }
 
     private void ApplyTimestamps()

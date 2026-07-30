@@ -423,6 +423,155 @@ public sealed class CustomerServiceAdminTests : IClassFixture<VpnTestFactory>, I
         Assert.Null(service.DeliveryTokenSealed);
     }
 
+    // ---------------------------------------------------------------------------- migration ----
+
+    [Fact]
+    public async Task Support_can_read_the_migration_list_but_cannot_start_one()
+    {
+        var serviceId = await ProvisionedServiceAsync("svc-mig-support");
+
+        using var client = await ClientAsync("svc-admin-mig-support", RoleNames.Support);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await client.GetAsync("/Admin/CustomerServices/migrations")).StatusCode);
+
+        var refused = await client.GetAsync($"/Admin/CustomerServices/{serviceId}/migrate");
+
+        Assert.Equal(HttpStatusCode.Redirect, refused.StatusCode);
+        Assert.Contains(
+            "/Account/AccessDenied",
+            refused.Headers.Location?.ToString() ?? string.Empty,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task A_migration_form_cannot_set_the_allowance_or_the_expiry()
+    {
+        // The overposting case that matters most here: the allowance the destination gets is what is
+        // left, read from the source panel, and the expiry is copied. Neither has a bindable
+        // property, so these extra fields land nowhere.
+        var serviceId = await ProvisionedServiceAsync("svc-mig-overpost");
+
+        var destinationId = await CreateServerAsync("svc-mig-overpost-dest");
+
+        using var client = await ClientAsync("svc-admin-mig-overpost", RoleNames.Admin);
+
+        var token = await client.GetAntiForgeryTokenAsync(
+            $"/Admin/CustomerServices/{serviceId}/migrate");
+
+        var response = await client.PostAsync(
+            $"/Admin/CustomerServices/{serviceId}/migrate",
+            new FormUrlEncodedContent(
+            [
+                new("__RequestVerificationToken", token),
+                new("DestinationServerId", destinationId.ToString()),
+                new("Reason", "operator moved it"),
+
+                // Invented field names an attacker would try.
+                new("RemainingBytes", "999999999999"),
+                new("ExpiresAt", "2099-01-01T00:00:00Z"),
+                new("SourceUsedBytes", "0"),
+                new("Step", "4"),
+            ]));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+
+        var migration = await _factory.WithScopeAsync(services =>
+            services.GetRequiredService<IVpnDbContext>()
+                .ServiceMigrations.AsNoTracking()
+                .FirstAsync(candidate => candidate.ServiceId == serviceId));
+
+        var service = await LoadAsync(serviceId);
+
+        // The allowance is the service's own, untouched by the form.
+        Assert.Equal(service.TrafficBytes - service.UsedBytes, migration.RemainingBytes);
+        Assert.Equal(service.ExpiresAt, migration.ExpiresAt);
+        Assert.Equal(MigrationStep.Planned, migration.Step);
+    }
+
+    [Fact]
+    public async Task A_refused_migration_redisplays_without_offering_the_current_server()
+    {
+        // The form's context — member, plan, current server — is displayed but not posted back. A
+        // redisplay that skipped reloading it would show a blank page whose destination list included
+        // the very server the service is already on.
+        var serviceId = await ProvisionedServiceAsync("svc-mig-redisplay");
+        var service = await LoadAsync(serviceId);
+
+        using var client = await ClientAsync("svc-admin-mig-redisplay", RoleNames.Admin);
+
+        var token = await client.GetAntiForgeryTokenAsync(
+            $"/Admin/CustomerServices/{serviceId}/migrate");
+
+        // A destination that does not exist, so the planner refuses and the form comes back.
+        var response = await client.PostAsync(
+            $"/Admin/CustomerServices/{serviceId}/migrate",
+            new FormUrlEncodedContent(
+            [
+                new("__RequestVerificationToken", token),
+                new("DestinationServerId", Guid.NewGuid().ToString()),
+            ]));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var page = await response.Content.ReadAsStringAsync();
+
+        // The context is back...
+        Assert.Contains("svc-mig-redisplay-owner", page, StringComparison.Ordinal);
+
+        // ...and the service's own server is not on offer.
+        Assert.DoesNotContain(
+            $"value=\"{service.ServerId}\"", page, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Starting_a_migration_without_an_anti_forgery_token_is_refused()
+    {
+        var serviceId = await ProvisionedServiceAsync("svc-mig-csrf");
+        var destinationId = await CreateServerAsync("svc-mig-csrf-dest");
+
+        using var client = await ClientAsync("svc-admin-mig-csrf", RoleNames.Admin);
+
+        var response = await client.PostAsync(
+            $"/Admin/CustomerServices/{serviceId}/migrate",
+            new FormUrlEncodedContent([new("DestinationServerId", destinationId.ToString())]));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var any = await _factory.WithScopeAsync(services =>
+            services.GetRequiredService<IVpnDbContext>()
+                .ServiceMigrations.AsNoTracking()
+                .AnyAsync(candidate => candidate.ServiceId == serviceId));
+
+        Assert.False(any);
+    }
+
+    [Fact]
+    public async Task A_form_cannot_redirect_an_action_to_a_different_service()
+    {
+        // MVC reads form values ahead of route values, so a route parameter named `id` can be
+        // overridden by a form field of the same name — the confirmation dialog would describe one
+        // service while the action ran against another. [FromRoute] is what pins it.
+        var target = await ProvisionedServiceAsync("svc-bind-target");
+        var bystander = await ProvisionedServiceAsync("svc-bind-bystander");
+
+        using var client = await ClientAsync("svc-admin-bind", RoleNames.Admin);
+
+        var token = await client.GetAntiForgeryTokenAsync("/Admin/CustomerServices");
+
+        await client.PostAsync(
+            $"/Admin/CustomerServices/{target}/suspend",
+            new FormUrlEncodedContent(
+            [
+                new("__RequestVerificationToken", token),
+                new("id", bystander.ToString()),
+            ]));
+
+        Assert.Equal(CustomerServiceStatus.Suspended, (await LoadAsync(target)).Status);
+        Assert.Equal(CustomerServiceStatus.Active, (await LoadAsync(bystander)).Status);
+    }
+
     [Fact]
     public async Task A_service_that_does_not_exist_reports_rather_than_crashes()
     {

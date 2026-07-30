@@ -31,6 +31,8 @@ public interface IVpnDbContext
 
     DbSet<ProvisioningJob> ProvisioningJobs { get; }
 
+    DbSet<ServiceMigration> ServiceMigrations { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>

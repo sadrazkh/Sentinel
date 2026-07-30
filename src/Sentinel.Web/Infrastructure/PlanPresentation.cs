@@ -1,5 +1,7 @@
 using System.Globalization;
+using Sentinel.Domain.Billing;
 using Sentinel.Vpn.Domain;
+using Sentinel.Vpn.Migration;
 using Sentinel.Vpn.Plans;
 
 namespace Sentinel.Web.Infrastructure;
@@ -33,6 +35,46 @@ public static class PlanPresentation
         CustomerServiceStatus.Expired or CustomerServiceStatus.Exhausted => "badge--danger",
         _ => "badge--neutral",
     };
+
+    public static string MigrationStepKey(MigrationStep step) => $"migrationStep.{Lower(step)}";
+
+    public static string WalletKindKey(WalletTransactionKind kind) => $"walletKind.{Lower(kind)}";
+
+    /// <summary>
+    /// The badge a migration step wears.
+    /// <para>
+    /// <see cref="MigrationStep.Detaching"/> is a warning rather than a success even though nothing
+    /// has gone wrong: it is the window in which the customer is live on two panels, and an operator
+    /// glancing at the page should see the one row that is costing something.
+    /// </para>
+    /// </summary>
+    public static string MigrationStepBadgeClass(MigrationStep step) => step switch
+    {
+        MigrationStep.Completed => "badge--success",
+        MigrationStep.Planned or MigrationStep.Creating or MigrationStep.Verifying => "badge--info",
+        MigrationStep.Detaching or MigrationStep.NeedsAttention => "badge--warning",
+        MigrationStep.Abandoned => "badge--danger",
+        _ => "badge--neutral",
+    };
+
+    /// <summary>
+    /// A duration reduced to one unit and its localisation key — enough resolution to judge a
+    /// migration window, and left for the view to render so the unit is not a hard-coded "m" on a
+    /// Persian page.
+    /// </summary>
+    public static (string Key, int Value) DescribeDuration(TimeSpan span)
+    {
+        if (span < TimeSpan.Zero)
+        {
+            span = TimeSpan.Zero;
+        }
+
+        return span.TotalHours >= 1
+            ? ("duration.hours", (int)span.TotalHours)
+            : span.TotalMinutes >= 1
+                ? ("duration.minutes", (int)span.TotalMinutes)
+                : ("duration.seconds", (int)span.TotalSeconds);
+    }
 
     /// <summary>
     /// A traffic allowance as a human quantity.
@@ -88,6 +130,21 @@ public static class PlanPresentation
         var major = minorUnits / Math.Pow(10, exponent);
 
         // Grouped and rendered in the current culture, so a Persian page shows Persian digits.
+        return major.ToString($"N{exponent}", CultureInfo.CurrentCulture) + " " + currency;
+    }
+
+    /// <summary>
+    /// An amount of money, plainly.
+    /// <para>
+    /// Separate from <see cref="DescribePrice"/> because that one renders zero as "Free" — right for
+    /// a price list, wrong for a balance. An empty wallet holds nothing; it is not free.
+    /// </para>
+    /// </summary>
+    public static string DescribeMoney(long minorUnits, string currency)
+    {
+        var exponent = MinorUnitExponent(currency);
+        var major = minorUnits / Math.Pow(10, exponent);
+
         return major.ToString($"N{exponent}", CultureInfo.CurrentCulture) + " " + currency;
     }
 

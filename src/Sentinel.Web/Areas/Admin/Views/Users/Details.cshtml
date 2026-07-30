@@ -31,6 +31,15 @@
         <span class="badge @AccessPresentation.MembershipBadgeClass(user.Membership.Status)">
             @L[AccessPresentation.MembershipStatusKey(user.Membership.Status)]
         </span>
+        @if (Context.RequestServices
+                .GetRequiredService<Sentinel.Application.Features.IFeatureGate>()
+                .IsEnabled(Sentinel.Application.Features.FeatureNames.Wallet))
+        {
+            <a class="btn btn--secondary btn--sm"
+               asp-controller="Wallets" asp-action="Details" asp-route-userId="@user.Id">
+                @L["admin.wallet.title"]
+            </a>
+        }
         <a class="btn btn--ghost btn--sm" asp-action="Index">@L["admin.back"]</a>
     </div>
 </div>

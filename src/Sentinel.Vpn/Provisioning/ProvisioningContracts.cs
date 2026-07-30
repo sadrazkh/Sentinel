@@ -97,6 +97,13 @@ public static class ServiceErrors
     public const string NoUsableInbound = "admin.error.serviceNoInbound";
     public const string AlreadyEnded = "admin.error.serviceAlreadyEnded";
     public const string BusyProvisioning = "admin.error.serviceBusy";
+
+    /// <summary>
+    /// A migration is in flight, so the service's server is about to change. Every lifecycle
+    /// operation queues a job against the server the service is on <em>now</em>, and that server may
+    /// not exist for this customer by the time the job runs.
+    /// </summary>
+    public const string BusyMigrating = "admin.error.serviceMigrating";
 }
 
 /// <summary>
@@ -113,9 +120,17 @@ public interface ICustomerServiceManager
     /// Creates a service and queues its provisioning. Reserves capacity synchronously, so a member
     /// is told immediately if there is nowhere to put it rather than finding out later.
     /// </summary>
+    /// <param name="saveChanges">
+    /// Pass <c>false</c> to leave the rows uncommitted so a caller can commit them with something
+    /// else. The purchase flow needs this: the wallet debit and the service have to land in one
+    /// transaction, and it also has to write the service's id onto the ledger entry — which is only
+    /// possible while that entry is still an unsaved insert, because a committed one may never be
+    /// modified.
+    /// </param>
     Task<OperationResult<Guid>> CreateAsync(
         CreateServiceRequest request,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        bool saveChanges = true);
 
     Task<OperationResult> SuspendAsync(Guid serviceId, CancellationToken cancellationToken = default);
 

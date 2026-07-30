@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sentinel.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Sentinel.Infrastructure.Persistence;
 namespace Sentinel.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SentinelDbContext))]
-    partial class SentinelDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260730074626_ServiceMigrations")]
+    partial class ServiceMigrations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -185,112 +188,6 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                     b.HasIndex("EntityType", "EntityId");
 
                     b.ToTable("AuditLogs", (string)null);
-                });
-
-            modelBuilder.Entity("Sentinel.Domain.Billing.Wallet", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("BalanceMinorUnits")
-                        .HasColumnType("bigint");
-
-                    b.Property<Guid>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(3)
-                        .HasColumnType("character varying(3)");
-
-                    b.Property<string>("FrozenReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<bool>("IsFrozen")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
-
-                    b.ToTable("Wallets", (string)null);
-                });
-
-            modelBuilder.Entity("Sentinel.Domain.Billing.WalletTransaction", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("AmountMinorUnits")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("BalanceAfterMinorUnits")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(3)
-                        .HasColumnType("character varying(3)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<int>("Direction")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Kind")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid?>("PerformedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Reference")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<Guid?>("RelatedServiceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ReversesTransactionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("WalletId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReversesTransactionId")
-                        .IsUnique();
-
-                    b.HasIndex("WalletId");
-
-                    b.HasIndex("UserId", "CreatedAt");
-
-                    b.HasIndex("WalletId", "Reference")
-                        .IsUnique();
-
-                    b.ToTable("WalletTransactions", (string)null);
                 });
 
             modelBuilder.Entity("Sentinel.Domain.Entitlements.ProductEntitlement", b =>
@@ -1881,24 +1778,6 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("ActorUser");
-                });
-
-            modelBuilder.Entity("Sentinel.Domain.Billing.WalletTransaction", b =>
-                {
-                    b.HasOne("Sentinel.Domain.Billing.WalletTransaction", "ReversesTransaction")
-                        .WithMany()
-                        .HasForeignKey("ReversesTransactionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Sentinel.Domain.Billing.Wallet", "Wallet")
-                        .WithMany()
-                        .HasForeignKey("WalletId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ReversesTransaction");
-
-                    b.Navigation("Wallet");
                 });
 
             modelBuilder.Entity("Sentinel.Domain.Entitlements.ProductEntitlement", b =>

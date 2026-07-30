@@ -16,6 +16,7 @@
     // refuse on their own regardless — this only keeps the navigation honest.
     var showLibrary = Features.IsEnabled(FeatureNames.ProductLibrary);
     var showDiscovery = showLibrary && Features.IsEnabled(FeatureNames.ProductDiscovery);
+    var showWallet = Features.IsEnabled(FeatureNames.Wallet);
 }
 <!DOCTYPE html>
 <html lang="@culture.TwoLetterISOLanguageName" dir="@direction">
@@ -88,6 +89,12 @@
                 <a class="btn btn--ghost btn--sm" asp-area="" asp-controller="Security" asp-action="Index">
                     @L["nav.security"]
                 </a>
+                @if (showWallet)
+                {
+                    <a class="btn btn--ghost btn--sm" asp-area="" asp-controller="Wallet" asp-action="Index">
+                        @L["nav.wallet"]
+                    </a>
+                }
 
                 @await Component.InvokeAsync("UnreadNotifications")
 

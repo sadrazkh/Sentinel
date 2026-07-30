@@ -1,0 +1,170 @@
+@using Sentinel.Vpn.Domain
+@using Sentinel.Web.Areas.Admin.Models
+@model MigrationListViewModel
+@{
+    ViewData["Title"] = L["admin.migration.title"].Value;
+
+    var now = DateTimeOffset.UtcNow;
+    var statusMessage = TempData["StatusMessage"] as string;
+    var dualActive = Model.DualActive;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["admin.migration.title"]</h1>
+        <p class="page-head__subtitle">@L["admin.migration.subtitle"]</p>
+    </div>
+    <a class="btn btn--ghost btn--sm" asp-action="Index">@L["admin.back"]</a>
+</div>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert alert--info" role="status">@statusMessage</div>
+}
+
+@if (dualActive.Count > 0)
+{
+    @* The one thing on this page that gets worse the longer nobody looks. Both panels count traffic
+       against their own copy of the allowance, so an open window costs the customer quota. *@
+    <div class="alert alert--warning" role="status">
+        @L["admin.migration.dualActiveWarning", dualActive.Count]
+    </div>
+}
+
+@if (Model.Migrations.Count == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 8h13l-3-3M20 16H7l3 3" />
+                </svg>
+            </div>
+            <p class="empty-state__title">@L["admin.migration.empty.title"]</p>
+            <p class="empty-state__body">@L["admin.migration.empty.body"]</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack stack--tight">
+        @foreach (var migration in Model.Migrations)
+        {
+            <section class="card">
+                <div class="card__header">
+                    <div style="min-inline-size:0">
+                        <h2 class="card__title" dir="ltr">
+                            @(migration.SourceServerKey ?? "—")
+                            <span aria-hidden="true">→</span>
+                            @(migration.DestinationServerKey ?? "—")
+                        </h2>
+                        <p class="card__hint">
+                            <span dir="ltr">@migration.UserName</span>
+                            <span aria-hidden="true">·</span>
+                            @migration.PlanNameEn
+                        </p>
+                    </div>
+
+                    <div class="cluster">
+                        @if (migration.IsDualActive)
+                        {
+                            var (unitKey, amount) =
+                                PlanPresentation.DescribeDuration(migration.DualActiveFor(now) ?? TimeSpan.Zero);
+
+                            <span class="badge badge--warning">
+                                @L["admin.migration.dualActive", L[unitKey, amount].Value]
+                            </span>
+                        }
+                        <span class="badge @PlanPresentation.MigrationStepBadgeClass(migration.Step)">
+                            @L[PlanPresentation.MigrationStepKey(migration.Step)]
+                        </span>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(migration.LastError))
+                {
+                    @* Already redacted where it was recorded — never a raw exception or a URL. *@
+                    <p class="text-xs text-muted" style="margin-block-end:var(--space-4)">
+                        @migration.LastError
+                    </p>
+                }
+
+                <dl class="detail-list">
+                    <div>
+                        <dt>@L["admin.migration.carriedAllowance"]</dt>
+                        <dd dir="ltr">
+                            @(migration.RemainingBytes <= 0
+                                ? L["plan.unlimited"].Value
+                                : ByteSize.Describe(migration.RemainingBytes))
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>@L["vpn.service.expires"]</dt>
+                        <dd>
+                            @if (migration.ExpiresAt is { } expires)
+                            {
+                                <time datetime="@UserTime.ToIso8601(expires)">
+                                    @UserTime.Format(expires, Model.TimeZoneId, "yyyy/MM/dd")
+                                </time>
+                            }
+                            else
+                            {
+                                <span class="text-muted">@L["vpn.service.noExpiry"]</span>
+                            }
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>@L["admin.migration.attempts"]</dt>
+                        <dd dir="ltr">@migration.Attempts</dd>
+                    </div>
+                    <div>
+                        <dt>@L["admin.migration.started"]</dt>
+                        <dd>
+                            <time datetime="@UserTime.ToIso8601(migration.CreatedAt)">
+                                @UserTime.Format(migration.CreatedAt, Model.TimeZoneId)
+                            </time>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>@L["admin.migration.finished"]</dt>
+                        <dd>
+                            @if (migration.CompletedAt is { } completed)
+                            {
+                                <time datetime="@UserTime.ToIso8601(completed)">
+                                    @UserTime.Format(completed, Model.TimeZoneId)
+                                </time>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </dd>
+                    </div>
+                </dl>
+
+                @* Only while the source is still untouched. Past verification the customer may
+                   already be relying on the destination, and removing it could leave them with
+                   nothing — so the button is not offered rather than offered and refused. *@
+                @if (Model.CanWrite
+                     && migration.Step is MigrationStep.Planned or MigrationStep.Creating
+                         or MigrationStep.Verifying)
+                {
+                    <form method="post"
+                          asp-action="RollBackMigration"
+                          asp-route-migrationId="@migration.Id"
+                          style="margin-block-start:var(--space-4)">
+                        <button type="submit"
+                                class="btn btn--ghost btn--sm"
+                                data-confirm="@L["admin.migration.rollbackConfirm"]"
+                                data-confirm-title="@L["admin.migration.rollback"]"
+                                data-confirm-yes="@L["admin.migration.rollback"]"
+                                data-confirm-no="@L["action.cancel"]">
+                            @L["admin.migration.rollback"]
+                        </button>
+                    </form>
+                }
+            </section>
+        }
+    </div>
+}

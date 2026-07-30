@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sentinel.Vpn.Migration;
 
 namespace Sentinel.Vpn.Provisioning;
 
@@ -46,6 +47,16 @@ public sealed class ProvisioningOptions
 
     [Range(1, 200)]
     public int ReconcileBatchSize { get; set; } = 20;
+
+    /// <summary>
+    /// How often to advance in-flight migrations. Frequent, because a migration that has reached its
+    /// verified step has the customer live on two panels, and that window is what this interval is.
+    /// </summary>
+    [Range(5, 3600)]
+    public int MigrationIntervalSeconds { get; set; } = 30;
+
+    [Range(1, 100)]
+    public int MigrationBatchSize { get; set; } = 5;
 
     /// <summary>Delay before the first sweep, so start-up is not competing for the connection pool.</summary>
     [Range(0, 600)]
@@ -93,7 +104,8 @@ public sealed class ProvisioningBackgroundService : BackgroundService
 
         await Task.Delay(TimeSpan.FromSeconds(options.StartupDelaySeconds), stoppingToken);
 
-        // Three independent loops. A slow usage sweep must not delay a queued provisioning job.
+        // Independent loops. A slow usage sweep must not delay a queued provisioning job, and a
+        // migration mid-flight must not wait behind either.
         var jobs = RunLoopAsync(
             TimeSpan.FromSeconds(options.JobIntervalSeconds),
             "provisioning",
@@ -112,7 +124,22 @@ public sealed class ProvisioningBackgroundService : BackgroundService
             (_, reconciler, _, token) => reconciler.SyncUsageAsync(options.UsageBatchSize, token),
             stoppingToken);
 
-        await Task.WhenAll(jobs, reconcile, usage);
+        // One loop for both halves of migration: advancing a step and resolving a parked one are the
+        // same urgency, and a parked migration is a customer sitting in the dual-active window.
+        var migrations = RunLoopAsync(
+            TimeSpan.FromSeconds(options.MigrationIntervalSeconds),
+            "migration",
+            async (_, _, provider, token) =>
+            {
+                var migrator = provider.GetRequiredService<IMigrationExecutor>();
+
+                var advanced = await migrator.RunPendingAsync(options.MigrationBatchSize, token);
+
+                return advanced + await migrator.ReconcileAsync(options.MigrationBatchSize, token);
+            },
+            stoppingToken);
+
+        await Task.WhenAll(jobs, reconcile, usage, migrations);
     }
 
     private async Task RunLoopAsync(

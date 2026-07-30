@@ -48,7 +48,8 @@ public sealed class CustomerServiceManager : ICustomerServiceManager
 
     public async Task<OperationResult<Guid>> CreateAsync(
         CreateServiceRequest request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool saveChanges = true)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -153,7 +154,12 @@ public sealed class CustomerServiceManager : ICustomerServiceManager
             },
             cancellationToken);
 
-        await _vpn.SaveChangesAsync(cancellationToken);
+        // Left to the caller when asked. Capacity has already been reserved either way, so an
+        // uncommitted create still cannot be beaten to the last slot.
+        if (saveChanges)
+        {
+            await _vpn.SaveChangesAsync(cancellationToken);
+        }
 
         return OperationResult<Guid>.Success(serviceId);
     }
@@ -198,6 +204,11 @@ public sealed class CustomerServiceManager : ICustomerServiceManager
         if (service.Status == CustomerServiceStatus.Ended)
         {
             return OperationResult.Failure(ServiceErrors.AlreadyEnded);
+        }
+
+        if (await IsMigratingAsync(serviceId, cancellationToken))
+        {
+            return OperationResult.Failure(ServiceErrors.BusyMigrating);
         }
 
         var now = _timeProvider.GetUtcNow();
@@ -248,6 +259,11 @@ public sealed class CustomerServiceManager : ICustomerServiceManager
             return OperationResult.Failure(ServiceErrors.AlreadyEnded);
         }
 
+        if (await IsMigratingAsync(serviceId, cancellationToken))
+        {
+            return OperationResult.Failure(ServiceErrors.BusyMigrating);
+        }
+
         var now = _timeProvider.GetUtcNow();
         var previous = service.UsedBytes;
 
@@ -288,6 +304,14 @@ public sealed class CustomerServiceManager : ICustomerServiceManager
         if (service.Status == CustomerServiceStatus.Ended)
         {
             return OperationResult.Failure(ServiceErrors.AlreadyEnded);
+        }
+
+        // Refused rather than queued behind the migration. A decommission targets the server the
+        // service is on now — the source — and would delete that copy while the destination one, the
+        // customer's real client from here on, carried on serving.
+        if (await IsMigratingAsync(serviceId, cancellationToken))
+        {
+            return OperationResult.Failure(ServiceErrors.BusyMigrating);
         }
 
         var now = _timeProvider.GetUtcNow();
@@ -383,6 +407,11 @@ public sealed class CustomerServiceManager : ICustomerServiceManager
                     : ServiceErrors.BusyProvisioning);
         }
 
+        if (await IsMigratingAsync(serviceId, cancellationToken))
+        {
+            return OperationResult.Failure(ServiceErrors.BusyMigrating);
+        }
+
         var now = _timeProvider.GetUtcNow();
 
         service.Status = target;
@@ -424,6 +453,23 @@ public sealed class CustomerServiceManager : ICustomerServiceManager
     private Task<CustomerService?> LoadForWriteAsync(Guid serviceId, CancellationToken cancellationToken) =>
         _vpn.CustomerServices
             .FirstOrDefaultAsync(candidate => candidate.Id == serviceId, cancellationToken);
+
+    /// <summary>
+    /// Whether a migration is part-way through moving this service.
+    /// <para>
+    /// Every operation below queues a job against the server the service is on at the moment of
+    /// queueing. Mid-migration that is the <em>source</em>, which the saga is about to delete the
+    /// client from — so a suspend queued now would arrive at a panel that no longer has anything to
+    /// suspend, and a decommission would delete the source copy while the destination one lived on.
+    /// </para>
+    /// </summary>
+    private Task<bool> IsMigratingAsync(Guid serviceId, CancellationToken cancellationToken) =>
+        _vpn.ServiceMigrations.AnyAsync(
+            migration => migration.ServiceId == serviceId
+                         && migration.Step != MigrationStep.Completed
+                         && migration.Step != MigrationStep.Abandoned
+                         && migration.Step != MigrationStep.RolledBack,
+            cancellationToken);
 
     private async Task<IReadOnlyList<ServerCandidate>> LoadCandidatesAsync(
         CancellationToken cancellationToken) =>

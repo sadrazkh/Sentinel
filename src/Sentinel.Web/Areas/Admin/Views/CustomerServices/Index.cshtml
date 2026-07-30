@@ -13,10 +13,13 @@
         <h1 class="page-head__title">@L["admin.service.title"]</h1>
         <p class="page-head__subtitle">@L["admin.service.subtitle"]</p>
     </div>
-    @if (Model.CanWrite)
-    {
-        <a class="btn btn--primary btn--sm" asp-action="Create">@L["admin.service.add"]</a>
-    }
+    <div class="cluster">
+        <a class="btn btn--secondary btn--sm" asp-action="Migrations">@L["admin.migration.title"]</a>
+        @if (Model.CanWrite)
+        {
+            <a class="btn btn--primary btn--sm" asp-action="Create">@L["admin.service.add"]</a>
+        }
+    </div>
 </div>
 
 @if (!string.IsNullOrEmpty(statusMessage))
@@ -55,6 +58,8 @@ else
     <div class="stack stack--tight">
         @foreach (var service in Model.Services)
         {
+            var migration = Model.MigrationFor(service.Id);
+
             <section class="card">
                 <div class="card__header">
                     <div style="min-inline-size:0">
@@ -67,6 +72,13 @@ else
                     </div>
 
                     <div class="cluster">
+                        @if (migration is not null)
+                        {
+                            <a class="badge @PlanPresentation.MigrationStepBadgeClass(migration.Step)"
+                               asp-action="Migrations">
+                                @L["admin.migration.moving", migration.DestinationServerKey ?? "—"]
+                            </a>
+                        }
                         @if (service.NeedsAttention)
                         {
                             <span class="badge badge--warning">@L["admin.service.needsAttention"]</span>
@@ -151,9 +163,26 @@ else
                     </div>
                 </dl>
 
-                @if (Model.CanWrite && service.Status != CustomerServiceStatus.Ended)
+                @if (migration is not null)
+                {
+                    @* Every lifecycle action queues a job against the server the service is on now —
+                       the source, which the saga is about to remove the client from. So none are
+                       offered, rather than offered and then refused. *@
+                    <p class="text-xs text-muted" style="margin-block-start:var(--space-4)">
+                        @L["admin.migration.lockedHint"]
+                    </p>
+                }
+                else if (Model.CanWrite && service.Status != CustomerServiceStatus.Ended)
                 {
                     <div class="cluster" style="margin-block-start:var(--space-4)">
+                        @if (service.Status is CustomerServiceStatus.Active or CustomerServiceStatus.Suspended)
+                        {
+                            <a class="btn btn--secondary btn--sm"
+                               asp-action="Migrate" asp-route-id="@service.Id">
+                                @L["admin.migration.move"]
+                            </a>
+                        }
+
                         @if (service.Status == CustomerServiceStatus.Active)
                         {
                             <form method="post" asp-action="Suspend" asp-route-id="@service.Id">

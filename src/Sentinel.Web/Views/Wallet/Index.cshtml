@@ -1,0 +1,98 @@
+@using Sentinel.Web.Models.Wallet
+@model WalletPageViewModel
+@{
+    ViewData["Title"] = L["wallet.title"].Value;
+    ViewData["TimeZoneId"] = Model.TimeZoneId;
+
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@L["wallet.title"]</h1>
+        <p class="page-head__subtitle">@L["wallet.subtitle"]</p>
+    </div>
+</div>
+
+<section class="card">
+    <div class="card__header">
+        <div>
+            <p class="card__hint">@L["wallet.balance"]</p>
+            <p class="stat__value" dir="ltr">
+                @PlanPresentation.DescribeMoney(Model.Balance, Model.Currency)
+            </p>
+        </div>
+
+        @if (Model.IsFrozen)
+        {
+            <span class="badge badge--warning">@L["wallet.frozen"]</span>
+        }
+    </div>
+
+    @if (Model.IsFrozen)
+    {
+        <p class="text-xs text-muted">@L["wallet.frozen.hint"]</p>
+    }
+
+    @*
+        There is no top-up button, and there is no page behind one. Credit is added by an operator
+        from the back office; this portal has no payment path at all. Saying so plainly is better
+        than leaving somebody hunting for a control that does not exist.
+    *@
+    <p class="field__hint" style="margin-block-start:var(--space-4)">@L["wallet.topup.hint"]</p>
+</section>
+
+<h2 class="section-title" style="margin-block-start:var(--space-8)">@L["wallet.statement"]</h2>
+
+@if (Model.Entries.Count == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <p class="empty-state__title">@L["wallet.empty.title"]</p>
+            <p class="empty-state__body">@L["wallet.empty.body"]</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div style="overflow-x:auto">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">@L["wallet.when"]</th>
+                        <th scope="col">@L["wallet.what"]</th>
+                        <th scope="col">@L["wallet.amount"]</th>
+                        <th scope="col">@L["wallet.balanceAfter"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in Model.Entries)
+                    {
+                        var isCredit = entry.Direction == Sentinel.Domain.Billing.WalletEntryDirection.Credit;
+
+                        <tr>
+                            <td>
+                                <time datetime="@UserTime.ToIso8601(entry.CreatedAt)">
+                                    @UserTime.Format(entry.CreatedAt, Model.TimeZoneId)
+                                </time>
+                            </td>
+                            <td>
+                                @L[PlanPresentation.WalletKindKey(entry.Kind)]
+                                @if (!string.IsNullOrWhiteSpace(entry.Description))
+                                {
+                                    <span class="text-muted"> — @entry.Description</span>
+                                }
+                            </td>
+                            <td dir="ltr" class="@(isCredit ? "text-success" : null)">
+                                @(isCredit ? "+" : "−")@PlanPresentation.DescribeMoney(entry.AmountMinorUnits, entry.Currency)
+                            </td>
+                            <td dir="ltr">
+                                @PlanPresentation.DescribeMoney(entry.BalanceAfterMinorUnits, entry.Currency)
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

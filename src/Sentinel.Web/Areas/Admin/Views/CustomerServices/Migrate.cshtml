@@ -1,0 +1,104 @@
+@using Sentinel.Web.Areas.Admin.Models
+@model ServiceMigrationCreateViewModel
+@{
+    ViewData["Title"] = L["admin.migration.move"].Value;
+
+    var errors = ViewData.ModelState
+        .SelectMany(entry => entry.Value!.Errors)
+        .Select(error => error.ErrorMessage)
+        .Where(message => !string.IsNullOrWhiteSpace(message))
+        .Distinct()
+        .ToList();
+
+    string Localize(string message) =>
+        message.StartsWith("validation.", StringComparison.Ordinal)
+        || message.StartsWith("admin.", StringComparison.Ordinal)
+            ? L[message].Value
+            : message;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@ViewData["Title"]</h1>
+        <p class="page-head__subtitle">@L["admin.migration.move.subtitle"]</p>
+    </div>
+    <a class="btn btn--ghost btn--sm" asp-action="Index">@L["admin.back"]</a>
+</div>
+
+@if (errors.Count > 0)
+{
+    <div class="alert alert--danger" role="alert" style="margin-block-end:var(--space-6)">
+        <div>
+            @foreach (var error in errors)
+            {
+                <div>@Localize(error)</div>
+            }
+        </div>
+    </div>
+}
+
+<section class="card" style="margin-block-end:var(--space-6)">
+    <dl class="detail-list">
+        <div>
+            <dt>@L["admin.service.member"]</dt>
+            <dd dir="ltr">@Model.UserName</dd>
+        </div>
+        <div>
+            <dt>@L["admin.service.plan"]</dt>
+            <dd>@Model.PlanNameEn</dd>
+        </div>
+        <div>
+            <dt>@L["admin.migration.currentServer"]</dt>
+            <dd dir="ltr">@(Model.CurrentServerKey ?? "—")</dd>
+        </div>
+    </dl>
+</section>
+
+@if (Model.Destinations.Count == 0)
+{
+    <div class="alert alert--warning" role="status">
+        @L["admin.migration.noDestination"]
+    </div>
+}
+else
+{
+    @*
+        A destination, and a note. What the customer ends up with — how much allowance is left and
+        when it expires — is read from the source panel and the service row at planning time, so
+        there is nothing on this form that could set either.
+    *@
+    <form method="post" asp-action="Migrate" asp-route-id="@Model.ServiceId" class="card">
+        <div class="stack">
+            <div class="field">
+                <label class="field__label" asp-for="DestinationServerId">
+                    @L["admin.migration.destination"]
+                </label>
+                <select class="input" asp-for="DestinationServerId" required>
+                    <option value="">—</option>
+                    @foreach (var server in Model.Destinations)
+                    {
+                        <option value="@server.Id" selected="@(server.Id == Model.DestinationServerId)">
+                            @server.Label
+                        </option>
+                    }
+                </select>
+                <p class="field__hint">@L["admin.migration.destination.hint"]</p>
+            </div>
+
+            <div class="field">
+                <label class="field__label" asp-for="Reason">@L["admin.migration.reason"]</label>
+                <input class="input" asp-for="Reason" />
+                <p class="field__hint">@L["admin.migration.reason.hint"]</p>
+            </div>
+
+            <div class="alert alert--info" role="status">
+                @L["admin.migration.explains"]
+            </div>
+
+            <div class="cluster">
+                <button type="submit" class="btn btn--primary">@L["admin.migration.start"]</button>
+                <a class="btn btn--ghost" asp-action="Index">@L["action.cancel"]</a>
+            </div>
+        </div>
+    </form>
+}

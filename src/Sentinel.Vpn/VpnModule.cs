@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Sentinel.Vpn.Panel;
 using Sentinel.Vpn.Delivery;
+using Sentinel.Vpn.Migration;
 using Sentinel.Vpn.Plans;
 using Sentinel.Vpn.Provisioning;
+using Sentinel.Vpn.Purchasing;
 using Sentinel.Vpn.Servers;
 
 namespace Sentinel.Vpn;
@@ -38,6 +40,12 @@ public static class VpnModule
         services.AddScoped<IProvisioningExecutor, ProvisioningExecutor>();
         services.AddScoped<IReconciliationService, ReconciliationService>();
         services.AddScoped<IDeliveryService, DeliveryService>();
+
+        services.AddScoped<IServiceMigrationManager, ServiceMigrationManager>();
+        services.AddScoped<IMigrationExecutor, MigrationExecutor>();
+
+        // Buying a plan. Both the wallet and purchases flags are checked inside it.
+        services.AddScoped<IPlanPurchaseService, PlanPurchaseService>();
 
         // Moves a dead panel out of selection before a customer's provisioning meets it.
         services.AddHostedService<ServerHealthService>();

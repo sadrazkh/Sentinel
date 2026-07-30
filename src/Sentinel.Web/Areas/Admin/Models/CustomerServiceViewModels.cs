@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Sentinel.Vpn.Domain;
+using Sentinel.Vpn.Migration;
 using Sentinel.Vpn.Provisioning;
 
 namespace Sentinel.Web.Areas.Admin.Models;
@@ -8,9 +9,15 @@ public sealed class CustomerServiceListViewModel
 {
     public required IReadOnlyList<CustomerServiceAdminRow> Services { get; init; }
 
+    /// <summary>Unfinished migrations, keyed by service, so a row can say what it is doing.</summary>
+    public required IReadOnlyDictionary<Guid, MigrationView> InFlightMigrations { get; init; }
+
     public required bool CanWrite { get; init; }
 
     public required string TimeZoneId { get; init; }
+
+    public MigrationView? MigrationFor(Guid serviceId) =>
+        InFlightMigrations.GetValueOrDefault(serviceId);
 
     /// <summary>
     /// Only the rows an operator has to do something about.
@@ -64,4 +71,62 @@ public sealed class CustomerServiceRenewViewModel
     [Range(1, 3650, ErrorMessage = "admin.error.planDurationInvalid")]
     [Display(Name = "admin.service.renewDays")]
     public int AdditionalDays { get; set; } = 30;
+}
+
+public sealed class MigrationListViewModel
+{
+    public required IReadOnlyList<MigrationView> Migrations { get; init; }
+
+    public required bool CanWrite { get; init; }
+
+    public required string TimeZoneId { get; init; }
+
+    /// <summary>
+    /// Migrations with the customer live on two panels right now.
+    /// <para>
+    /// Pulled out of the list rather than left to be spotted in it. Both panels count traffic against
+    /// their own copy of the allowance, so a window left open costs the customer quota — this is the
+    /// one thing on the page that is worse the longer nobody looks at it.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<MigrationView> DualActive =>
+        Migrations.Where(migration => migration.IsDualActive).ToList();
+}
+
+/// <summary>
+/// What an operator supplies to move a service.
+/// <para>
+/// A destination, and nothing else. No allowance, no expiry, no inbound: those are read from the
+/// source panel and the service row when the migration is planned, and a bindable property for any
+/// of them would be a customer's terms set from a form post.
+/// </para>
+/// </summary>
+public sealed class ServiceMigrationCreateViewModel
+{
+    public Guid ServiceId { get; set; }
+
+    [Display(Name = "admin.migration.destination")]
+    public Guid DestinationServerId { get; set; }
+
+    /// <summary>
+    /// Used only when no server is named — "anywhere healthy in this country", which is the usual
+    /// shape of the request when an operator is emptying a box.
+    /// </summary>
+    [StringLength(2, MinimumLength = 2, ErrorMessage = "validation.length")]
+    [RegularExpression("^[A-Za-z]{2}$", ErrorMessage = "admin.error.vpnServerCountryInvalid")]
+    [Display(Name = "admin.migration.country")]
+    public string? CountryCode { get; set; }
+
+    [StringLength(500, ErrorMessage = "validation.tooLong")]
+    [Display(Name = "admin.migration.reason")]
+    public string? Reason { get; set; }
+
+    // Filled by the controller for display; never bound from the request.
+    public string? UserName { get; set; }
+
+    public string? PlanNameEn { get; set; }
+
+    public string? CurrentServerKey { get; set; }
+
+    public IReadOnlyList<(Guid Id, string Label)> Destinations { get; set; } = [];
 }

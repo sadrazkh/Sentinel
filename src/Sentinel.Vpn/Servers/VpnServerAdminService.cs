@@ -522,4 +522,12 @@ public static class VpnAuditActions
     public const string ServiceLinkRotated = "vpn.service.link.rotated";
     public const string ServiceNeedsAttention = "vpn.service.needsAttention";
     public const string ServiceReconciled = "vpn.service.reconciled";
+
+    public const string ServiceMigrationPlanned = "vpn.migration.planned";
+    public const string ServiceMigrationVerified = "vpn.migration.verified";
+    public const string ServiceMigrationCompleted = "vpn.migration.completed";
+    public const string ServiceMigrationRolledBack = "vpn.migration.rolledBack";
+    public const string ServiceMigrationAbandoned = "vpn.migration.abandoned";
+    public const string ServiceMigrationNeedsAttention = "vpn.migration.needsAttention";
+    public const string ServiceMigrationReconciled = "vpn.migration.reconciled";
 }

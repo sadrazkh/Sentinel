@@ -23,6 +23,10 @@ public sealed class ProvisioningTests : IClassFixture<VpnTestFactory>, IAsyncLif
     private const long FiftyGibibytes = 53_687_091_200L;
     private const string PanelToken = "integration-only-panel-token-24680";
 
+    /// <summary>Every server in this suite shares one panel address; none of these tests moves a
+    /// service between panels, which is what <c>MigrationTests</c> is for.</summary>
+    private const string PanelUrl = "https://panel.example.com:2053";
+
     private readonly VpnTestFactory _factory;
 
     public ProvisioningTests(VpnTestFactory factory) => _factory = factory;
@@ -66,7 +70,7 @@ public sealed class ProvisioningTests : IClassFixture<VpnTestFactory>, IAsyncLif
 
             var created = await admin.SaveAsync(null, new VpnServerSaveRequest(
                 key, $"سرور {key}", $"Server {key}", country,
-                "https://panel.example.com:2053", PanelToken,
+                PanelUrl, PanelToken,
                 VpnServerStatus.Active, maxClients, 100, null, null));
 
             Assert.True(created.Succeeded, created.ErrorKey);
@@ -310,7 +314,7 @@ public sealed class ProvisioningTests : IClassFixture<VpnTestFactory>, IAsyncLif
         Assert.Equal(CustomerServiceStatus.NeedsAttention, parked.Status);
 
         // Simulate the truth: the client is on the panel after all.
-        _factory.Panel.PlantClient(parked.PanelClientEmail!, [1]);
+        _factory.Panel.PlantClient(PanelUrl, parked.PanelClientEmail!, [1]);
 
         Assert.Equal(1, await ReconcileAsync());
 
@@ -369,9 +373,7 @@ public sealed class ProvisioningTests : IClassFixture<VpnTestFactory>, IAsyncLif
         Assert.Equal(CustomerServiceStatus.NeedsAttention, (await LoadServiceAsync(serviceId)).Status);
 
         // The truth: it is gone.
-        await _factory.WithScopeAsync(services =>
-            services.GetRequiredService<IThreeXUiClient>()
-                .DeleteClientAsync(new PanelEndpoint("https://x", "y"), service.PanelClientEmail!, false));
+        _factory.Panel.RemoveClient(PanelUrl, service.PanelClientEmail!);
 
         Assert.Equal(1, await ReconcileAsync());
 
@@ -507,7 +509,7 @@ public sealed class ProvisioningTests : IClassFixture<VpnTestFactory>, IAsyncLif
         var serviceId = await ProvisionedServiceAsync("prov-usage");
         var service = await LoadServiceAsync(serviceId);
 
-        _factory.Panel.SetTraffic(service.PanelClientEmail!, 1_000_000, 2_000_000, FiftyGibibytes);
+        _factory.Panel.SetTraffic(PanelUrl, service.PanelClientEmail!, 1_000_000, 2_000_000, FiftyGibibytes);
 
         Assert.Equal(1, await SyncUsageAsync());
 
@@ -524,7 +526,7 @@ public sealed class ProvisioningTests : IClassFixture<VpnTestFactory>, IAsyncLif
         var serviceId = await ProvisionedServiceAsync("prov-exhausted");
         var service = await LoadServiceAsync(serviceId);
 
-        _factory.Panel.SetTraffic(service.PanelClientEmail!, FiftyGibibytes, 1, FiftyGibibytes);
+        _factory.Panel.SetTraffic(PanelUrl, service.PanelClientEmail!, FiftyGibibytes, 1, FiftyGibibytes);
 
         await SyncUsageAsync();
 
@@ -542,7 +544,7 @@ public sealed class ProvisioningTests : IClassFixture<VpnTestFactory>, IAsyncLif
             services.GetRequiredService<ICustomerServiceManager>().SuspendAsync(serviceId));
         await RunJobsAsync();
 
-        _factory.Panel.SetTraffic(service.PanelClientEmail!, 10, 10, FiftyGibibytes);
+        _factory.Panel.SetTraffic(PanelUrl, service.PanelClientEmail!, 10, 10, FiftyGibibytes);
         await SyncUsageAsync();
 
         Assert.Equal(CustomerServiceStatus.Suspended, (await LoadServiceAsync(serviceId)).Status);
@@ -555,9 +557,7 @@ public sealed class ProvisioningTests : IClassFixture<VpnTestFactory>, IAsyncLif
         var service = await LoadServiceAsync(serviceId);
 
         // Removed behind the portal's back — somebody deleted it in the panel's own UI.
-        await _factory.WithScopeAsync(services =>
-            services.GetRequiredService<IThreeXUiClient>()
-                .DeleteClientAsync(new PanelEndpoint("https://x", "y"), service.PanelClientEmail!, false));
+        _factory.Panel.RemoveClient(PanelUrl, service.PanelClientEmail!);
 
         await SyncUsageAsync();
 

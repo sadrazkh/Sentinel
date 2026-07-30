@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Domain.Auditing;
+using Sentinel.Domain.Billing;
 using Sentinel.Domain.Products;
 using Sentinel.Domain.Entitlements;
 using Sentinel.Domain.Identity;
@@ -53,5 +54,29 @@ public interface ISentinelDbContext
 
     DbSet<SubscriptionSource> SubscriptionSources { get; }
 
+    DbSet<Wallet> Wallets { get; }
+
+    DbSet<WalletTransaction> WalletTransactions { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Re-reads a tracked entity, discarding local changes.
+    /// <para>
+    /// Needed after a concurrency conflict: the tracked copy still carries the original token, so
+    /// retrying with it would resubmit the same losing UPDATE for ever.
+    /// </para>
+    /// </summary>
+    Task ReloadAsync<TEntity>(TEntity entity, CancellationToken cancellationToken = default)
+        where TEntity : class;
+
+    /// <summary>
+    /// Stops tracking an entity.
+    /// <para>
+    /// Used when a failed save has to be retried with a fresh decision: the row that was going to be
+    /// inserted is no longer the row that should be, and leaving it attached would insert the stale
+    /// one on the next save.
+    /// </para>
+    /// </summary>
+    void Detach<TEntity>(TEntity entity) where TEntity : class;
 }

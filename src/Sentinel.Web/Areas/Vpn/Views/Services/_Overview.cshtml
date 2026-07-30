@@ -74,13 +74,40 @@
                             <p class="plan__note">@planDescription</p>
                         }
 
-                        @* No order button while purchasing is off. A disabled control that never
-                           becomes enabled is worse than the sentence below it. *@
+                        @*
+                            No order button while purchasing is off — the catalogue is then a price
+                            list, and a disabled control that never becomes enabled is worse than the
+                            sentence explaining why.
+
+                            The form carries a plan and a one-shot key. It carries no price: the
+                            amount is read from the plan row inside the transaction, so there is
+                            nothing here a crafted post could set.
+                        *@
                         @if (plan.CanOrder)
                         {
-                            <button type="button" class="btn btn--primary btn--sm" disabled>
-                                @L["plan.order"]
-                            </button>
+                            <form method="post" asp-action="Purchase" asp-route-key="@Model.ProductKey">
+                                <input type="hidden" name="planId" value="@plan.Id" />
+
+                                @* Fresh per render, so a double-submitted form buys once while a
+                                   deliberate second purchase later still goes through.
+
+                                   Parenthesised: `@Guid.NewGuid():N` makes Razor emit the Guid and
+                                   then the literal text ":N", because the colon ends the implicit
+                                   expression rather than introducing a format specifier. *@
+                                <input type="hidden"
+                                       name="idempotencyKey"
+                                       value="@(Guid.NewGuid().ToString("N"))" />
+
+                                <button type="submit"
+                                        class="btn btn--primary btn--sm"
+                                        data-confirm="@L["plan.orderConfirm",
+                                            PlanPresentation.DescribePrice(plan.PriceMinorUnits, plan.Currency, free)]"
+                                        data-confirm-title="@L["plan.order"]"
+                                        data-confirm-yes="@L["plan.order"]"
+                                        data-confirm-no="@L["action.cancel"]">
+                                    @L["plan.order"]
+                                </button>
+                            </form>
                         }
                     </article>
                 }

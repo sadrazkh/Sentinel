@@ -1,0 +1,202 @@
+@using Sentinel.Domain.Billing
+@using Sentinel.Web.Areas.Admin.Models
+@model WalletDetailViewModel
+@{
+    ViewData["Title"] = L["admin.wallet.title"].Value;
+
+    var statusMessage = TempData["StatusMessage"] as string;
+    var wallet = Model.Ledger?.Wallet;
+    var currency = wallet?.Currency ?? "IRR";
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-head__title">@Model.DisplayName</h1>
+        <p class="page-head__subtitle" dir="ltr">@Model.UserName</p>
+    </div>
+    <a class="btn btn--ghost btn--sm"
+       asp-controller="Users" asp-action="Details" asp-route-id="@Model.UserId">@L["admin.back"]</a>
+</div>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert alert--info" role="status">@statusMessage</div>
+}
+
+@if (Model.Ledger is not null && !Model.Ledger.IsConsistent)
+{
+    @* The ledger is the authority and the wallet's total is a cache of it. A divergence means
+       something wrote a balance without an entry — reported rather than silently corrected, because
+       quietly fixing the number would hide the bug that produced it. *@
+    <div class="alert alert--danger" role="alert">
+        @L["admin.wallet.inconsistent"]
+    </div>
+}
+
+<section class="card">
+    <div class="card__header">
+        <div>
+            <p class="card__hint">@L["wallet.balance"]</p>
+            <p class="stat__value" dir="ltr">
+                @PlanPresentation.DescribeMoney(wallet?.BalanceMinorUnits ?? 0, currency)
+            </p>
+        </div>
+
+        <div class="cluster">
+            @if (wallet?.IsFrozen == true)
+            {
+                <span class="badge badge--warning">@L["wallet.frozen"]</span>
+            }
+        </div>
+    </div>
+
+    @if (wallet?.IsFrozen == true && !string.IsNullOrWhiteSpace(wallet.FrozenReason))
+    {
+        <p class="text-xs text-muted">@wallet.FrozenReason</p>
+    }
+
+    @if (Model.CanWrite)
+    {
+        <div class="stack" style="margin-block-start:var(--space-5)">
+            @*
+                Two buttons, one form. The amount is in minor units and the member comes from the
+                route — this form decides the number and nothing else. The operator is taken from
+                the signed-in principal, never from a field.
+            *@
+            <form method="post" asp-action="Credit" asp-route-userId="@Model.UserId" class="stack stack--tight">
+                <div class="field">
+                    <label class="field__label" for="AmountMinorUnits">@L["admin.wallet.amount"]</label>
+                    <input class="input"
+                           id="AmountMinorUnits"
+                           name="AmountMinorUnits"
+                           type="number"
+                           min="1"
+                           step="1"
+                           inputmode="numeric"
+                           dir="ltr"
+                           required />
+                    <p class="field__hint">@L["admin.wallet.amount.hint", currency]</p>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="Description">@L["admin.wallet.description"]</label>
+                    <input class="input" id="Description" name="Description" />
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="Reference">@L["admin.wallet.reference"]</label>
+                    <input class="input" id="Reference" name="Reference" dir="ltr" />
+                    <p class="field__hint">@L["admin.wallet.reference.hint"]</p>
+                </div>
+
+                <div class="cluster">
+                    <button type="submit" class="btn btn--primary btn--sm">
+                        @L["admin.wallet.credit"]
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn--secondary btn--sm"
+                            formaction="@Url.Action("Debit", new { userId = Model.UserId })"
+                            data-confirm="@L["admin.wallet.debitConfirm"]"
+                            data-confirm-title="@L["admin.wallet.debit"]"
+                            data-confirm-yes="@L["admin.wallet.debit"]"
+                            data-confirm-no="@L["action.cancel"]">
+                        @L["admin.wallet.debit"]
+                    </button>
+                </div>
+            </form>
+
+            <form method="post" asp-action="Freeze" asp-route-userId="@Model.UserId" class="cluster">
+                <input type="hidden" name="frozen" value="@((!(wallet?.IsFrozen ?? false)).ToString().ToLowerInvariant())" />
+                <input class="input input--sm"
+                       name="reason"
+                       placeholder="@L["admin.wallet.freezeReason"]"
+                       aria-label="@L["admin.wallet.freezeReason"]" />
+                <button type="submit" class="btn btn--ghost btn--sm">
+                    @L[wallet?.IsFrozen == true ? "admin.wallet.unfreeze" : "admin.wallet.freeze"]
+                </button>
+            </form>
+        </div>
+    }
+</section>
+
+<h2 class="section-title" style="margin-block-start:var(--space-8)">@L["admin.wallet.ledger"]</h2>
+
+@if (Model.Entries.Count == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <p class="empty-state__title">@L["wallet.empty.title"]</p>
+            <p class="empty-state__body">@L["admin.wallet.empty.body"]</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div style="overflow-x:auto">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">@L["wallet.when"]</th>
+                        <th scope="col">@L["wallet.what"]</th>
+                        <th scope="col">@L["wallet.amount"]</th>
+                        <th scope="col">@L["wallet.balanceAfter"]</th>
+                        <th scope="col"><span class="visually-hidden">@L["admin.wallet.reverse"]</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in Model.Entries)
+                    {
+                        var isCredit = entry.Direction == WalletEntryDirection.Credit;
+
+                        <tr>
+                            <td>
+                                <time datetime="@UserTime.ToIso8601(entry.CreatedAt)">
+                                    @UserTime.Format(entry.CreatedAt, Model.TimeZoneId)
+                                </time>
+                            </td>
+                            <td>
+                                @L[PlanPresentation.WalletKindKey(entry.Kind)]
+                                @if (entry.IsReversed)
+                                {
+                                    <span class="badge badge--neutral">@L["admin.wallet.wasReversed"]</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(entry.Description))
+                                {
+                                    <span class="text-muted"> — @entry.Description</span>
+                                }
+                            </td>
+                            <td dir="ltr">
+                                @(isCredit ? "+" : "−")@PlanPresentation.DescribeMoney(entry.AmountMinorUnits, entry.Currency)
+                            </td>
+                            <td dir="ltr">
+                                @PlanPresentation.DescribeMoney(entry.BalanceAfterMinorUnits, entry.Currency)
+                            </td>
+                            <td>
+                                @* The only correction there is. Rows are never edited or removed —
+                                   this appends the opposite entry and links the two. *@
+                                @if (Model.CanWrite && entry.CanReverse)
+                                {
+                                    <form method="post"
+                                          asp-action="Reverse"
+                                          asp-route-userId="@Model.UserId"
+                                          asp-route-transactionId="@entry.Id">
+                                        <button type="submit"
+                                                class="btn btn--ghost btn--sm"
+                                                data-confirm="@L["admin.wallet.reverseConfirm"]"
+                                                data-confirm-title="@L["admin.wallet.reverse"]"
+                                                data-confirm-yes="@L["admin.wallet.reverse"]"
+                                                data-confirm-no="@L["action.cancel"]">
+                                            @L["admin.wallet.reverse"]
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

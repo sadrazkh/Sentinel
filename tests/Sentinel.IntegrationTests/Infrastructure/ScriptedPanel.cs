@@ -13,12 +13,25 @@ namespace Sentinel.IntegrationTests.Infrastructure;
 /// <see cref="PanelOutcome.UnknownOutcome"/> on the third call but not the first is far easier to
 /// express here than by orchestrating a socket.
 /// </para>
+/// <para>
+/// State is kept <b>per endpoint</b>, not per e-mail. One instance therefore stands in for every
+/// panel the portal talks to, which is what migration needs: "the client is on the source and not yet
+/// on the destination" is the state the whole saga turns on, and a store keyed by e-mail alone cannot
+/// express it.
+/// </para>
 /// </summary>
 public sealed class ScriptedPanel : IThreeXUiClient
 {
+    /// <summary>Keyed by "baseUrl\nemail", so each panel has its own set of clients.</summary>
     private readonly ConcurrentDictionary<string, PanelClient> _clients = new(StringComparer.Ordinal);
+
     private readonly ConcurrentDictionary<string, PanelClientTraffic> _traffic = new(StringComparer.Ordinal);
-    private readonly ConcurrentBag<string> _calls = [];
+
+    /// <summary>Traffic records kept by a delete with <c>keepTraffic: true</c>.</summary>
+    private readonly ConcurrentDictionary<string, PanelClientTraffic> _retainedTraffic =
+        new(StringComparer.Ordinal);
+
+    private readonly ConcurrentQueue<string> _calls = new();
 
     /// <summary>Forces the next call of a given kind to answer a particular way.</summary>
     private readonly ConcurrentDictionary<string, Queue<PanelOutcome>> _scripted = new(StringComparer.Ordinal);
@@ -26,10 +39,7 @@ public sealed class ScriptedPanel : IThreeXUiClient
     private readonly Lock _sync = new();
 
     /// <summary>Every call made, in order, as "operation:argument". Lets a test assert on the flow.</summary>
-    public IReadOnlyList<string> Calls => _calls.Reverse().ToList();
-
-    /// <summary>Clients the fake panel currently holds, as the real one would.</summary>
-    public IReadOnlyDictionary<string, PanelClient> Clients => _clients;
+    public IReadOnlyList<string> Calls => _calls.ToList();
 
     /// <summary>When true, every call answers <see cref="PanelOutcome.UnknownOutcome"/>.</summary>
     public bool AllCallsUnknown { get; set; }
@@ -59,18 +69,56 @@ public sealed class ScriptedPanel : IThreeXUiClient
         }
     }
 
-    /// <summary>Puts a client on the panel without the portal having asked, to simulate a lost write.</summary>
-    public void PlantClient(string email, IReadOnlyList<int> inboundIds)
+    // -------------------------------------------------------------------- test observation ----
+
+    /// <summary>Every client on every panel, keyed by e-mail. For assertions that ignore placement.</summary>
+    public IReadOnlyDictionary<string, PanelClient> Clients =>
+        _clients.ToDictionary(entry => EmailOf(entry.Key), entry => entry.Value, StringComparer.Ordinal);
+
+    /// <summary>Whether a given panel holds this client. The question migration is really about.</summary>
+    public bool Has(string baseUrl, string email) => _clients.ContainsKey(Key(baseUrl, email));
+
+    public PanelClient? ClientOn(string baseUrl, string email) =>
+        _clients.TryGetValue(Key(baseUrl, email), out var client) ? client : null;
+
+    /// <summary>How many panels hold a client with this e-mail. Two means dual-active.</summary>
+    public int PanelCountFor(string email) =>
+        _clients.Keys.Count(key => EmailOf(key).Equals(email, StringComparison.Ordinal));
+
+    /// <summary>Whether a delete left the traffic record behind, which is what keepTraffic means.</summary>
+    public bool HasRetainedTraffic(string baseUrl, string email) =>
+        _retainedTraffic.ContainsKey(Key(baseUrl, email));
+
+    /// <summary>Puts a client on one panel without the portal having asked, to simulate a lost write.</summary>
+    public void PlantClient(string baseUrl, string email, IReadOnlyList<int> inboundIds)
     {
-        _clients[email] = new PanelClient(email, "planted-sub", true, 0, null, 0, inboundIds);
-        _traffic[email] = new PanelClientTraffic(email, 0, 0, 0, true, null, null, inboundIds.FirstOrDefault());
+        var key = Key(baseUrl, email);
+
+        _clients[key] = new PanelClient(email, "planted-sub", true, 0, null, 0, inboundIds);
+        _traffic[key] = new PanelClientTraffic(
+            email, 0, 0, 0, true, null, null, inboundIds.FirstOrDefault());
     }
 
-    public void SetTraffic(string email, long uploadBytes, long downloadBytes, long allowanceBytes)
+    /// <summary>Removes a client from one panel behind the portal's back.</summary>
+    public void RemoveClient(string baseUrl, string email)
     {
-        _traffic[email] = new PanelClientTraffic(
+        var key = Key(baseUrl, email);
+
+        _clients.TryRemove(key, out _);
+        _traffic.TryRemove(key, out _);
+    }
+
+    public void SetTraffic(string baseUrl, string email, long uploadBytes, long downloadBytes, long allowanceBytes)
+    {
+        _traffic[Key(baseUrl, email)] = new PanelClientTraffic(
             email, uploadBytes, downloadBytes, allowanceBytes, true, null, DateTimeOffset.UtcNow, 1);
     }
+
+    // ---------------------------------------------------------------------------- plumbing ----
+
+    private static string Key(string baseUrl, string email) => $"{baseUrl}\n{email}";
+
+    private static string EmailOf(string key) => key[(key.IndexOf('\n') + 1)..];
 
     private PanelOutcome? NextScripted(string operation)
     {
@@ -92,7 +140,7 @@ public sealed class ScriptedPanel : IThreeXUiClient
 
     private PanelResult<T>? Intercept<T>(string operation, string? argument = null)
     {
-        _calls.Add(argument is null ? operation : $"{operation}:{argument}");
+        _calls.Enqueue(argument is null ? operation : $"{operation}:{argument}");
 
         return NextScripted(operation) is { } forced
             ? PanelResult<T>.Failure(forced, $"scripted {forced}")
@@ -127,7 +175,7 @@ public sealed class ScriptedPanel : IThreeXUiClient
         }
 
         return Task.FromResult(
-            _clients.TryGetValue(email, out var client)
+            _clients.TryGetValue(Key(endpoint.BaseUrl, email), out var client)
                 ? PanelResult<PanelClient>.Success(client)
                 : PanelResult<PanelClient>.Failure(PanelOutcome.NotFound));
     }
@@ -143,7 +191,7 @@ public sealed class ScriptedPanel : IThreeXUiClient
         }
 
         return Task.FromResult(
-            _traffic.TryGetValue(email, out var traffic)
+            _traffic.TryGetValue(Key(endpoint.BaseUrl, email), out var traffic)
                 ? PanelResult<PanelClientTraffic>.Success(traffic)
                 : PanelResult<PanelClientTraffic>.Failure(PanelOutcome.NotFound));
     }
@@ -159,7 +207,7 @@ public sealed class ScriptedPanel : IThreeXUiClient
         }
 
         return Task.FromResult(
-            _clients.ContainsKey(email)
+            _clients.ContainsKey(Key(endpoint.BaseUrl, email))
                 ? PanelResult<IReadOnlyList<string>>.Success(
                     [$"vless://uuid-for-{email}@host.example.com:443?type=tcp#{email}"])
                 : PanelResult<IReadOnlyList<string>>.Failure(PanelOutcome.NotFound));
@@ -193,8 +241,10 @@ public sealed class ScriptedPanel : IThreeXUiClient
             request.IpLimit,
             request.InboundIds);
 
-        _clients[request.Email] = client;
-        _traffic[request.Email] = new PanelClientTraffic(
+        var key = Key(endpoint.BaseUrl, request.Email);
+
+        _clients[key] = client;
+        _traffic[key] = new PanelClientTraffic(
             request.Email, 0, 0, request.TotalAllowanceBytes, request.Enabled,
             request.ExpiresAt, null, request.InboundIds.FirstOrDefault());
 
@@ -211,7 +261,9 @@ public sealed class ScriptedPanel : IThreeXUiClient
             return Task.FromResult(forced);
         }
 
-        if (!_clients.ContainsKey(request.Email))
+        var key = Key(endpoint.BaseUrl, request.Email);
+
+        if (!_clients.ContainsKey(key))
         {
             return Task.FromResult(PanelResult<PanelClient>.Failure(PanelOutcome.NotFound));
         }
@@ -225,7 +277,7 @@ public sealed class ScriptedPanel : IThreeXUiClient
             request.IpLimit,
             request.InboundIds);
 
-        _clients[request.Email] = client;
+        _clients[key] = client;
 
         return Task.FromResult(PanelResult<PanelClient>.Success(client));
     }
@@ -254,9 +306,11 @@ public sealed class ScriptedPanel : IThreeXUiClient
             return Task.FromResult(forced);
         }
 
-        if (_traffic.TryGetValue(email, out var traffic))
+        var key = Key(endpoint.BaseUrl, email);
+
+        if (_traffic.TryGetValue(key, out var traffic))
         {
-            _traffic[email] = traffic with { UploadBytes = 0, DownloadBytes = 0 };
+            _traffic[key] = traffic with { UploadBytes = 0, DownloadBytes = 0 };
         }
 
         return Task.FromResult(PanelResult<bool>.Success(true));
@@ -273,11 +327,15 @@ public sealed class ScriptedPanel : IThreeXUiClient
             return Task.FromResult(forced);
         }
 
-        _clients.TryRemove(email, out _);
+        var key = Key(endpoint.BaseUrl, email);
 
-        if (!keepTraffic)
+        _clients.TryRemove(key, out _);
+
+        if (_traffic.TryRemove(key, out var traffic) && keepTraffic)
         {
-            _traffic.TryRemove(email, out _);
+            // The panel keeps the usage row when asked to. Migration relies on this: it is the record
+            // of what the customer used before the move.
+            _retainedTraffic[key] = traffic;
         }
 
         return Task.FromResult(PanelResult<bool>.Success(true));

@@ -15,9 +15,11 @@ using Sentinel.Application.Security;
 using Sentinel.Application.Settings;
 using Sentinel.Application.Subscriptions;
 using Sentinel.Application.Users;
+using Sentinel.Application.Billing;
 using Sentinel.Infrastructure.Access;
 using Sentinel.Infrastructure.Accounts;
 using Sentinel.Infrastructure.Auditing;
+using Sentinel.Infrastructure.Billing;
 using Sentinel.Infrastructure.Catalog;
 using Sentinel.Infrastructure.Entitlements;
 using Sentinel.Infrastructure.Features;
@@ -103,6 +105,10 @@ public static class DependencyInjection
         services.AddScoped<IApplicationAdminService, ApplicationAdminService>();
         services.AddScoped<IEntitlementAdminQuery, EntitlementAdminQuery>();
         services.AddScoped<IEntitlementAdminService, EntitlementAdminService>();
+
+        // The credit ledger. Registered unconditionally; the feature flag is checked inside it, so
+        // a caller that slipped past a controller's gate is still refused where the money moves.
+        services.AddScoped<IWalletService, WalletService>();
 
         // Stateless once its root path is resolved.
         services.AddSingleton<IApplicationIconStorage, LocalApplicationIconStorage>();
